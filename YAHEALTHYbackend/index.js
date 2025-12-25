@@ -109,6 +109,8 @@ let userSurveys = [];
 let weightGoals = [];
 let weightLogs = [];
 
+const CALORIES_PER_KG = 7700; // Approximate calories required to lose 1kg of body weight
+const MIN_DAILY_CALORIES = 1200; // Safety floor to avoid unhealthy calorie targets
 const activityMultipliers = {
     athlete: 1.75,
     nonathlete: 1.3,
@@ -118,24 +120,42 @@ const activityMultipliers = {
     default: 1.3
 };
 
+function generateId() {
+    return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function getSexFactor(genderText) {
+    switch (genderText) {
+        case 'men':
+        case 'male':
+            return 1;
+        case 'women':
+        case 'female':
+            return 0;
+        default:
+            return 0.5;
+    }
+}
+
 function calculateSurveyMetrics(data) {
     const weightKg = Number(data.weightKg || 0);
     const targetWeightKg = data.targetWeightKg ? Number(data.targetWeightKg) : null;
     const heightM = data.heightCm ? data.heightCm / 100 : 0;
     const bmi = heightM && weightKg ? Number((weightKg / (heightM * heightM)).toFixed(1)) : null;
     const genderText = (data.gender || '').toLowerCase();
-    const sexFactor = genderText === 'men' || genderText === 'male' ? 1 : genderText === 'women' || genderText === 'female' ? 0 : 0.5;
+    const sexFactor = getSexFactor(genderText);
     const bodyFatPercentage = bmi !== null ? Number((1.2 * bmi + 0.23 * (data.age || 0) - 10.8 * sexFactor - 5.4).toFixed(1)) : null;
-    const activity = activityMultipliers[genderText] || activityMultipliers[(data.lifestyle || '').toLowerCase()] || activityMultipliers.default;
+    const activityKey = (data.lifestyle || '').toLowerCase().replace(/\s+/g, '');
+    const activity = activityMultipliers[activityKey] || activityMultipliers.default;
     const maintenanceCalories = weightKg ? Math.round(weightKg * activity * 22) : null;
 
     let recommendedDailyCalories = maintenanceCalories ? maintenanceCalories - 500 : null;
     if (maintenanceCalories && targetWeightKg !== null) {
         const totalLossKg = Math.max(0, weightKg - targetWeightKg);
         const targetDays = data.targetDays && data.targetDays > 0 ? data.targetDays : 90;
-        const totalDeficit = totalLossKg * 7700;
+        const totalDeficit = totalLossKg * CALORIES_PER_KG;
         const perDayDeficit = totalDeficit / targetDays;
-        recommendedDailyCalories = Math.max(1200, Math.round(maintenanceCalories - perDayDeficit));
+        recommendedDailyCalories = Math.max(MIN_DAILY_CALORIES, Math.round(maintenanceCalories - perDayDeficit));
     }
 
     return {
@@ -209,7 +229,7 @@ app.get('/api/surveys', (req, res) => {
 });
 
 app.post('/api/surveys', (req, res) => {
-    const survey = { ...req.body, id: Date.now().toString() };
+    const survey = { ...req.body, id: generateId() };
     const metrics = calculateSurveyMetrics(survey);
     const enrichedSurvey = { ...survey, metrics };
     userSurveys.push(enrichedSurvey);
@@ -227,7 +247,7 @@ app.post('/api/weight-goals', (req, res) => {
         return res.status(400).json({ message: "startWeightKg and targetWeightKg are required numbers" });
     }
     const goal = {
-        id: Date.now().toString(),
+        id: generateId(),
         userId: req.body.userId || 'anonymous',
         startWeightKg,
         targetWeightKg,
@@ -250,7 +270,7 @@ app.post('/api/weight-logs', (req, res) => {
         return res.status(400).json({ message: "weightKg is required" });
     }
     const newLog = {
-        id: Date.now().toString(),
+        id: generateId(),
         goalId: goal.id,
         date: req.body.date || new Date().toISOString(),
         weightKg
