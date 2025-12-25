@@ -147,9 +147,18 @@ function getSexFactor(genderText) {
     }
 }
 
+function normalizeLifestyle(value) {
+    return (value || '').toLowerCase().replace(/\s+/g, '');
+}
+
 function calculateBodyFatPercentage(bmi, age, sexFactor) {
     if (bmi === null) return null;
     return Number((BODY_FAT_BMI_COEF * bmi + BODY_FAT_AGE_COEF * (age || 0) - BODY_FAT_SEX_COEF * sexFactor - BODY_FAT_BASE).toFixed(1));
+}
+
+function isRealisticNumber(value, min, max) {
+    const num = Number(value);
+    return Number.isFinite(num) && num >= min && num <= max;
 }
 
 function calculateSurveyMetrics(data) {
@@ -162,8 +171,9 @@ function calculateSurveyMetrics(data) {
     const genderText = (data.gender || '').toLowerCase();
     const sexFactor = getSexFactor(genderText);
     const bodyFatPercentage = calculateBodyFatPercentage(bmi, data.age, sexFactor);
-    const activityKey = (data.lifestyle || '').toLowerCase().replace(/\s+/g, '');
+    const activityKey = normalizeLifestyle(data.lifestyle);
     const activity = activityMultipliers[activityKey] || activityMultipliers.default;
+    // Rough maintenance estimate: ~22 kcal per kg with activity multiplier
     const maintenanceCalories = weightKg ? Math.round(weightKg * activity * 22) : null;
     const calorieFloor = data.calorieFloor && Number(data.calorieFloor) > 0 ? Number(data.calorieFloor) : MIN_DAILY_CALORIES;
 
@@ -200,7 +210,7 @@ function calculateGoalProgress(goal) {
     const lastProgressDate = latestLog ? new Date(latestLog.date) : today;
     const daysElapsed = Math.max(0, Math.round((lastProgressDate - startDate) / (1000 * 60 * 60 * 24)));
     const expectedLossByNow = totalDays ? Math.min(totalLossKg, (totalLossKg / totalDays) * daysElapsed) : 0;
-    const celebration = totalLossKg > 0 && lostSoFarKg >= expectedLossByNow;
+    const celebration = totalLossKg > 0 && lostSoFarKg >= expectedLossByNow && lostSoFarKg > 0;
 
     return {
         goal,
@@ -254,7 +264,7 @@ app.post('/api/surveys', (req, res) => {
     const heightCm = Number(req.body.heightCm);
     const weightKg = Number(req.body.weightKg);
     const age = Number(req.body.age);
-    if (!Number.isFinite(heightCm) || heightCm <= 0 || heightCm > 300 || !Number.isFinite(weightKg) || weightKg <= 0 || weightKg > 500 || !Number.isFinite(age) || age <= 0 || age > 150) {
+    if (!isRealisticNumber(heightCm, 1, 300) || !isRealisticNumber(weightKg, 1, 500) || !isRealisticNumber(age, 1, 150)) {
         return res.status(400).json({ message: "heightCm, weightKg, and age must be within realistic positive ranges for survey insights" });
     }
     const survey = { ...req.body, id: generateId() };
