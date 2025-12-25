@@ -132,6 +132,38 @@ const activityMultipliers = {
     default: 1.3
 };
 
+function buildWeeklyGroceryPlan(dailyCalories) {
+    if (!Number.isFinite(dailyCalories) || dailyCalories <= 0) return null;
+    const weeklyCalories = dailyCalories * 7;
+    const splits = {
+        produce: 0.35,
+        protein: 0.25,
+        carbs: 0.25,
+        fats: 0.15
+    };
+    const grams = {
+        produce: Math.round((weeklyCalories * splits.produce) / 0.6), // assume ~0.6 kcal per gram mixed produce
+        protein: Math.round((weeklyCalories * splits.protein) / 4), // 4 kcal/g
+        carbs: Math.round((weeklyCalories * splits.carbs) / 4), // 4 kcal/g
+        fats: Math.round((weeklyCalories * splits.fats) / 9) // 9 kcal/g
+    };
+
+    const bundle = [
+        { category: "vegetables", amount: `${Math.round(grams.produce * 0.6)} g`, suggestion: "leafy greens, peppers, broccoli" },
+        { category: "fruits", amount: `${Math.round(grams.produce * 0.4)} g`, suggestion: "berries, apples, citrus" },
+        { category: "protein", amount: `${grams.protein} g`, suggestion: "chicken, fish, tofu, legumes" },
+        { category: "carbs", amount: `${grams.carbs} g`, suggestion: "whole grains, quinoa, sweet potatoes" },
+        { category: "fats", amount: `${grams.fats} g`, suggestion: "olive oil, nuts, seeds, avocado" }
+    ];
+
+    return {
+        dailyCalories,
+        weeklyCalories,
+        grams,
+        bundle
+    };
+}
+
 function generateId() {
     return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -188,6 +220,11 @@ function calculateSurveyMetrics(data) {
         recommendedDailyCalories = Math.max(calorieFloor, Math.round(maintenanceCalories - perDayDeficit));
     }
 
+    const waterLitersTarget = hasWeight ? Number((Math.max(2, weightKg * 0.033)).toFixed(2)) : null;
+    const sleepHoursTarget = Number.isFinite(data.age)
+        ? (data.age < 18 ? 9 : data.age < 65 ? 8 : 7.5)
+        : 8;
+
     return {
         bmi,
         bodyFatPercentage,
@@ -195,7 +232,9 @@ function calculateSurveyMetrics(data) {
         recommendedDailyCalories,
         activityMultiplierUsed: activity,
         lifestyleAccepted: Boolean(activityMultipliers[activityKey]),
-        calorieFloorUsed: calorieFloor
+        calorieFloorUsed: calorieFloor,
+        waterLitersTarget,
+        sleepHoursTarget
     };
 }
 
@@ -213,6 +252,13 @@ function calculateGoalProgress(goal) {
     const daysElapsed = Math.max(0, Math.round((lastProgressDate - startDate) / (1000 * 60 * 60 * 24)));
     const expectedLossByNow = totalDays ? Math.min(totalLossKg, (totalLossKg / totalDays) * daysElapsed) : 0;
     const celebration = totalLossKg > 0 && lostSoFarKg >= expectedLossByNow && lostSoFarKg > 0;
+    const progressColor = lostSoFarKg / (totalLossKg || 1);
+    const progressStatus = progressColor >= 0.8 ? 'green' : progressColor >= 0.4 ? 'yellow' : 'red';
+
+    const waterTarget = goal.waterLitersTarget || (goal.startWeightKg ? Number((Math.max(2, goal.startWeightKg * 0.033)).toFixed(2)) : null);
+    const sleepTarget = goal.sleepHoursTarget || 8;
+    const hydrationStatus = latestLog?.waterLiters && waterTarget ? (latestLog.waterLiters >= waterTarget ? 'green' : 'red') : 'yellow';
+    const sleepStatus = latestLog?.sleepHours && sleepTarget ? (latestLog.sleepHours >= sleepTarget ? 'green' : 'red') : 'yellow';
 
     return {
         goal,
@@ -223,12 +269,23 @@ function calculateGoalProgress(goal) {
         progressPercent: totalLossKg ? Number(((lostSoFarKg / totalLossKg) * 100).toFixed(1)) : 0,
         expectedLossByNow: Number(expectedLossByNow.toFixed(2)),
         celebration,
-        logs: relatedLogs
+        logs: relatedLogs,
+        statusColors: {
+            weight: progressStatus,
+            water: hydrationStatus,
+            sleep: sleepStatus
+        }
     };
 }
 
 app.get('/api/recipes', (req, res) => {
-    res.json(recipes);
+    res.json(recipes.map(r => ({ ...r, shareUrl: `/share/recipes/${r.id}` })));
+});
+
+app.get('/api/recipes/shuffle', (req, res) => {
+    const limit = Number(req.query.limit) || recipes.length;
+    const shuffled = [...recipes].sort(() => Math.random() - 0.5).slice(0, limit);
+    res.json(shuffled);
 });
 
 app.get('/api/meal-plans', (req, res) => {
@@ -276,6 +333,19 @@ app.post('/api/surveys', (req, res) => {
     res.status(201).json(enrichedSurvey);
 });
 
+app.post('/api/grocery-plan', (req, res) => {
+    let dailyCalories = Number(req.body.dailyCalories);
+    if (!dailyCalories && req.body.surveyId) {
+        const found = userSurveys.find(s => s.id === req.body.surveyId);
+        dailyCalories = found?.metrics?.recommendedDailyCalories || found?.metrics?.maintenanceCalories;
+    }
+    const plan = buildWeeklyGroceryPlan(dailyCalories);
+    if (!plan) {
+        return res.status(400).json({ message: "dailyCalories is required or must be derivable from surveyId" });
+    }
+    res.json(plan);
+});
+
 app.get('/api/weight-goals', (req, res) => {
     res.json(weightGoals.map(goal => calculateGoalProgress(goal)));
 });
@@ -294,7 +364,9 @@ app.post('/api/weight-goals', (req, res) => {
         weighInDays: req.body.weighInDays || [],
         startDate: req.body.startDate || new Date().toISOString(),
         targetDate: req.body.targetDate || null,
-        notes: req.body.notes || ''
+        notes: req.body.notes || '',
+        waterLitersTarget: Number(req.body.waterLitersTarget) || Number((Math.max(2, startWeightKg * 0.033)).toFixed(2)),
+        sleepHoursTarget: Number(req.body.sleepHoursTarget) || 8
     };
     weightGoals.push(goal);
     res.status(201).json(calculateGoalProgress(goal));
@@ -313,7 +385,9 @@ app.post('/api/weight-logs', (req, res) => {
         id: generateId(),
         goalId: goal.id,
         date: req.body.date || new Date().toISOString(),
-        weightKg
+        weightKg,
+        waterLiters: Number(req.body.waterLiters) || null,
+        sleepHours: Number(req.body.sleepHours) || null
     };
     weightLogs.push(newLog);
     res.status(201).json({ log: newLog, progress: calculateGoalProgress(goal) });
