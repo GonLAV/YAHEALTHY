@@ -139,6 +139,15 @@ const features = [
     { id: "f30", name: "Export & share", description: "Share plans with trainers or friends" }
 ];
 
+const premiumFeatures = [
+    {
+        id: "p1",
+        name: "Live nutritionist coaching",
+        description: "Unlimited chat and weekly video check-ins with licensed dietitians for personalized guidance",
+        price: "usd_29.99_month"
+    }
+];
+
 app.get('/api/recipes', (req, res) => {
     res.json(recipes);
 });
@@ -172,6 +181,10 @@ app.delete('/api/meal-plans/:id', (req, res) => {
 
 app.get('/api/features', (req, res) => {
     res.json(features);
+});
+
+app.get('/api/premium-features', (req, res) => {
+    res.json(premiumFeatures);
 });
 
 app.listen(PORT, () => {
