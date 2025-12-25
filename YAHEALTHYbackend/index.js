@@ -112,6 +112,7 @@ let fastingWindows = [];
 let readinessLogs = [];
 let travelModes = [];
 let offlineLogs = [];
+let streakLogs = [];
 
 /**
  * Health calculation constants (simplified, non-medical guidance):
@@ -126,6 +127,11 @@ const DEFAULT_DAILY_DEFICIT = 500;
 const PROTEIN_MIN_G_PER_KG = 1.2; // general guideline
 const FIBER_MIN_GRAMS = 25;
 const WATER_ACTIVITY_L_PER_MIN = 0.012; // rough add-on per active minute
+const STREAK_DAY_TOLERANCE = 1.1; // days
+const READINESS_HRV_WEIGHT = 50;
+const READINESS_SLEEP_WEIGHT = 50;
+const READINESS_SLEEP_REF = 8;
+const DEFAULT_WATER_REMINDER_TIMES = ["08:00", "11:00", "14:00", "17:00", "20:00"];
 const BODY_FAT_BMI_COEF = 1.2;
 const BODY_FAT_AGE_COEF = 0.23;
 const BODY_FAT_SEX_COEF = 10.8;
@@ -236,7 +242,8 @@ function planLeftovers(servings, days) {
 
 function readinessScore(hrv, restingHr, sleepHours) {
     if (!Number.isFinite(hrv) || !Number.isFinite(restingHr) || !Number.isFinite(sleepHours)) return null;
-    const normalized = Math.max(0, Math.min(100, (hrv / restingHr) * 50 + (sleepHours / 8) * 50));
+    // Simple blended readiness: HRV/resting HR plus sleep vs reference
+    const normalized = Math.max(0, Math.min(100, (hrv / restingHr) * READINESS_HRV_WEIGHT + (sleepHours / READINESS_SLEEP_REF) * READINESS_SLEEP_WEIGHT));
     const status = normalized >= 75 ? "green" : normalized >= 55 ? "yellow" : "red";
     return { score: Number(normalized.toFixed(1)), status };
 }
@@ -246,7 +253,8 @@ function waterReminderPlan(weightKg, activityMinutes) {
     const base = Math.max(2, weightKg * 0.033);
     const extra = Math.max(0, activityMinutes || 0) * WATER_ACTIVITY_L_PER_MIN;
     const targetLiters = Number((base + extra).toFixed(2));
-    const reminders = ["08:00", "11:00", "14:00", "17:00", "20:00"].map(time => ({ time, amountLiters: Number((targetLiters / 5).toFixed(2)) }));
+    const times = Array.isArray(DEFAULT_WATER_REMINDER_TIMES) && DEFAULT_WATER_REMINDER_TIMES.length ? DEFAULT_WATER_REMINDER_TIMES : ["09:00", "12:00", "15:00", "18:00"];
+    const reminders = times.map(time => ({ time, amountLiters: Number((targetLiters / times.length).toFixed(2)) }));
     return { targetLiters, reminders };
 }
 
@@ -263,7 +271,7 @@ function streakFromDates(dates = []) {
     let current = 1, longest = 1;
     for (let i = 1; i < days.length; i++) {
         const diff = (days[i] - days[i - 1]) / (1000 * 60 * 60 * 24);
-        if (diff <= 1.1) {
+        if (diff <= STREAK_DAY_TOLERANCE) {
             current += 1;
         } else {
             longest = Math.max(longest, current);
@@ -552,7 +560,11 @@ app.post('/api/sleep-debt', (req, res) => {
 app.post('/api/streaks', (req, res) => {
     const dates = req.body.dates || [];
     const result = streakFromDates(dates);
-    const entry = { id: generateId(), userId: req.body.userId || 'anonymous', dates, ...result };
+    const userId = req.body.userId || 'anonymous';
+    const entry = { id: generateId(), userId, dates, ...result };
+    // replace any existing streak for user
+    streakLogs = streakLogs.filter(s => s.userId !== userId);
+    streakLogs.push(entry);
     res.json(entry);
 });
 
@@ -573,9 +585,15 @@ app.get('/api/travel-mode', (req, res) => {
 
 app.post('/api/offline-logs', (req, res) => {
     const entries = Array.isArray(req.body.entries) ? req.body.entries : [];
-    const stored = entries.map(e => ({ ...e, id: generateId(), synced: false }));
-    offlineLogs.push(...stored);
-    res.status(201).json({ stored });
+    if (!entries.length || entries.length > 100) {
+        return res.status(400).json({ message: "entries array required (max 100)" });
+    }
+    const valid = entries
+        .filter(e => e && typeof e === 'object' && typeof e.type === 'string' && e.data)
+        .map(e => ({ type: e.type, data: e.data, timestamp: e.timestamp || new Date().toISOString(), id: generateId(), synced: false }));
+    if (!valid.length) return res.status(400).json({ message: "entries must include type and data" });
+    offlineLogs.push(...valid);
+    res.status(201).json({ stored: valid });
 });
 
 app.get('/api/weight-goals', (req, res) => {
