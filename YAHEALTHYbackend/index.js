@@ -109,6 +109,9 @@ let userSurveys = [];
 let weightGoals = [];
 let weightLogs = [];
 let fastingWindows = [];
+let readinessLogs = [];
+let travelModes = [];
+let offlineLogs = [];
 
 /**
  * Health calculation constants (simplified, non-medical guidance):
@@ -122,6 +125,7 @@ const BASE_KCAL_PER_KG = 22;
 const DEFAULT_DAILY_DEFICIT = 500;
 const PROTEIN_MIN_G_PER_KG = 1.2; // general guideline
 const FIBER_MIN_GRAMS = 25;
+const WATER_ACTIVITY_L_PER_MIN = 0.012; // rough add-on per active minute
 const BODY_FAT_BMI_COEF = 1.2;
 const BODY_FAT_AGE_COEF = 0.23;
 const BODY_FAT_SEX_COEF = 10.8;
@@ -226,6 +230,58 @@ function planLeftovers(servings, days) {
             { day: 1, action: "Fresh cook & portion" },
             { day: Math.min(keepDays, 3), action: "Reheat half" },
             { day: keepDays, action: "Freeze remaining and label" }
+        ]
+    };
+}
+
+function readinessScore(hrv, restingHr, sleepHours) {
+    if (!Number.isFinite(hrv) || !Number.isFinite(restingHr) || !Number.isFinite(sleepHours)) return null;
+    const normalized = Math.max(0, Math.min(100, (hrv / restingHr) * 50 + (sleepHours / 8) * 50));
+    const status = normalized >= 75 ? "green" : normalized >= 55 ? "yellow" : "red";
+    return { score: Number(normalized.toFixed(1)), status };
+}
+
+function waterReminderPlan(weightKg, activityMinutes) {
+    if (!Number.isFinite(weightKg) || weightKg <= 0) return null;
+    const base = Math.max(2, weightKg * 0.033);
+    const extra = Math.max(0, activityMinutes || 0) * WATER_ACTIVITY_L_PER_MIN;
+    const targetLiters = Number((base + extra).toFixed(2));
+    const reminders = ["08:00", "11:00", "14:00", "17:00", "20:00"].map(time => ({ time, amountLiters: Number((targetLiters / 5).toFixed(2)) }));
+    return { targetLiters, reminders };
+}
+
+function sleepDebt(targetHours, sleepHoursList = []) {
+    if (!Number.isFinite(targetHours) || targetHours <= 0 || !Array.isArray(sleepHoursList) || sleepHoursList.length === 0) return null;
+    const avg = sleepHoursList.filter(Number.isFinite).reduce((a, b) => a + b, 0) / sleepHoursList.length;
+    const debt = Number((targetHours - avg).toFixed(2));
+    return { targetHours, averageSleep: Number(avg.toFixed(2)), debt };
+}
+
+function streakFromDates(dates = []) {
+    const days = dates.map(d => new Date(d)).filter(d => !isNaN(d)).sort((a, b) => a - b);
+    if (!days.length) return { current: 0, longest: 0 };
+    let current = 1, longest = 1;
+    for (let i = 1; i < days.length; i++) {
+        const diff = (days[i] - days[i - 1]) / (1000 * 60 * 60 * 24);
+        if (diff <= 1.1) {
+            current += 1;
+        } else {
+            longest = Math.max(longest, current);
+            current = 1;
+        }
+    }
+    longest = Math.max(longest, current);
+    return { current, longest };
+}
+
+function travelSuggestions(location, cuisine) {
+    return {
+        location: location || "unspecified",
+        cuisine: cuisine || "balanced",
+        suggestions: [
+            { meal: "Breakfast", idea: "Greek yogurt, berries, nuts" },
+            { meal: "Lunch", idea: "Grilled protein, mixed greens, olive oil" },
+            { meal: "Dinner", idea: "Fish, roasted veggies, quinoa" }
         ]
     };
 }
@@ -460,6 +516,66 @@ app.post('/api/leftovers-plan', (req, res) => {
     const plan = planLeftovers(servings, days);
     if (!plan) return res.status(400).json({ message: "servings must be positive" });
     res.json(plan);
+});
+
+app.post('/api/readiness', (req, res) => {
+    const hrv = Number(req.body.hrv);
+    const restingHr = Number(req.body.restingHr);
+    const sleepHours = Number(req.body.sleepHours);
+    const result = readinessScore(hrv, restingHr, sleepHours);
+    if (!result) return res.status(400).json({ message: "hrv, restingHr, and sleepHours are required numbers" });
+    const entry = { id: generateId(), userId: req.body.userId || 'anonymous', hrv, restingHr, sleepHours, ...result, date: req.body.date || new Date().toISOString() };
+    readinessLogs.push(entry);
+    res.status(201).json(entry);
+});
+
+app.get('/api/readiness', (req, res) => {
+    res.json(readinessLogs);
+});
+
+app.post('/api/water-reminders', (req, res) => {
+    const weightKg = Number(req.body.weightKg);
+    const activityMinutes = Number(req.body.activityMinutes || 0);
+    const plan = waterReminderPlan(weightKg, activityMinutes);
+    if (!plan) return res.status(400).json({ message: "weightKg must be positive" });
+    res.json(plan);
+});
+
+app.post('/api/sleep-debt', (req, res) => {
+    const targetHours = Number(req.body.targetHours || 8);
+    const sleepHoursList = Array.isArray(req.body.sleepHours) ? req.body.sleepHours.map(Number) : [];
+    const result = sleepDebt(targetHours, sleepHoursList);
+    if (!result) return res.status(400).json({ message: "sleepHours array required" });
+    res.json(result);
+});
+
+app.post('/api/streaks', (req, res) => {
+    const dates = req.body.dates || [];
+    const result = streakFromDates(dates);
+    const entry = { id: generateId(), userId: req.body.userId || 'anonymous', dates, ...result };
+    res.json(entry);
+});
+
+app.post('/api/challenges/share', (req, res) => {
+    const name = req.body.name || "challenge";
+    res.json({ name, shareUrl: `/share/challenges/${encodeURIComponent(name)}` });
+});
+
+app.post('/api/travel-mode', (req, res) => {
+    const entry = { id: generateId(), userId: req.body.userId || 'anonymous', location: req.body.location, cuisine: req.body.cuisine, plan: travelSuggestions(req.body.location, req.body.cuisine) };
+    travelModes.push(entry);
+    res.status(201).json(entry);
+});
+
+app.get('/api/travel-mode', (req, res) => {
+    res.json(travelModes);
+});
+
+app.post('/api/offline-logs', (req, res) => {
+    const entries = Array.isArray(req.body.entries) ? req.body.entries : [];
+    const stored = entries.map(e => ({ ...e, id: generateId(), synced: false }));
+    offlineLogs.push(...stored);
+    res.status(201).json({ stored });
 });
 
 app.get('/api/weight-goals', (req, res) => {
