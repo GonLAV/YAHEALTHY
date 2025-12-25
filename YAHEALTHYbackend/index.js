@@ -607,12 +607,20 @@ app.post('/api/offline-logs', (req, res) => {
         .filter(e => {
             if (typeof e.data === 'string') return e.data.length <= MAX_STRING_DATA_LENGTH;
             try {
+                const keys = Object.keys(e.data || {});
+                if (keys.length > 50) return false;
                 return JSON.stringify(e.data).length <= MAX_JSON_DATA_LENGTH;
             } catch {
                 return false;
             }
         })
-        .map(e => ({ type: e.type, data: e.data, timestamp: e.timestamp || new Date().toISOString(), id: generateId(), synced: false }));
+        .map(e => ({
+            type: e.type,
+            data: e.data,
+            timestamp: e.timestamp || new Date().toISOString(),
+            id: generateId(),
+            synced: false
+        }));
     if (!valid.length) return res.status(400).json({ message: "entries must include type and data" });
     for (const v of valid) {
         offlineLogs.push(v);
