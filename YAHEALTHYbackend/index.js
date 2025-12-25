@@ -132,6 +132,7 @@ const READINESS_HRV_WEIGHT = 50;
 const READINESS_SLEEP_WEIGHT = 50;
 const READINESS_SLEEP_REF = 8;
 const DEFAULT_WATER_REMINDER_TIMES = ["08:00", "11:00", "14:00", "17:00", "20:00"];
+const MAX_OFFLINE_ENTRIES = 100;
 const BODY_FAT_BMI_COEF = 1.2;
 const BODY_FAT_AGE_COEF = 0.23;
 const BODY_FAT_SEX_COEF = 10.8;
@@ -260,7 +261,9 @@ function waterReminderPlan(weightKg, activityMinutes) {
 
 function sleepDebt(targetHours, sleepHoursList = []) {
     if (!Number.isFinite(targetHours) || targetHours <= 0 || !Array.isArray(sleepHoursList) || sleepHoursList.length === 0) return null;
-    const avg = sleepHoursList.filter(Number.isFinite).reduce((a, b) => a + b, 0) / sleepHoursList.length;
+    const filtered = sleepHoursList.filter(Number.isFinite);
+    if (!filtered.length) return null;
+    const avg = filtered.reduce((a, b) => a + b, 0) / filtered.length;
     const debt = Number((targetHours - avg).toFixed(2));
     return { targetHours, averageSleep: Number(avg.toFixed(2)), debt };
 }
@@ -553,7 +556,7 @@ app.post('/api/sleep-debt', (req, res) => {
     const targetHours = Number(req.body.targetHours || 8);
     const sleepHoursList = Array.isArray(req.body.sleepHours) ? req.body.sleepHours.map(Number) : [];
     const result = sleepDebt(targetHours, sleepHoursList);
-    if (!result) return res.status(400).json({ message: "sleepHours array required" });
+    if (!result) return res.status(400).json({ message: "Invalid targetHours or sleepHours data" });
     res.json(result);
 });
 
@@ -585,8 +588,8 @@ app.get('/api/travel-mode', (req, res) => {
 
 app.post('/api/offline-logs', (req, res) => {
     const entries = Array.isArray(req.body.entries) ? req.body.entries : [];
-    if (!entries.length || entries.length > 100) {
-        return res.status(400).json({ message: "entries array required (max 100)" });
+    if (!entries.length || entries.length > MAX_OFFLINE_ENTRIES) {
+        return res.status(400).json({ message: `entries array required (max ${MAX_OFFLINE_ENTRIES})` });
     }
     const valid = entries
         .filter(e => e && typeof e === 'object' && typeof e.type === 'string' && e.data)
