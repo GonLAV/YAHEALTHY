@@ -108,6 +108,7 @@ let userMealPlans = [];
 let userSurveys = [];
 let weightGoals = [];
 let weightLogs = [];
+let fastingWindows = [];
 
 /**
  * Health calculation constants (simplified, non-medical guidance):
@@ -119,6 +120,8 @@ const CALORIES_PER_KG = 7700;
 const MIN_DAILY_CALORIES = 1200;
 const BASE_KCAL_PER_KG = 22;
 const DEFAULT_DAILY_DEFICIT = 500;
+const PROTEIN_MIN_G_PER_KG = 1.2; // general guideline
+const FIBER_MIN_GRAMS = 25;
 const BODY_FAT_BMI_COEF = 1.2;
 const BODY_FAT_AGE_COEF = 0.23;
 const BODY_FAT_SEX_COEF = 10.8;
@@ -161,6 +164,69 @@ function buildWeeklyGroceryPlan(dailyCalories) {
         weeklyCalories,
         grams,
         bundle
+    };
+}
+
+function suggestSwaps(ingredients = [], allergies = [], preference = "") {
+    const allergySet = new Set(allergies.map(a => a.toLowerCase()));
+    const swaps = ingredients.map(item => {
+        const name = (item.item || item.name || "").toLowerCase();
+        if (allergySet.has(name) || name.includes(preference.toLowerCase())) {
+            return { original: item, substitute: "tofu" };
+        }
+        if (name.includes("chicken")) return { original: item, substitute: "turkey" };
+        if (name.includes("fish")) return { original: item, substitute: "salmon" };
+        if (name.includes("beef")) return { original: item, substitute: "lentils" };
+        return { original: item, substitute: "beans" };
+    });
+    return swaps;
+}
+
+function optimizeGroceries(plan, pricePerGram = {}) {
+    if (!plan?.grams) return null;
+    const defaults = { produce: 0.005, protein: 0.01, carbs: 0.004, fats: 0.02 };
+    const calc = key => Number(((plan.grams[key] || 0) * (pricePerGram[key] || defaults[key])).toFixed(2));
+    const cost = {
+        produce: calc("produce"),
+        protein: calc("protein"),
+        carbs: calc("carbs"),
+        fats: calc("fats")
+    };
+    const total = Object.values(cost).reduce((a, b) => a + b, 0);
+    return { cost, total: Number(total.toFixed(2)), deliveryEtaMinutes: 90 };
+}
+
+function fastingGuidance(windowHours) {
+    if (!Number.isFinite(windowHours) || windowHours <= 0) return null;
+    const type = windowHours >= 16 ? "16:8" : windowHours >= 14 ? "14:10" : "12:12";
+    const tips = [
+        "Hydrate during fasting window",
+        "Prioritize protein and fiber at first meal",
+        "Avoid heavy sugar during eating window"
+    ];
+    return { protocol: type, tips, windowHours };
+}
+
+function scoreNutrition(weightKg, calories, proteinG, fiberG) {
+    if (!Number.isFinite(weightKg) || weightKg <= 0 || !Number.isFinite(calories) || calories <= 0) return null;
+    const proteinMin = Math.round(weightKg * PROTEIN_MIN_G_PER_KG);
+    const proteinScore = Math.min(1, proteinG / proteinMin || 0);
+    const fiberScore = Math.min(1, fiberG / FIBER_MIN_GRAMS || 0);
+    const score = Number(((proteinScore * 0.6 + fiberScore * 0.4) * 100).toFixed(1));
+    return { proteinMin, fiberMin: FIBER_MIN_GRAMS, proteinScore, fiberScore, score };
+}
+
+function planLeftovers(servings, days) {
+    if (!Number.isFinite(servings) || servings <= 0) return null;
+    const keepDays = Number.isFinite(days) && days > 0 ? days : 3;
+    return {
+        servings,
+        keepDays,
+        schedule: [
+            { day: 1, action: "Fresh cook & portion" },
+            { day: Math.min(keepDays, 3), action: "Reheat half" },
+            { day: keepDays, action: "Freeze remaining and label" }
+        ]
     };
 }
 
@@ -343,6 +409,56 @@ app.post('/api/grocery-plan', (req, res) => {
     if (!plan) {
         return res.status(400).json({ message: "dailyCalories is required or must be derivable from surveyId" });
     }
+    res.json(plan);
+});
+
+app.post('/api/meal-swaps', (req, res) => {
+    const ingredients = req.body.ingredients || [];
+    const allergies = req.body.allergies || [];
+    const preference = req.body.preference || "";
+    res.json({ swaps: suggestSwaps(ingredients, allergies, preference) });
+});
+
+app.post('/api/grocery-optimize', (req, res) => {
+    let plan = req.body.plan;
+    if (!plan && req.body.surveyId) {
+        const found = userSurveys.find(s => s.id === req.body.surveyId);
+        plan = buildWeeklyGroceryPlan(found?.metrics?.recommendedDailyCalories || found?.metrics?.maintenanceCalories);
+    }
+    const optimized = optimizeGroceries(plan, req.body.pricePerGram || {});
+    if (!optimized) return res.status(400).json({ message: "Valid plan is required" });
+    res.json({ plan, optimized });
+});
+
+app.post('/api/fasting-windows', (req, res) => {
+    const userId = req.body.userId || 'anonymous';
+    const windowHours = Number(req.body.windowHours);
+    const guidance = fastingGuidance(windowHours);
+    if (!guidance) return res.status(400).json({ message: "windowHours must be positive" });
+    const entry = { id: generateId(), userId, windowHours, startTime: req.body.startTime || "20:00", guidance };
+    fastingWindows.push(entry);
+    res.status(201).json(entry);
+});
+
+app.get('/api/fasting-windows', (req, res) => {
+    res.json(fastingWindows);
+});
+
+app.post('/api/nutrition-score', (req, res) => {
+    const weightKg = Number(req.body.weightKg);
+    const calories = Number(req.body.calories);
+    const proteinG = Number(req.body.proteinG || 0);
+    const fiberG = Number(req.body.fiberG || 0);
+    const result = scoreNutrition(weightKg, calories, proteinG, fiberG);
+    if (!result) return res.status(400).json({ message: "weightKg and calories must be positive" });
+    res.json(result);
+});
+
+app.post('/api/leftovers-plan', (req, res) => {
+    const servings = Number(req.body.servings);
+    const days = Number(req.body.keepDays);
+    const plan = planLeftovers(servings, days);
+    if (!plan) return res.status(400).json({ message: "servings must be positive" });
     res.json(plan);
 });
 
