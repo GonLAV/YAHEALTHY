@@ -126,13 +126,16 @@ const BASE_KCAL_PER_KG = 22;
 const DEFAULT_DAILY_DEFICIT = 500;
 const PROTEIN_MIN_G_PER_KG = 1.2; // general guideline
 const FIBER_MIN_GRAMS = 25;
-const WATER_ACTIVITY_L_PER_MIN = 0.012; // rough add-on per active minute
+const WATER_ACTIVITY_L_PER_MIN = 0.012; // ~12 ml per active minute (light guideline)
 const STREAK_DAY_TOLERANCE = 1.1; // days
 const READINESS_HRV_WEIGHT = 50;
 const READINESS_SLEEP_WEIGHT = 50;
 const READINESS_SLEEP_REF = 8;
 const DEFAULT_WATER_REMINDER_TIMES = ["08:00", "11:00", "14:00", "17:00", "20:00"];
 const MAX_OFFLINE_ENTRIES = 100;
+const MAX_STRING_DATA_LENGTH = 1000;
+const MAX_JSON_DATA_LENGTH = 2000;
+const MILLISECONDS_PER_DAY = 1000 * 60 * 60 * 24;
 const BODY_FAT_BMI_COEF = 1.2;
 const BODY_FAT_AGE_COEF = 0.23;
 const BODY_FAT_SEX_COEF = 10.8;
@@ -275,7 +278,7 @@ function streakFromDates(dates = []) {
     if (!days.length) return { current: 0, longest: 0 };
     let current = 1, longest = 1;
     for (let i = 1; i < days.length; i++) {
-        const diff = (days[i] - days[i - 1]) / (1000 * 60 * 60 * 24);
+        const diff = (days[i] - days[i - 1]) / MILLISECONDS_PER_DAY;
         if (diff >= 1 && diff <= STREAK_DAY_TOLERANCE) {
             current += 1;
         } else {
@@ -593,15 +596,18 @@ app.get('/api/travel-mode', (req, res) => {
 
 app.post('/api/offline-logs', (req, res) => {
     const entries = Array.isArray(req.body.entries) ? req.body.entries : [];
-    if (!entries.length || entries.length > MAX_OFFLINE_ENTRIES) {
-        return res.status(400).json({ message: `entries array required (max ${MAX_OFFLINE_ENTRIES})` });
+    if (!entries.length) {
+        return res.status(400).json({ message: "entries array required" });
+    }
+    if (entries.length > MAX_OFFLINE_ENTRIES) {
+        return res.status(400).json({ message: `entries exceeds limit of ${MAX_OFFLINE_ENTRIES}` });
     }
     const valid = entries
         .filter(e => e && typeof e === 'object' && typeof e.type === 'string' && e.data)
         .filter(e => {
-            if (typeof e.data === 'string') return e.data.length <= 1000;
+            if (typeof e.data === 'string') return e.data.length <= MAX_STRING_DATA_LENGTH;
             try {
-                return JSON.stringify(e.data).length <= 2000;
+                return JSON.stringify(e.data).length <= MAX_JSON_DATA_LENGTH;
             } catch {
                 return false;
             }
