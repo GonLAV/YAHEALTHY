@@ -137,6 +137,12 @@ const MAX_OFFLINE_ENTRIES = 100;
 const MAX_STRING_DATA_LENGTH = 1000;
 const MAX_JSON_DATA_LENGTH = 2000;
 const MILLISECONDS_PER_DAY = 1000 * 60 * 60 * 24;
+const AI_PROVIDER = process.env.AI_PROVIDER || "mock";
+const AI_API_KEY = process.env.AI_API_KEY || null;
+const AI_ENDPOINT = process.env.AI_ENDPOINT || null;
+const PLACES_PROVIDER = process.env.PLACES_PROVIDER || "mock";
+const PLACES_API_KEY = process.env.PLACES_API_KEY || null;
+const PLACES_ENDPOINT = process.env.PLACES_ENDPOINT || null;
 const BODY_FAT_BMI_COEF = 1.2;
 const BODY_FAT_AGE_COEF = 0.23;
 const BODY_FAT_SEX_COEF = 10.8;
@@ -647,21 +653,33 @@ app.post('/api/food-photo-estimate', (req, res) => {
     if (!imageUrl && !imageBase64) {
         return res.status(400).json({ message: "imageUrl or imageBase64 is required" });
     }
+    const mode = req.query.mode === 'mock' || !AI_API_KEY ? 'mock' : 'real';
     const entry = {
         id: generateId(),
         imageUrl,
-        status: "pending",
+        status: mode === 'real' ? "pending" : "mock",
         calories: null,
         macros: null,
-        note: "AI estimation not configured; integrate provider to enable."
+        note: mode === 'real'
+            ? `Will call provider ${AI_PROVIDER} at ${AI_ENDPOINT || 'default'}`
+            : "AI estimation not configured; using mock mode."
     };
     photoEstimates.push(entry);
-    res.status(202).json(entry);
+    res.status(mode === 'real' ? 202 : 200).json(entry);
 });
 
 app.post('/api/restaurant-suggestions', (req, res) => {
+    const mode = req.query.mode === 'mock' || !PLACES_API_KEY ? 'mock' : 'real';
+    if (mode === 'real') {
+        return res.status(200).json({
+            provider: PLACES_PROVIDER,
+            endpoint: PLACES_ENDPOINT || 'default',
+            status: "pending",
+            note: "Live places lookup not implemented; configure integration to enable."
+        });
+    }
     const data = restaurantSuggestions(req.body.location, req.body.cuisine);
-    res.json(data);
+    res.json({ mode, ...data });
 });
 
 app.get('/api/weight-goals', (req, res) => {
