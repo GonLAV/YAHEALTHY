@@ -109,8 +109,14 @@ let userSurveys = [];
 let weightGoals = [];
 let weightLogs = [];
 
-const CALORIES_PER_KG = 7700; // Approximate calories required to lose 1kg of body weight
-const MIN_DAILY_CALORIES = 1200; // Safety floor to avoid unhealthy calorie targets (can be overridden per user)
+/**
+ * Health calculation constants (simplified, non-medical guidance):
+ * - CALORIES_PER_KG: widely used estimate for calories in 1kg of body fat
+ * - MIN_DAILY_CALORIES: conservative floor; can be overridden by caller if guided by a clinician
+ * - BODY_FAT_*: coefficients from the Deurenberg body-fat estimate formula
+ */
+const CALORIES_PER_KG = 7700;
+const MIN_DAILY_CALORIES = 1200;
 const BODY_FAT_BMI_COEF = 1.2;
 const BODY_FAT_AGE_COEF = 0.23;
 const BODY_FAT_SEX_COEF = 10.8;
@@ -141,15 +147,21 @@ function getSexFactor(genderText) {
     }
 }
 
+function calculateBodyFatPercentage(bmi, age, sexFactor) {
+    if (bmi === null) return null;
+    return Number((BODY_FAT_BMI_COEF * bmi + BODY_FAT_AGE_COEF * (age || 0) - BODY_FAT_SEX_COEF * sexFactor - BODY_FAT_BASE).toFixed(1));
+}
+
 function calculateSurveyMetrics(data) {
-    const weightKg = Number(data.weightKg || 0);
+    const weightKg = Number(data.weightKg);
+    const hasWeight = Number.isFinite(weightKg) && weightKg > 0;
     const targetWeightKg = data.targetWeightKg ? Number(data.targetWeightKg) : null;
     const heightM = data.heightCm ? data.heightCm / 100 : 0;
-    const bmi = heightM && weightKg ? Number((weightKg / (heightM * heightM)).toFixed(1)) : null;
+    const hasHeight = Number.isFinite(heightM) && heightM > 0;
+    const bmi = hasHeight && hasWeight ? Number((weightKg / (heightM * heightM)).toFixed(1)) : null;
     const genderText = (data.gender || '').toLowerCase();
     const sexFactor = getSexFactor(genderText);
-    // Deurenberg formula approximation for estimating body fat %
-    const bodyFatPercentage = bmi !== null ? Number((BODY_FAT_BMI_COEF * bmi + BODY_FAT_AGE_COEF * (data.age || 0) - BODY_FAT_SEX_COEF * sexFactor - BODY_FAT_BASE).toFixed(1)) : null;
+    const bodyFatPercentage = calculateBodyFatPercentage(bmi, data.age, sexFactor);
     const activityKey = (data.lifestyle || '').toLowerCase().replace(/\s+/g, '');
     const activity = activityMultipliers[activityKey] || activityMultipliers.default;
     const maintenanceCalories = weightKg ? Math.round(weightKg * activity * 22) : null;
@@ -242,8 +254,8 @@ app.post('/api/surveys', (req, res) => {
     const heightCm = Number(req.body.heightCm);
     const weightKg = Number(req.body.weightKg);
     const age = Number(req.body.age);
-    if (!Number.isFinite(heightCm) || heightCm <= 0 || !Number.isFinite(weightKg) || weightKg <= 0 || !Number.isFinite(age) || age <= 0) {
-        return res.status(400).json({ message: "heightCm, weightKg, and age must be valid positive numbers for survey insights" });
+    if (!Number.isFinite(heightCm) || heightCm <= 0 || heightCm > 300 || !Number.isFinite(weightKg) || weightKg <= 0 || weightKg > 500 || !Number.isFinite(age) || age <= 0 || age > 150) {
+        return res.status(400).json({ message: "heightCm, weightKg, and age must be within realistic positive ranges for survey insights" });
     }
     const survey = { ...req.body, id: generateId() };
     const metrics = calculateSurveyMetrics(survey);
@@ -282,8 +294,8 @@ app.post('/api/weight-logs', (req, res) => {
         return res.status(404).json({ message: "Goal not found" });
     }
     const weightKg = Number(req.body.weightKg);
-    if (!Number.isFinite(weightKg)) {
-        return res.status(400).json({ message: "weightKg must be a valid number" });
+    if (!Number.isFinite(weightKg) || weightKg <= 0) {
+        return res.status(400).json({ message: "weightKg must be a valid positive number" });
     }
     const newLog = {
         id: generateId(),
