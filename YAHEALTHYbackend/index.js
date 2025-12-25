@@ -106,6 +106,39 @@ const recipes = [
 
 let userMealPlans = [];
 
+const features = [
+    { id: "f1", name: "Personalized meal plans", description: "Adaptive weekly plans tuned to user goals" },
+    { id: "f2", name: "Macro tracking", description: "Daily targets with remaining macros summary" },
+    { id: "f3", name: "Barcode scanner", description: "Scan packaged foods to log nutrients" },
+    { id: "f4", name: "Food search", description: "Global database search with filters" },
+    { id: "f5", name: "Recipe generator", description: "AI-assisted recipes from pantry items" },
+    { id: "f6", name: "Water reminders", description: "Smart hydration nudges based on schedule" },
+    { id: "f7", name: "Fasting timer", description: "Intermittent fasting windows with alerts" },
+    { id: "f8", name: "Grocery list", description: "Auto-built shopping list from plans" },
+    { id: "f9", name: "Allergen alerts", description: "Flag recipes containing selected allergens" },
+    { id: "f10", name: "Meal prep mode", description: "Batch cooking steps and timers" },
+    { id: "f11", name: "Offline access", description: "Cached plans and logs without internet" },
+    { id: "f12", name: "Wearable sync", description: "Import calories burned and steps" },
+    { id: "f13", name: "Calorie budget", description: "Adaptive daily calorie budgeting" },
+    { id: "f14", name: "Progress charts", description: "Weekly and monthly trend visualizations" },
+    { id: "f15", name: "Community challenges", description: "Join group challenges for accountability" },
+    { id: "f16", name: "Coach chat", description: "In-app chat with nutrition coaches" },
+    { id: "f17", name: "Mood & energy log", description: "Track how meals impact energy levels" },
+    { id: "f18", name: "Sleep insights", description: "Correlate sleep quality with nutrition" },
+    { id: "f19", name: "Glucose-friendly filter", description: "Highlight low glycemic recipes" },
+    { id: "f20", name: "Dietary presets", description: "Keto, vegan, paleo, and Mediterranean presets" },
+    { id: "f21", name: "Portion guidance", description: "Hand-measure equivalents and swap suggestions" },
+    { id: "f22", name: "Micronutrient tracking", description: "Vitamins and minerals coverage view" },
+    { id: "f23", name: "Supplement reminders", description: "Schedule supplement intake" },
+    { id: "f24", name: "Restaurant mode", description: "Healthier menu picks nearby" },
+    { id: "f25", name: "Budget-friendly filter", description: "Low-cost meal options" },
+    { id: "f26", name: "Food mood journal", description: "Link meals to mood entries" },
+    { id: "f27", name: "Goal streaks", description: "Daily streak tracking and rewards" },
+    { id: "f28", name: "Smart substitutions", description: "Automatic swaps to meet goals" },
+    { id: "f29", name: "Voice logging", description: "Hands-free meal logging" },
+    { id: "f30", name: "Export & share", description: "Share plans with trainers or friends" }
+];
+
 app.get('/api/recipes', (req, res) => {
     res.json(recipes);
 });
@@ -135,6 +168,10 @@ app.delete('/api/meal-plans/:id', (req, res) => {
     const { id } = req.params;
     userMealPlans = userMealPlans.filter(p => p.id !== id);
     res.status(204).send();
+});
+
+app.get('/api/features', (req, res) => {
+    res.json(features);
 });
 
 app.listen(PORT, () => {
