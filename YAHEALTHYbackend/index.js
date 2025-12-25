@@ -244,7 +244,9 @@ function planLeftovers(servings, days) {
 function readinessScore(hrv, restingHr, sleepHours) {
     if (!Number.isFinite(hrv) || !Number.isFinite(restingHr) || !Number.isFinite(sleepHours)) return null;
     // Simple blended readiness: HRV/resting HR plus sleep vs reference
-    const normalized = Math.max(0, Math.min(100, (hrv / restingHr) * READINESS_HRV_WEIGHT + (sleepHours / READINESS_SLEEP_REF) * READINESS_SLEEP_WEIGHT));
+    const totalWeight = READINESS_HRV_WEIGHT + READINESS_SLEEP_WEIGHT;
+    const blended = ((hrv / restingHr) * READINESS_HRV_WEIGHT + (sleepHours / READINESS_SLEEP_REF) * READINESS_SLEEP_WEIGHT) / totalWeight;
+    const normalized = Math.max(0, Math.min(100, blended * 100));
     const status = normalized >= 75 ? "green" : normalized >= 55 ? "yellow" : "red";
     return { score: Number(normalized.toFixed(1)), status };
 }
@@ -274,7 +276,7 @@ function streakFromDates(dates = []) {
     let current = 1, longest = 1;
     for (let i = 1; i < days.length; i++) {
         const diff = (days[i] - days[i - 1]) / (1000 * 60 * 60 * 24);
-        if (diff <= STREAK_DAY_TOLERANCE) {
+        if (diff >= 1 && diff <= STREAK_DAY_TOLERANCE) {
             current += 1;
         } else {
             longest = Math.max(longest, current);
@@ -565,9 +567,12 @@ app.post('/api/streaks', (req, res) => {
     const result = streakFromDates(dates);
     const userId = req.body.userId || 'anonymous';
     const entry = { id: generateId(), userId, dates, ...result };
-    // replace any existing streak for user
-    streakLogs = streakLogs.filter(s => s.userId !== userId);
-    streakLogs.push(entry);
+    const idx = streakLogs.findIndex(s => s.userId === userId);
+    if (idx >= 0) {
+        streakLogs[idx] = entry;
+    } else {
+        streakLogs.push(entry);
+    }
     res.json(entry);
 });
 
@@ -593,9 +598,19 @@ app.post('/api/offline-logs', (req, res) => {
     }
     const valid = entries
         .filter(e => e && typeof e === 'object' && typeof e.type === 'string' && e.data)
+        .filter(e => {
+            if (typeof e.data === 'string') return e.data.length <= 1000;
+            try {
+                return JSON.stringify(e.data).length <= 2000;
+            } catch {
+                return false;
+            }
+        })
         .map(e => ({ type: e.type, data: e.data, timestamp: e.timestamp || new Date().toISOString(), id: generateId(), synced: false }));
     if (!valid.length) return res.status(400).json({ message: "entries must include type and data" });
-    offlineLogs.push(...valid);
+    for (const v of valid) {
+        offlineLogs.push(v);
+    }
     res.status(201).json({ stored: valid });
 });
 
