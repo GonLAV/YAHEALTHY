@@ -144,6 +144,7 @@ function calculateSurveyMetrics(data) {
     const bmi = heightM && weightKg ? Number((weightKg / (heightM * heightM)).toFixed(1)) : null;
     const genderText = (data.gender || '').toLowerCase();
     const sexFactor = getSexFactor(genderText);
+    // Deurenberg formula approximation for estimating body fat %
     const bodyFatPercentage = bmi !== null ? Number((1.2 * bmi + 0.23 * (data.age || 0) - 10.8 * sexFactor - 5.4).toFixed(1)) : null;
     const activityKey = (data.lifestyle || '').toLowerCase().replace(/\s+/g, '');
     const activity = activityMultipliers[activityKey] || activityMultipliers.default;
@@ -162,7 +163,9 @@ function calculateSurveyMetrics(data) {
         bmi,
         bodyFatPercentage,
         maintenanceCalories,
-        recommendedDailyCalories
+        recommendedDailyCalories,
+        activityMultiplierUsed: activity,
+        lifestyleAccepted: Boolean(activityMultipliers[activityKey])
     };
 }
 
@@ -176,8 +179,9 @@ function calculateGoalProgress(goal) {
     const targetDate = goal.targetDate ? new Date(goal.targetDate) : null;
     const today = new Date();
     const totalDays = targetDate ? Math.max(1, Math.round((targetDate - startDate) / (1000 * 60 * 60 * 24))) : null;
-    const daysElapsed = Math.max(0, Math.round((today - startDate) / (1000 * 60 * 60 * 24)));
-    const expectedLossByNow = totalDays ? Math.min(totalLossKg, (totalLossKg / totalDays) * daysElapsed) : 0;
+    const lastProgressDate = latestLog ? new Date(latestLog.date) : today;
+    const daysElapsed = Math.max(0, Math.round((lastProgressDate - startDate) / (1000 * 60 * 60 * 24)));
+    const expectedLossByNow = totalDays ? Math.min(totalLossKg, (totalLossKg / totalDays) * Math.max(1, daysElapsed)) : 0;
     const celebration = totalLossKg > 0 && lostSoFarKg >= expectedLossByNow;
 
     return {
@@ -202,7 +206,7 @@ app.get('/api/meal-plans', (req, res) => {
 });
 
 app.post('/api/meal-plans', (req, res) => {
-    const newPlan = { ...req.body, id: Date.now().toString() };
+    const newPlan = { ...req.body, id: generateId() };
     userMealPlans.push(newPlan);
     res.status(201).json(newPlan);
 });
@@ -229,6 +233,9 @@ app.get('/api/surveys', (req, res) => {
 });
 
 app.post('/api/surveys', (req, res) => {
+    if (!req.body.heightCm || !req.body.weightKg || !req.body.age) {
+        return res.status(400).json({ message: "heightCm, weightKg, and age are required for survey insights" });
+    }
     const survey = { ...req.body, id: generateId() };
     const metrics = calculateSurveyMetrics(survey);
     const enrichedSurvey = { ...survey, metrics };
@@ -266,7 +273,7 @@ app.post('/api/weight-logs', (req, res) => {
         return res.status(404).json({ message: "Goal not found" });
     }
     const weightKg = Number(req.body.weightKg);
-    if (!weightKg) {
+    if (!Number.isFinite(weightKg)) {
         return res.status(400).json({ message: "weightKg is required" });
     }
     const newLog = {
