@@ -110,7 +110,11 @@ let weightGoals = [];
 let weightLogs = [];
 
 const CALORIES_PER_KG = 7700; // Approximate calories required to lose 1kg of body weight
-const MIN_DAILY_CALORIES = 1200; // Safety floor to avoid unhealthy calorie targets
+const MIN_DAILY_CALORIES = 1200; // Safety floor to avoid unhealthy calorie targets (can be overridden per user)
+const BODY_FAT_BMI_COEF = 1.2;
+const BODY_FAT_AGE_COEF = 0.23;
+const BODY_FAT_SEX_COEF = 10.8;
+const BODY_FAT_BASE = 5.4;
 const activityMultipliers = {
     athlete: 1.75,
     nonathlete: 1.3,
@@ -145,10 +149,11 @@ function calculateSurveyMetrics(data) {
     const genderText = (data.gender || '').toLowerCase();
     const sexFactor = getSexFactor(genderText);
     // Deurenberg formula approximation for estimating body fat %
-    const bodyFatPercentage = bmi !== null ? Number((1.2 * bmi + 0.23 * (data.age || 0) - 10.8 * sexFactor - 5.4).toFixed(1)) : null;
+    const bodyFatPercentage = bmi !== null ? Number((BODY_FAT_BMI_COEF * bmi + BODY_FAT_AGE_COEF * (data.age || 0) - BODY_FAT_SEX_COEF * sexFactor - BODY_FAT_BASE).toFixed(1)) : null;
     const activityKey = (data.lifestyle || '').toLowerCase().replace(/\s+/g, '');
     const activity = activityMultipliers[activityKey] || activityMultipliers.default;
     const maintenanceCalories = weightKg ? Math.round(weightKg * activity * 22) : null;
+    const calorieFloor = data.calorieFloor && Number(data.calorieFloor) > 0 ? Number(data.calorieFloor) : MIN_DAILY_CALORIES;
 
     let recommendedDailyCalories = maintenanceCalories ? maintenanceCalories - 500 : null;
     if (maintenanceCalories && targetWeightKg !== null) {
@@ -156,7 +161,7 @@ function calculateSurveyMetrics(data) {
         const targetDays = data.targetDays && data.targetDays > 0 ? data.targetDays : 90;
         const totalDeficit = totalLossKg * CALORIES_PER_KG;
         const perDayDeficit = totalDeficit / targetDays;
-        recommendedDailyCalories = Math.max(MIN_DAILY_CALORIES, Math.round(maintenanceCalories - perDayDeficit));
+        recommendedDailyCalories = Math.max(calorieFloor, Math.round(maintenanceCalories - perDayDeficit));
     }
 
     return {
@@ -165,7 +170,8 @@ function calculateSurveyMetrics(data) {
         maintenanceCalories,
         recommendedDailyCalories,
         activityMultiplierUsed: activity,
-        lifestyleAccepted: Boolean(activityMultipliers[activityKey])
+        lifestyleAccepted: Boolean(activityMultipliers[activityKey]),
+        calorieFloorUsed: calorieFloor
     };
 }
 
@@ -181,7 +187,7 @@ function calculateGoalProgress(goal) {
     const totalDays = targetDate ? Math.max(1, Math.round((targetDate - startDate) / (1000 * 60 * 60 * 24))) : null;
     const lastProgressDate = latestLog ? new Date(latestLog.date) : today;
     const daysElapsed = Math.max(0, Math.round((lastProgressDate - startDate) / (1000 * 60 * 60 * 24)));
-    const expectedLossByNow = totalDays ? Math.min(totalLossKg, (totalLossKg / totalDays) * Math.max(1, daysElapsed)) : 0;
+    const expectedLossByNow = totalDays ? Math.min(totalLossKg, (totalLossKg / totalDays) * daysElapsed) : 0;
     const celebration = totalLossKg > 0 && lostSoFarKg >= expectedLossByNow;
 
     return {
@@ -233,8 +239,11 @@ app.get('/api/surveys', (req, res) => {
 });
 
 app.post('/api/surveys', (req, res) => {
-    if (!req.body.heightCm || !req.body.weightKg || !req.body.age) {
-        return res.status(400).json({ message: "heightCm, weightKg, and age are required for survey insights" });
+    const heightCm = Number(req.body.heightCm);
+    const weightKg = Number(req.body.weightKg);
+    const age = Number(req.body.age);
+    if (!Number.isFinite(heightCm) || heightCm <= 0 || !Number.isFinite(weightKg) || weightKg <= 0 || !Number.isFinite(age) || age <= 0) {
+        return res.status(400).json({ message: "heightCm, weightKg, and age must be valid positive numbers for survey insights" });
     }
     const survey = { ...req.body, id: generateId() };
     const metrics = calculateSurveyMetrics(survey);
@@ -250,8 +259,8 @@ app.get('/api/weight-goals', (req, res) => {
 app.post('/api/weight-goals', (req, res) => {
     const startWeightKg = Number(req.body.startWeightKg);
     const targetWeightKg = Number(req.body.targetWeightKg);
-    if (!startWeightKg || !targetWeightKg) {
-        return res.status(400).json({ message: "startWeightKg and targetWeightKg are required numbers" });
+    if (!Number.isFinite(startWeightKg) || startWeightKg <= 0 || !Number.isFinite(targetWeightKg) || targetWeightKg <= 0) {
+        return res.status(400).json({ message: "startWeightKg and targetWeightKg must be valid positive numbers" });
     }
     const goal = {
         id: generateId(),
@@ -274,7 +283,7 @@ app.post('/api/weight-logs', (req, res) => {
     }
     const weightKg = Number(req.body.weightKg);
     if (!Number.isFinite(weightKg)) {
-        return res.status(400).json({ message: "weightKg is required" });
+        return res.status(400).json({ message: "weightKg must be a valid number" });
     }
     const newLog = {
         id: generateId(),
