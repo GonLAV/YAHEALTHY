@@ -105,6 +105,73 @@ const recipes = [
 ];
 
 let userMealPlans = [];
+let userSurveys = [];
+let weightGoals = [];
+let weightLogs = [];
+
+const activityMultipliers = {
+    athlete: 1.75,
+    nonathlete: 1.3,
+    senior: 1.15,
+    recovery: 1.1,
+    pregnant: 1.4,
+    default: 1.3
+};
+
+function calculateSurveyMetrics(data) {
+    const weightKg = Number(data.weightKg || 0);
+    const targetWeightKg = data.targetWeightKg ? Number(data.targetWeightKg) : null;
+    const heightM = data.heightCm ? data.heightCm / 100 : 0;
+    const bmi = heightM && weightKg ? Number((weightKg / (heightM * heightM)).toFixed(1)) : null;
+    const genderText = (data.gender || '').toLowerCase();
+    const sexFactor = genderText === 'men' || genderText === 'male' ? 1 : genderText === 'women' || genderText === 'female' ? 0 : 0.5;
+    const bodyFatPercentage = bmi !== null ? Number((1.2 * bmi + 0.23 * (data.age || 0) - 10.8 * sexFactor - 5.4).toFixed(1)) : null;
+    const activity = activityMultipliers[genderText] || activityMultipliers[(data.lifestyle || '').toLowerCase()] || activityMultipliers.default;
+    const maintenanceCalories = weightKg ? Math.round(weightKg * activity * 22) : null;
+
+    let recommendedDailyCalories = maintenanceCalories ? maintenanceCalories - 500 : null;
+    if (maintenanceCalories && targetWeightKg !== null) {
+        const totalLossKg = Math.max(0, weightKg - targetWeightKg);
+        const targetDays = data.targetDays && data.targetDays > 0 ? data.targetDays : 90;
+        const totalDeficit = totalLossKg * 7700;
+        const perDayDeficit = totalDeficit / targetDays;
+        recommendedDailyCalories = Math.max(1200, Math.round(maintenanceCalories - perDayDeficit));
+    }
+
+    return {
+        bmi,
+        bodyFatPercentage,
+        maintenanceCalories,
+        recommendedDailyCalories
+    };
+}
+
+function calculateGoalProgress(goal) {
+    const relatedLogs = weightLogs.filter(log => log.goalId === goal.id).sort((a, b) => new Date(a.date) - new Date(b.date));
+    const latestLog = relatedLogs[relatedLogs.length - 1];
+    const totalLossKg = Math.max(0, goal.startWeightKg - goal.targetWeightKg);
+    const lostSoFarKg = latestLog ? goal.startWeightKg - latestLog.weightKg : 0;
+    const remainingKg = Math.max(0, totalLossKg - lostSoFarKg);
+    const startDate = goal.startDate ? new Date(goal.startDate) : new Date();
+    const targetDate = goal.targetDate ? new Date(goal.targetDate) : null;
+    const today = new Date();
+    const totalDays = targetDate ? Math.max(1, Math.round((targetDate - startDate) / (1000 * 60 * 60 * 24))) : null;
+    const daysElapsed = Math.max(0, Math.round((today - startDate) / (1000 * 60 * 60 * 24)));
+    const expectedLossByNow = totalDays ? Math.min(totalLossKg, (totalLossKg / totalDays) * daysElapsed) : 0;
+    const celebration = totalLossKg > 0 && lostSoFarKg >= expectedLossByNow;
+
+    return {
+        goal,
+        latestWeightKg: latestLog ? latestLog.weightKg : goal.startWeightKg,
+        totalLossKg: Number(totalLossKg.toFixed(1)),
+        lostSoFarKg: Number(lostSoFarKg.toFixed(1)),
+        remainingKg: Number(remainingKg.toFixed(1)),
+        progressPercent: totalLossKg ? Number(((lostSoFarKg / totalLossKg) * 100).toFixed(1)) : 0,
+        expectedLossByNow: Number(expectedLossByNow.toFixed(2)),
+        celebration,
+        logs: relatedLogs
+    };
+}
 
 app.get('/api/recipes', (req, res) => {
     res.json(recipes);
@@ -135,6 +202,69 @@ app.delete('/api/meal-plans/:id', (req, res) => {
     const { id } = req.params;
     userMealPlans = userMealPlans.filter(p => p.id !== id);
     res.status(204).send();
+});
+
+app.get('/api/surveys', (req, res) => {
+    res.json(userSurveys);
+});
+
+app.post('/api/surveys', (req, res) => {
+    const survey = { ...req.body, id: Date.now().toString() };
+    const metrics = calculateSurveyMetrics(survey);
+    const enrichedSurvey = { ...survey, metrics };
+    userSurveys.push(enrichedSurvey);
+    res.status(201).json(enrichedSurvey);
+});
+
+app.get('/api/weight-goals', (req, res) => {
+    res.json(weightGoals.map(goal => calculateGoalProgress(goal)));
+});
+
+app.post('/api/weight-goals', (req, res) => {
+    const startWeightKg = Number(req.body.startWeightKg);
+    const targetWeightKg = Number(req.body.targetWeightKg);
+    if (!startWeightKg || !targetWeightKg) {
+        return res.status(400).json({ message: "startWeightKg and targetWeightKg are required numbers" });
+    }
+    const goal = {
+        id: Date.now().toString(),
+        userId: req.body.userId || 'anonymous',
+        startWeightKg,
+        targetWeightKg,
+        weighInDays: req.body.weighInDays || [],
+        startDate: req.body.startDate || new Date().toISOString(),
+        targetDate: req.body.targetDate || null,
+        notes: req.body.notes || ''
+    };
+    weightGoals.push(goal);
+    res.status(201).json(calculateGoalProgress(goal));
+});
+
+app.post('/api/weight-logs', (req, res) => {
+    const goal = weightGoals.find(g => g.id === req.body.goalId);
+    if (!goal) {
+        return res.status(404).json({ message: "Goal not found" });
+    }
+    const weightKg = Number(req.body.weightKg);
+    if (!weightKg) {
+        return res.status(400).json({ message: "weightKg is required" });
+    }
+    const newLog = {
+        id: Date.now().toString(),
+        goalId: goal.id,
+        date: req.body.date || new Date().toISOString(),
+        weightKg
+    };
+    weightLogs.push(newLog);
+    res.status(201).json({ log: newLog, progress: calculateGoalProgress(goal) });
+});
+
+app.get('/api/weight-goals/:id/progress', (req, res) => {
+    const goal = weightGoals.find(g => g.id === req.params.id);
+    if (!goal) {
+        return res.status(404).json({ message: "Goal not found" });
+    }
+    res.json(calculateGoalProgress(goal));
 });
 
 app.listen(PORT, () => {
