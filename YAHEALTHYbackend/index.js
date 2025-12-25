@@ -113,6 +113,7 @@ let readinessLogs = [];
 let travelModes = [];
 let offlineLogs = [];
 let streakLogs = [];
+let photoEstimates = [];
 
 /**
  * Health calculation constants (simplified, non-medical guidance):
@@ -298,6 +299,18 @@ function travelSuggestions(location, cuisine) {
             { meal: "Breakfast", idea: "Greek yogurt, berries, nuts" },
             { meal: "Lunch", idea: "Grilled protein, mixed greens, olive oil" },
             { meal: "Dinner", idea: "Fish, roasted veggies, quinoa" }
+        ]
+    };
+}
+
+function restaurantSuggestions(location, cuisine) {
+    return {
+        location: location || "unspecified",
+        cuisine: cuisine || "balanced",
+        results: [
+            { name: "Lean Grill", type: "grill", proteinFocus: true, distanceKm: 1.2 },
+            { name: "Green Bowl", type: "salad", proteinFocus: false, distanceKm: 0.8 },
+            { name: "Mediterraneo", type: "mediterranean", proteinFocus: true, distanceKm: 2.1 }
         ]
     };
 }
@@ -626,6 +639,29 @@ app.post('/api/offline-logs', (req, res) => {
         offlineLogs.push(v);
     }
     res.status(201).json({ stored: valid });
+});
+
+app.post('/api/food-photo-estimate', (req, res) => {
+    const imageUrl = req.body.imageUrl || null;
+    const imageBase64 = req.body.imageBase64 || null;
+    if (!imageUrl && !imageBase64) {
+        return res.status(400).json({ message: "imageUrl or imageBase64 is required" });
+    }
+    const entry = {
+        id: generateId(),
+        imageUrl,
+        status: "pending",
+        calories: null,
+        macros: null,
+        note: "AI estimation not configured; integrate provider to enable."
+    };
+    photoEstimates.push(entry);
+    res.status(202).json(entry);
+});
+
+app.post('/api/restaurant-suggestions', (req, res) => {
+    const data = restaurantSuggestions(req.body.location, req.body.cuisine);
+    res.json(data);
 });
 
 app.get('/api/weight-goals', (req, res) => {
