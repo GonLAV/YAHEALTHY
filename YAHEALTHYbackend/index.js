@@ -111,12 +111,14 @@ let weightLogs = [];
 
 /**
  * Health calculation constants (simplified, non-medical guidance):
- * - CALORIES_PER_KG: widely used estimate for calories in 1kg of body fat
+ * - CALORIES_PER_KG: estimated deficit needed to lose ~1kg of body fat
  * - MIN_DAILY_CALORIES: conservative floor; can be overridden by caller if guided by a clinician
  * - BODY_FAT_*: coefficients from the Deurenberg body-fat estimate formula
  */
 const CALORIES_PER_KG = 7700;
 const MIN_DAILY_CALORIES = 1200;
+const BASE_KCAL_PER_KG = 22;
+const DEFAULT_DAILY_DEFICIT = 500;
 const BODY_FAT_BMI_COEF = 1.2;
 const BODY_FAT_AGE_COEF = 0.23;
 const BODY_FAT_SEX_COEF = 10.8;
@@ -173,11 +175,11 @@ function calculateSurveyMetrics(data) {
     const bodyFatPercentage = calculateBodyFatPercentage(bmi, data.age, sexFactor);
     const activityKey = normalizeLifestyle(data.lifestyle);
     const activity = activityMultipliers[activityKey] || activityMultipliers.default;
-    // Rough maintenance estimate: ~22 kcal per kg with activity multiplier
-    const maintenanceCalories = weightKg ? Math.round(weightKg * activity * 22) : null;
+    // Rough maintenance estimate: kcal baseline per kg with activity multiplier
+    const maintenanceCalories = weightKg ? Math.round(weightKg * activity * BASE_KCAL_PER_KG) : null;
     const calorieFloor = data.calorieFloor && Number(data.calorieFloor) > 0 ? Number(data.calorieFloor) : MIN_DAILY_CALORIES;
 
-    let recommendedDailyCalories = maintenanceCalories ? maintenanceCalories - 500 : null;
+    let recommendedDailyCalories = maintenanceCalories ? maintenanceCalories - DEFAULT_DAILY_DEFICIT : null;
     if (maintenanceCalories && targetWeightKg !== null) {
         const totalLossKg = Math.max(0, weightKg - targetWeightKg);
         const targetDays = data.targetDays && data.targetDays > 0 ? data.targetDays : 90;
