@@ -161,9 +161,12 @@ const premiumFeatures = [
     }
 ];
 
-const isValidCaloriesTarget = (caloriesTarget) => (
-    caloriesTarget === undefined || (typeof caloriesTarget === "number" && !Number.isNaN(caloriesTarget) && Number.isFinite(caloriesTarget) && caloriesTarget > 0)
-);
+const isValidCaloriesTarget = (caloriesTarget) => {
+    if (caloriesTarget === undefined) return true;
+    if (typeof caloriesTarget !== "number") return false;
+    if (Number.isNaN(caloriesTarget) || !Number.isFinite(caloriesTarget)) return false;
+    return caloriesTarget > 0;
+};
 
 const allowedPlanFields = ["name", "meals", "caloriesTarget"];
 
