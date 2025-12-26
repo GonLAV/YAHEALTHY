@@ -161,7 +161,7 @@ const premiumFeatures = [
     }
 ];
 
-const isValidCalories = (caloriesTarget) => (
+const isValidCaloriesTarget = (caloriesTarget) => (
     caloriesTarget === undefined || (typeof caloriesTarget === "number" && !Number.isNaN(caloriesTarget) && caloriesTarget > 0)
 );
 
@@ -187,10 +187,10 @@ app.post('/api/meal-plans', (req, res) => {
     if (!Array.isArray(meals)) {
         return res.status(400).json({ message: "meals must be an array" });
     }
-    if (!isValidCalories(caloriesTarget)) {
+    if (!isValidCaloriesTarget(caloriesTarget)) {
         return res.status(400).json({ message: "caloriesTarget must be a positive number when provided" });
     }
-    const newPlan = { id: randomUUID(), name, meals, caloriesTarget };
+    const newPlan = { id: randomUUID(), name, meals, ...(caloriesTarget !== undefined && { caloriesTarget }) };
     userMealPlans.push(newPlan);
     res.status(201).json(newPlan);
 });
@@ -217,13 +217,13 @@ app.put('/api/meal-plans/:id', (req, res) => {
             updates.meals = req.body.meals;
         }
         if ("caloriesTarget" in req.body) {
-            if (!isValidCalories(req.body.caloriesTarget)) {
+            if (!isValidCaloriesTarget(req.body.caloriesTarget)) {
                 return res.status(400).json({ message: "caloriesTarget must be a positive number when provided" });
             }
             updates.caloriesTarget = req.body.caloriesTarget;
         }
         if (!Object.keys(updates).length) {
-            return res.status(400).json({ message: "no valid fields to update" });
+            return res.json(userMealPlans[index]);
         }
         userMealPlans[index] = { ...userMealPlans[index], ...updates };
         res.json(userMealPlans[index]);
