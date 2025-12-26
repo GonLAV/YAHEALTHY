@@ -178,6 +178,9 @@ app.post('/api/meal-plans', (req, res) => {
     if (typeof name !== "string" || name.trim() === "") {
         return res.status(400).json({ message: "name is required" });
     }
+    if (!Array.isArray(meals)) {
+        return res.status(400).json({ message: "meals must be an array" });
+    }
     if (!isValidCalories(caloriesTarget)) {
         return res.status(400).json({ message: "caloriesTarget must be a positive number" });
     }
@@ -198,6 +201,9 @@ app.put('/api/meal-plans/:id', (req, res) => {
             updates.name = req.body.name;
         }
         if ("meals" in req.body) {
+            if (!Array.isArray(req.body.meals)) {
+                return res.status(400).json({ message: "meals must be an array" });
+            }
             updates.meals = req.body.meals;
         }
         if ("caloriesTarget" in req.body) {
@@ -207,7 +213,7 @@ app.put('/api/meal-plans/:id', (req, res) => {
             updates.caloriesTarget = req.body.caloriesTarget;
         }
         if (!Object.keys(updates).length) {
-            return res.json(userMealPlans[index]);
+            return res.status(400).json({ message: "no valid fields to update" });
         }
         userMealPlans[index] = { ...userMealPlans[index], ...updates };
         res.json(userMealPlans[index]);
