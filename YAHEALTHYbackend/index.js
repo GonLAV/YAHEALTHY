@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const { randomUUID } = require('crypto');
 
 dotenv.config();
 
@@ -173,7 +174,7 @@ app.post('/api/meal-plans', (req, res) => {
     if (!name) {
         return res.status(400).json({ message: "name is required" });
     }
-    const newPlan = { id: Date.now().toString(), name, meals, caloriesTarget };
+    const newPlan = { id: randomUUID(), name, meals, caloriesTarget };
     userMealPlans.push(newPlan);
     res.status(201).json(newPlan);
 });
@@ -183,7 +184,7 @@ app.put('/api/meal-plans/:id', (req, res) => {
     const index = userMealPlans.findIndex(p => p.id === id);
     if (index !== -1) {
         const updates = req.body || {};
-        if (Object.prototype.hasOwnProperty.call(updates, "name") && !updates.name) {
+        if ("name" in updates && !updates.name) {
             return res.status(400).json({ message: "name cannot be empty" });
         }
         userMealPlans[index] = { ...userMealPlans[index], ...updates };
