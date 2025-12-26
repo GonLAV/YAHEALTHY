@@ -161,6 +161,10 @@ const premiumFeatures = [
     }
 ];
 
+const isValidCalories = (caloriesTarget) => (
+    caloriesTarget === undefined || (typeof caloriesTarget === "number" && caloriesTarget > 0)
+);
+
 app.get('/api/recipes', (req, res) => {
     res.json(recipes);
 });
@@ -174,7 +178,7 @@ app.post('/api/meal-plans', (req, res) => {
     if (typeof name !== "string" || name.trim() === "") {
         return res.status(400).json({ message: "name is required" });
     }
-    if (caloriesTarget !== undefined && (typeof caloriesTarget !== "number" || caloriesTarget <= 0)) {
+    if (!isValidCalories(caloriesTarget)) {
         return res.status(400).json({ message: "caloriesTarget must be a positive number" });
     }
     const newPlan = { id: randomUUID(), name, meals, caloriesTarget };
@@ -197,13 +201,13 @@ app.put('/api/meal-plans/:id', (req, res) => {
             updates.meals = req.body.meals;
         }
         if ("caloriesTarget" in req.body) {
-            if (typeof req.body.caloriesTarget !== "number" || req.body.caloriesTarget <= 0) {
+            if (!isValidCalories(req.body.caloriesTarget)) {
                 return res.status(400).json({ message: "caloriesTarget must be a positive number" });
             }
             updates.caloriesTarget = req.body.caloriesTarget;
         }
         if (!Object.keys(updates).length) {
-            return res.status(400).json({ message: "no valid fields to update" });
+            return res.json(userMealPlans[index]);
         }
         userMealPlans[index] = { ...userMealPlans[index], ...updates };
         res.json(userMealPlans[index]);
