@@ -174,6 +174,9 @@ app.post('/api/meal-plans', (req, res) => {
     if (typeof name !== "string" || name.trim() === "") {
         return res.status(400).json({ message: "name is required" });
     }
+    if (caloriesTarget !== undefined && (typeof caloriesTarget !== "number" || caloriesTarget <= 0)) {
+        return res.status(400).json({ message: "caloriesTarget must be a positive number" });
+    }
     const newPlan = { id: randomUUID(), name, meals, caloriesTarget };
     userMealPlans.push(newPlan);
     res.status(201).json(newPlan);
@@ -183,9 +186,24 @@ app.put('/api/meal-plans/:id', (req, res) => {
     const { id } = req.params;
     const index = userMealPlans.findIndex(p => p.id === id);
     if (index !== -1) {
-        const updates = req.body;
-        if ("name" in updates && (typeof updates.name !== "string" || updates.name.trim() === "")) {
-            return res.status(400).json({ message: "name must be a non-empty string" });
+        const updates = {};
+        if ("name" in req.body) {
+            if (typeof req.body.name !== "string" || req.body.name.trim() === "") {
+                return res.status(400).json({ message: "name must be a non-empty string" });
+            }
+            updates.name = req.body.name;
+        }
+        if ("meals" in req.body) {
+            updates.meals = req.body.meals;
+        }
+        if ("caloriesTarget" in req.body) {
+            if (typeof req.body.caloriesTarget !== "number" || req.body.caloriesTarget <= 0) {
+                return res.status(400).json({ message: "caloriesTarget must be a positive number" });
+            }
+            updates.caloriesTarget = req.body.caloriesTarget;
+        }
+        if (!Object.keys(updates).length) {
+            return res.status(400).json({ message: "no valid fields to update" });
         }
         userMealPlans[index] = { ...userMealPlans[index], ...updates };
         res.json(userMealPlans[index]);
