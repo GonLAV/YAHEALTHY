@@ -171,7 +171,7 @@ app.get('/api/meal-plans', (req, res) => {
 
 app.post('/api/meal-plans', (req, res) => {
     const { name, meals = [], caloriesTarget } = req.body;
-    if (!name) {
+    if (typeof name !== "string" || name.trim() === "") {
         return res.status(400).json({ message: "name is required" });
     }
     const newPlan = { id: randomUUID(), name, meals, caloriesTarget };
@@ -184,8 +184,8 @@ app.put('/api/meal-plans/:id', (req, res) => {
     const index = userMealPlans.findIndex(p => p.id === id);
     if (index !== -1) {
         const updates = req.body;
-        if ("name" in updates && !updates.name) {
-            return res.status(400).json({ message: "name cannot be empty" });
+        if ("name" in updates && (typeof updates.name !== "string" || updates.name.trim() === "")) {
+            return res.status(400).json({ message: "name must be a non-empty string" });
         }
         userMealPlans[index] = { ...userMealPlans[index], ...updates };
         res.json(userMealPlans[index]);
