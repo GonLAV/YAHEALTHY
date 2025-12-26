@@ -183,7 +183,7 @@ app.put('/api/meal-plans/:id', (req, res) => {
     const index = userMealPlans.findIndex(p => p.id === id);
     if (index !== -1) {
         const updates = req.body || {};
-        if (updates.name === "") {
+        if (Object.prototype.hasOwnProperty.call(updates, "name") && !updates.name) {
             return res.status(400).json({ message: "name cannot be empty" });
         }
         userMealPlans[index] = { ...userMealPlans[index], ...updates };
