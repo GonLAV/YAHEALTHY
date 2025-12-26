@@ -162,10 +162,42 @@ const premiumFeatures = [
 ];
 
 const isValidCaloriesTarget = (caloriesTarget) => (
-    caloriesTarget === undefined || (typeof caloriesTarget === "number" && !Number.isNaN(caloriesTarget) && caloriesTarget > 0)
+    caloriesTarget === undefined || (typeof caloriesTarget === "number" && !Number.isNaN(caloriesTarget) && Number.isFinite(caloriesTarget) && caloriesTarget > 0)
 );
 
 const allowedPlanFields = ["name", "meals", "caloriesTarget"];
+
+const validateMealPlanPayload = (body, { requireName }) => {
+    const payload = body || {};
+    const invalidKeys = Object.keys(payload).filter(key => !allowedPlanFields.includes(key));
+    if (invalidKeys.length) {
+        return { error: `invalid fields: ${invalidKeys.join(", ")}` };
+    }
+
+    const result = {};
+    if (requireName || "name" in payload) {
+        if (typeof payload.name !== "string" || payload.name.trim() === "") {
+            return { error: "name is required" };
+        }
+        result.name = payload.name;
+    }
+
+    if ("meals" in payload) {
+        if (!Array.isArray(payload.meals)) {
+            return { error: "meals must be an array" };
+        }
+        result.meals = payload.meals;
+    }
+
+    if ("caloriesTarget" in payload) {
+        if (!isValidCaloriesTarget(payload.caloriesTarget)) {
+            return { error: "caloriesTarget must be a positive number when provided" };
+        }
+        result.caloriesTarget = payload.caloriesTarget;
+    }
+
+    return { value: result, hasUpdates: Object.keys(result).length > 0 };
+};
 
 app.get('/api/recipes', (req, res) => {
     res.json(recipes);
@@ -176,56 +208,27 @@ app.get('/api/meal-plans', (req, res) => {
 });
 
 app.post('/api/meal-plans', (req, res) => {
-    const invalidKeys = Object.keys(req.body || {}).filter(key => !allowedPlanFields.includes(key));
-    if (invalidKeys.length) {
-        return res.status(400).json({ message: `invalid fields: ${invalidKeys.join(", ")}` });
+    const validation = validateMealPlanPayload(req.body, { requireName: true });
+    if (validation.error) {
+        return res.status(400).json({ message: validation.error });
     }
-    const { name, meals = [], caloriesTarget } = req.body;
-    if (typeof name !== "string" || name.trim() === "") {
-        return res.status(400).json({ message: "name is required" });
-    }
-    if (!Array.isArray(meals)) {
-        return res.status(400).json({ message: "meals must be an array" });
-    }
-    if (!isValidCaloriesTarget(caloriesTarget)) {
-        return res.status(400).json({ message: "caloriesTarget must be a positive number when provided" });
-    }
-    const newPlan = { id: randomUUID(), name, meals, ...(caloriesTarget !== undefined && { caloriesTarget }) };
+    const newPlan = { id: randomUUID(), ...validation.value };
     userMealPlans.push(newPlan);
     res.status(201).json(newPlan);
 });
 
 app.put('/api/meal-plans/:id', (req, res) => {
-    const invalidKeys = Object.keys(req.body || {}).filter(key => !allowedPlanFields.includes(key));
-    if (invalidKeys.length) {
-        return res.status(400).json({ message: `invalid fields: ${invalidKeys.join(", ")}` });
-    }
     const { id } = req.params;
     const index = userMealPlans.findIndex(p => p.id === id);
     if (index !== -1) {
-        const updates = {};
-        if ("name" in req.body) {
-            if (typeof req.body.name !== "string" || req.body.name.trim() === "") {
-                return res.status(400).json({ message: "name must be a non-empty string" });
-            }
-            updates.name = req.body.name;
+        const validation = validateMealPlanPayload(req.body, { requireName: false });
+        if (validation.error) {
+            return res.status(400).json({ message: validation.error });
         }
-        if ("meals" in req.body) {
-            if (!Array.isArray(req.body.meals)) {
-                return res.status(400).json({ message: "meals must be an array" });
-            }
-            updates.meals = req.body.meals;
-        }
-        if ("caloriesTarget" in req.body) {
-            if (!isValidCaloriesTarget(req.body.caloriesTarget)) {
-                return res.status(400).json({ message: "caloriesTarget must be a positive number when provided" });
-            }
-            updates.caloriesTarget = req.body.caloriesTarget;
-        }
-        if (!Object.keys(updates).length) {
+        if (!validation.hasUpdates) {
             return res.json(userMealPlans[index]);
         }
-        userMealPlans[index] = { ...userMealPlans[index], ...updates };
+        userMealPlans[index] = { ...userMealPlans[index], ...validation.value };
         res.json(userMealPlans[index]);
     } else {
         res.status(404).json({ message: "Plan not found" });
