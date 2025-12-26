@@ -170,7 +170,7 @@ app.get('/api/meal-plans', (req, res) => {
 });
 
 app.post('/api/meal-plans', (req, res) => {
-    const { name, meals = [], caloriesTarget } = req.body || {};
+    const { name, meals = [], caloriesTarget } = req.body;
     if (!name) {
         return res.status(400).json({ message: "name is required" });
     }
@@ -183,7 +183,7 @@ app.put('/api/meal-plans/:id', (req, res) => {
     const { id } = req.params;
     const index = userMealPlans.findIndex(p => p.id === id);
     if (index !== -1) {
-        const updates = req.body || {};
+        const updates = req.body;
         if ("name" in updates && !updates.name) {
             return res.status(400).json({ message: "name cannot be empty" });
         }
