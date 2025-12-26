@@ -145,6 +145,18 @@ const premiumFeatures = [
         name: "Live nutritionist coaching",
         description: "Unlimited chat and weekly video check-ins with licensed dietitians for personalized guidance",
         price: "usd_29.99_month"
+    },
+    {
+        id: "p2",
+        name: "Personalized biomarker labs",
+        description: "Quarterly bloodwork kit with dietitian review and tailored nutrition targets",
+        price: "usd_79.00_quarter"
+    },
+    {
+        id: "p3",
+        name: "Concierge meal prep plans",
+        description: "Chef-designed weekly prep plans with smart grocery swaps and bulk-cook timers",
+        price: "usd_14.99_month"
     }
 ];
 
@@ -157,7 +169,11 @@ app.get('/api/meal-plans', (req, res) => {
 });
 
 app.post('/api/meal-plans', (req, res) => {
-    const newPlan = { ...req.body, id: Date.now().toString() };
+    const { name, meals = [], caloriesTarget } = req.body || {};
+    if (!name) {
+        return res.status(400).json({ message: "name is required" });
+    }
+    const newPlan = { id: Date.now().toString(), name, meals, caloriesTarget };
     userMealPlans.push(newPlan);
     res.status(201).json(newPlan);
 });
@@ -166,7 +182,11 @@ app.put('/api/meal-plans/:id', (req, res) => {
     const { id } = req.params;
     const index = userMealPlans.findIndex(p => p.id === id);
     if (index !== -1) {
-        userMealPlans[index] = { ...userMealPlans[index], ...req.body };
+        const updates = req.body || {};
+        if (updates.name === "") {
+            return res.status(400).json({ message: "name cannot be empty" });
+        }
+        userMealPlans[index] = { ...userMealPlans[index], ...updates };
         res.json(userMealPlans[index]);
     } else {
         res.status(404).json({ message: "Plan not found" });
@@ -185,6 +205,14 @@ app.get('/api/features', (req, res) => {
 
 app.get('/api/premium-features', (req, res) => {
     res.json(premiumFeatures);
+});
+
+app.get('/api/health', (req, res) => {
+    res.json({
+        status: "ok",
+        uptimeSeconds: process.uptime(),
+        timestamp: new Date().toISOString()
+    });
 });
 
 app.listen(PORT, () => {
