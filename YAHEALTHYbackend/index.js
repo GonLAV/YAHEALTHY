@@ -182,7 +182,7 @@ app.post('/api/meal-plans', (req, res) => {
         return res.status(400).json({ message: "meals must be an array" });
     }
     if (!isValidCalories(caloriesTarget)) {
-        return res.status(400).json({ message: "caloriesTarget must be a positive number" });
+        return res.status(400).json({ message: "caloriesTarget must be a positive number when provided" });
     }
     const newPlan = { id: randomUUID(), name, meals, caloriesTarget };
     userMealPlans.push(newPlan);
@@ -208,12 +208,12 @@ app.put('/api/meal-plans/:id', (req, res) => {
         }
         if ("caloriesTarget" in req.body) {
             if (!isValidCalories(req.body.caloriesTarget)) {
-                return res.status(400).json({ message: "caloriesTarget must be a positive number" });
+                return res.status(400).json({ message: "caloriesTarget must be a positive number when provided" });
             }
             updates.caloriesTarget = req.body.caloriesTarget;
         }
         if (!Object.keys(updates).length) {
-            return res.status(400).json({ message: "no valid fields to update" });
+            return res.json(userMealPlans[index]);
         }
         userMealPlans[index] = { ...userMealPlans[index], ...updates };
         res.json(userMealPlans[index]);
