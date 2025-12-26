@@ -162,8 +162,10 @@ const premiumFeatures = [
 ];
 
 const isValidCalories = (caloriesTarget) => (
-    caloriesTarget === undefined || (typeof caloriesTarget === "number" && caloriesTarget > 0)
+    caloriesTarget === undefined || (typeof caloriesTarget === "number" && !Number.isNaN(caloriesTarget) && caloriesTarget > 0)
 );
+
+const allowedPlanFields = ["name", "meals", "caloriesTarget"];
 
 app.get('/api/recipes', (req, res) => {
     res.json(recipes);
@@ -174,6 +176,10 @@ app.get('/api/meal-plans', (req, res) => {
 });
 
 app.post('/api/meal-plans', (req, res) => {
+    const invalidKeys = Object.keys(req.body || {}).filter(key => !allowedPlanFields.includes(key));
+    if (invalidKeys.length) {
+        return res.status(400).json({ message: `invalid fields: ${invalidKeys.join(", ")}` });
+    }
     const { name, meals = [], caloriesTarget } = req.body;
     if (typeof name !== "string" || name.trim() === "") {
         return res.status(400).json({ message: "name is required" });
@@ -190,6 +196,10 @@ app.post('/api/meal-plans', (req, res) => {
 });
 
 app.put('/api/meal-plans/:id', (req, res) => {
+    const invalidKeys = Object.keys(req.body || {}).filter(key => !allowedPlanFields.includes(key));
+    if (invalidKeys.length) {
+        return res.status(400).json({ message: `invalid fields: ${invalidKeys.join(", ")}` });
+    }
     const { id } = req.params;
     const index = userMealPlans.findIndex(p => p.id === id);
     if (index !== -1) {
@@ -213,7 +223,7 @@ app.put('/api/meal-plans/:id', (req, res) => {
             updates.caloriesTarget = req.body.caloriesTarget;
         }
         if (!Object.keys(updates).length) {
-            return res.json(userMealPlans[index]);
+            return res.status(400).json({ message: "no valid fields to update" });
         }
         userMealPlans[index] = { ...userMealPlans[index], ...updates };
         res.json(userMealPlans[index]);
