@@ -1,0 +1,1077 @@
+const express = require('express');
+const cors = require('cors');
+const dotenv = require('dotenv');
+const path = require('path');
+
+// Import utilities
+const { 
+  validateWeight, 
+  validateHeight, 
+  validateAge, 
+  validateGender,
+  normalizeLifestyle,
+  HEALTH_CONSTANTS
+} = require('./utils/constants');
+
+const {
+  calculateBMI,
+  calculateBodyFat,
+  calculateBMR,
+  calculateTDEE,
+  calculateDailyCalories,
+  calculateWaterTarget,
+  calculateSleepTarget,
+  getWeightLossPace,
+  calculateWeightProgress,
+  getHydrationStatus,
+  getSleepStatus,
+  getReadinessScore,
+  calculateSleepDebt
+} = require('./utils/health-calculations');
+
+const {
+  generateId,
+  generateSurveyId,
+  generateWeightGoalId,
+  generateWeightLogId,
+  generateFastingWindowId,
+  generateMealSwapId,
+  generateReadinessId
+} = require('./utils/id-generator');
+
+const auth = require('./utils/auth');
+const db = require('./utils/database');
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+app.use(cors());
+app.use(express.json());
+
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+app.get('/dashboard', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.get('/api/health', (req, res) => {
+    res.json({ 
+        status: 'ok', 
+        message: 'YAHEALTHY API is running...',
+        features: [
+          'surveys',
+          'weight-goals',
+          'weight-logs',
+          'hydration-tracking',
+          'sleep-tracking',
+          'grocery-planning',
+          'recipes',
+          'meal-plans',
+          'fasting-windows',
+          'meal-swaps',
+          'readiness-scoring',
+          'sleep-debt-tracking',
+          'offline-logs',
+          'ai-stubs'
+        ]
+    });
+});
+
+// ========== In-Memory Data Storage ==========
+
+let surveys = [];
+let weightGoals = [];
+let weightLogs = [];
+let hydrationLogs = [];
+let sleepLogs = [];
+let fastingWindows = [];
+let mealSwaps = [];
+let readinessScores = [];
+let offlineLogs = [];
+
+// Existing recipe and meal plan data
+const recipes = [
+    {
+        id: "1",
+        name: "סלט קינואה עם ירקות צלויים",
+        nutritionist: "ד״ר שרה כהן",
+        difficulty: "קל",
+        time: "30 דקות",
+        calories: "320 קלוריות",
+        category: "צהריים",
+        rating: 4.8,
+        image: "🥗",
+        ingredients: [
+            { item: "קינואה", amount: "1 כוס", category: "דגנים" },
+            { item: "בטטה", amount: "1 בינונית", category: "ירקות" },
+            { item: "גזר", amount: "2 יחידות", category: "ירקות" },
+            { item: "זוקיני", amount: "1 יחידה", category: "ירקות" },
+            { item: "שמן זית", amount: "2 כפות", category: "שמנים" },
+            { item: "לימון", amount: "1 יחידה", category: "פירות" }
+        ],
+        steps: [
+            { step: 1, text: "הדליקו תנור ל-200 מעלות", video: "prep" },
+            { step: 2, text: "חתכו את הירקות לקוביות בגודל אחיד", video: "chop" },
+            { step: 3, text: "ערבבו ירקות עם שמן זית ותבלינים", video: "mix" },
+            { step: 4, text: "אפו 25 דקות עד שהירקות מקבלים צבע זהוב", video: "bake" },
+            { step: 5, text: "בשלו קינואה לפי ההוראות על האריזה", video: "cook" },
+            { step: 6, text: "ערבבו הכל יחד והוסיפו מיץ לימון", video: "combine" }
+        ],
+        tips: "אפשר להוסיף גבינת פטה או אגוזים לחלבון נוסף",
+        nutritionistNote: "מנה מאוזנת עם פחמימות מורכבות וסיבים תזונתיים"
+    },
+    {
+        id: "2",
+        name: "עוף בגריל עם ירקות על הפלנצ׳ה",
+        nutritionist: "דני לוי",
+        difficulty: "בינוני",
+        time: "45 דקות",
+        calories: "410 קלוריות",
+        category: "ערב",
+        rating: 4.9,
+        image: "🍗",
+        ingredients: [
+            { item: "חזה עוף", amount: "400 גרם", category: "חלבונים" },
+            { item: "פלפל צבעוני", amount: "3 יחידות", category: "ירקות" },
+            { item: "בצל", amount: "2 יחידות", category: "ירקות" },
+            { item: "שום", amount: "4 שיניים", category: "תבלינים" },
+            { item: "פפריקה מעושנת", amount: "1 כפית", category: "תבלינים" },
+            { item: "שמן זית", amount: "3 כפות", category: "שמנים" }
+        ],
+        steps: [
+            { step: 1, text: "חתכו עוף לרצועות דקות", video: "cut" },
+            { step: 2, text: "מרינדה: שמן, שום, פפריקה - 20 דקות", video: "marinate" },
+            { step: 3, text: "חתכו ירקות לרצועות", video: "slice" },
+            { step: 4, text: "חממו מחבת על אש גבוהה", video: "heat" },
+            { step: 5, text: "טגנו עוף 4 דקות כל צד", video: "cook" },
+            { step: 6, text: "הוסיפו ירקות וטגנו 5 דקות נוספות", video: "finish" }
+        ],
+        tips: "מוגש עם אורז מלא או לחם פיתה מחיטה מלאה",
+        nutritionistNote: "עשיר בחלבון איכותי ונמוך בשומן רווי"
+    },
+    {
+        id: "3",
+        name: "שייק פירות וגרנולה",
+        nutritionist: "ד״ר מיכל רוזן",
+        difficulty: "קל מאוד",
+        time: "10 דקות",
+        calories: "280 קלוריות",
+        category: "בוקר",
+        rating: 4.7,
+        image: "🥤",
+        ingredients: [
+            { item: "בננה קפואה", amount: "1 יחידה", category: "פירות" },
+            { item: "תותים", amount: "1 כוס", category: "פירות" },
+            { item: "יוגורט יווני", amount: "150 גרם", category: "חלבונים" },
+            { item: "חלב שקדים", amount: "1 כוס", category: "משקאות" },
+            { item: "גרנולה", amount: "3 כפות", category: "דגנים" },
+            { item: "דבש", amount: "1 כפית", category: "ממתיקים" }
+        ],
+        steps: [
+            { step: 1, text: "שימו את הפירות הקפואים בבלנדר", video: "add" },
+            { step: 2, text: "הוסיפו יוגורט וחלב שקדים", video: "pour" },
+            { step: 3, text: "טחנו עד לקבלת מרקם חלק", video: "blend" },
+            { step: 4, text: "טעמו והוסיפו דבש לפי הצורך", video: "taste" },
+            { step: 5, text: "מזגו לכוס והוסיפו גרנולה מלמעלה", video: "serve" }
+        ],
+        tips: "אפשר להוסיף זרעי צ׳יה או פשתן לאומגה 3",
+        nutritionistNote: "ארוחת בוקר מאוזנת עם חלבון ופחמימות מורכבות"
+    }
+];
+
+let userMealPlans = [];
+
+// ========== Helper Functions ==========
+
+function validateSurveyInput(body) {
+  const errors = [];
+
+  // Gender validation
+  const genderValidation = validateGender(body.gender);
+  if (!genderValidation.isValid) errors.push(genderValidation.error);
+
+  // Age validation
+  const ageValidation = validateAge(body.age);
+  if (!ageValidation.isValid) errors.push(ageValidation.error);
+
+  // Height validation
+  const heightValidation = validateHeight(body.heightCm);
+  if (!heightValidation.isValid) errors.push(heightValidation.error);
+
+  // Weight validation
+  const weightValidation = validateWeight(body.weightKg);
+  if (!weightValidation.isValid) errors.push(weightValidation.error);
+
+  // Target weight validation
+  if (body.targetWeightKg !== undefined) {
+    const targetValidation = validateWeight(body.targetWeightKg);
+    if (!targetValidation.isValid) errors.push(targetValidation.error);
+
+    if (body.weightKg && body.targetWeightKg >= body.weightKg) {
+      errors.push('Target weight must be less than current weight');
+    }
+  }
+
+  // Target days validation
+  if (body.targetDays && (parseInt(body.targetDays) < 7 || parseInt(body.targetDays) > 730)) {
+    errors.push('Target days must be between 7 and 730');
+  }
+
+  return { isValid: errors.length === 0, errors };
+}
+
+// ========== Survey & Metrics Endpoints ==========
+
+/**
+ * Create health survey
+ * POST /api/surveys
+ */
+app.post('/api/surveys', (req, res) => {
+  const { gender, age, heightCm, weightKg, targetWeightKg, targetDays = 120, lifestyle = 'moderate' } = req.body;
+
+  // Validate input
+  const validation = validateSurveyInput(req.body);
+  if (!validation.isValid) {
+    return res.status(400).json({ error: 'Invalid input', details: validation.errors });
+  }
+
+  const genderValidation = validateGender(gender);
+  const lifestyle_normalized = normalizeLifestyle(lifestyle);
+
+  // Calculate metrics
+  const bmi = calculateBMI(weightKg, heightCm);
+  const bodyFat = calculateBodyFat(bmi, age, genderValidation.normalized);
+  const bmr = calculateBMR(weightKg, heightCm, age, genderValidation.normalized);
+  const tdee = calculateTDEE(bmr, lifestyle_normalized);
+  const calorieInfo = calculateDailyCalories(tdee, weightKg, targetWeightKg, targetDays);
+  const waterTarget = calculateWaterTarget(weightKg);
+  const sleepTarget = calculateSleepTarget(age);
+  const pace = getWeightLossPace(weightKg, targetWeightKg, targetDays);
+
+  const survey = {
+    id: generateSurveyId(),
+    gender: genderValidation.normalized,
+    age: parseInt(age),
+    heightCm: parseFloat(heightCm),
+    weightKg: parseFloat(weightKg),
+    targetWeightKg: parseFloat(targetWeightKg),
+    targetDays: parseInt(targetDays),
+    lifestyle: lifestyle_normalized,
+    createdAt: new Date().toISOString(),
+    metrics: {
+      bmi,
+      bodyFatPercentage: bodyFat,
+      bmr: Math.round(bmr),
+      tdee,
+      dailyCalories: calorieInfo.targetDailyCalories,
+      dailyDeficit: calorieInfo.dailyDeficit,
+      waterTargetLiters: waterTarget,
+      sleepTargetHours: sleepTarget,
+      estimatedDaysToGoal: calorieInfo.estimatedDaysToGoal,
+      estimatedWeeksToGoal: parseFloat(calorieInfo.estimatedWeeksToGoal),
+      weightLossPace: pace
+    }
+  };
+
+  surveys.push(survey);
+  res.status(201).json(survey);
+});
+
+/**
+ * Get all surveys
+ * GET /api/surveys
+ */
+app.get('/api/surveys', (req, res) => {
+  res.json(surveys);
+});
+
+/**
+ * Get survey by ID
+ * GET /api/surveys/:id
+ */
+app.get('/api/surveys/:id', (req, res) => {
+  const survey = surveys.find(s => s.id === req.params.id);
+  if (!survey) {
+    return res.status(404).json({ error: 'Survey not found' });
+  }
+  res.json(survey);
+});
+
+// ========== Weight Goals & Logs Endpoints ==========
+
+/**
+ * Create weight goal
+ * POST /api/weight-goals
+ */
+app.post('/api/weight-goals', (req, res) => {
+  const { startWeightKg, targetWeightKg, weighInDays = ['Mon', 'Fri'] } = req.body;
+
+  const startValidation = validateWeight(startWeightKg);
+  if (!startValidation.isValid) {
+    return res.status(400).json({ error: startValidation.error });
+  }
+
+  const targetValidation = validateWeight(targetWeightKg);
+  if (!targetValidation.isValid) {
+    return res.status(400).json({ error: targetValidation.error });
+  }
+
+  if (targetWeightKg >= startWeightKg) {
+    return res.status(400).json({ error: 'Target weight must be less than start weight' });
+  }
+
+  const goal = {
+    id: generateWeightGoalId(),
+    startWeightKg: parseFloat(startWeightKg),
+    targetWeightKg: parseFloat(targetWeightKg),
+    currentWeightKg: parseFloat(startWeightKg),
+    weighInDays: Array.isArray(weighInDays) ? weighInDays : ['Mon', 'Fri'],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    logsCount: 0
+  };
+
+  weightGoals.push(goal);
+  res.status(201).json(goal);
+});
+
+/**
+ * Get all weight goals
+ * GET /api/weight-goals
+ */
+app.get('/api/weight-goals', (req, res) => {
+  res.json(weightGoals);
+});
+
+/**
+ * Get weight goal by ID
+ * GET /api/weight-goals/:id
+ */
+app.get('/api/weight-goals/:id', (req, res) => {
+  const goal = weightGoals.find(g => g.id === req.params.id);
+  if (!goal) {
+    return res.status(404).json({ error: 'Weight goal not found' });
+  }
+
+  const goalLogs = weightLogs.filter(log => log.goalId === goal.id);
+  const progress = calculateWeightProgress(goal.startWeightKg, goal.currentWeightKg, goal.targetWeightKg);
+
+  res.json({
+    ...goal,
+    progress,
+    logsCount: goalLogs.length
+  });
+});
+
+/**
+ * Record weight log
+ * POST /api/weight-logs
+ */
+app.post('/api/weight-logs', (req, res) => {
+  const { goalId, weightKg, waterLiters = 0, sleepHours = 0, notes = '' } = req.body;
+
+  const goal = weightGoals.find(g => g.id === goalId);
+  if (!goal) {
+    return res.status(404).json({ error: 'Weight goal not found' });
+  }
+
+  const weightValidation = validateWeight(weightKg);
+  if (!weightValidation.isValid) {
+    return res.status(400).json({ error: weightValidation.error });
+  }
+
+  // Check for weight loss (celebration gating)
+  const previousWeight = goal.currentWeightKg;
+  const isWeightLoss = weightKg < previousWeight;
+
+  // Update goal's current weight
+  goal.currentWeightKg = parseFloat(weightKg);
+  goal.logsCount += 1;
+  goal.updatedAt = new Date().toISOString();
+
+  // Calculate progress
+  const progress = calculateWeightProgress(goal.startWeightKg, weightKg, goal.targetWeightKg);
+
+  // Track hydration if provided
+  const hydrationStatus = waterLiters > 0 ? getHydrationStatus(waterLiters, 3.0) : null;
+
+  // Track sleep if provided
+  const sleepStatus = sleepHours > 0 ? getSleepStatus(sleepHours, 8.0) : null;
+
+  const log = {
+    id: generateWeightLogId(),
+    goalId,
+    weightKg: parseFloat(weightKg),
+    waterLiters: parseFloat(waterLiters),
+    sleepHours: parseFloat(sleepHours),
+    notes,
+    isWeightLoss,
+    progress,
+    hydrationStatus,
+    sleepStatus,
+    createdAt: new Date().toISOString()
+  };
+
+  weightLogs.push(log);
+
+  res.status(201).json({
+    log,
+    celebration: isWeightLoss ? {
+      message: `Great job! Lost ${(previousWeight - weightKg).toFixed(1)}kg`,
+      remaining: progress.remainingKg
+    } : null
+  });
+});
+
+/**
+ * Get weight logs for goal
+ * GET /api/weight-logs?goalId=<id>
+ */
+app.get('/api/weight-logs', (req, res) => {
+  const { goalId } = req.query;
+  
+  let logs = weightLogs;
+  if (goalId) {
+    logs = logs.filter(log => log.goalId === goalId);
+  }
+
+  res.json(logs);
+});
+
+// ========== Hydration & Sleep Tracking ==========
+
+/**
+ * Log hydration
+ * POST /api/hydration-logs
+ */
+app.post('/api/hydration-logs', (req, res) => {
+  const { waterLiters, date = new Date().toISOString() } = req.body;
+
+  if (!waterLiters || waterLiters < 0 || waterLiters > 10) {
+    return res.status(400).json({ error: 'Water liters must be between 0 and 10' });
+  }
+
+  const status = getHydrationStatus(waterLiters, 3.0);
+
+  const log = {
+    id: generateId('hydro'),
+    waterLiters: parseFloat(waterLiters),
+    status: status.status,
+    percentage: status.percentage,
+    date,
+    createdAt: new Date().toISOString()
+  };
+
+  hydrationLogs.push(log);
+  res.status(201).json(log);
+});
+
+/**
+ * Get hydration logs
+ * GET /api/hydration-logs
+ */
+app.get('/api/hydration-logs', (req, res) => {
+  res.json(hydrationLogs);
+});
+
+/**
+ * Log sleep
+ * POST /api/sleep-logs
+ */
+app.post('/api/sleep-logs', (req, res) => {
+  const { sleepHours, date = new Date().toISOString(), quality = 'normal' } = req.body;
+
+  if (!sleepHours || sleepHours < 0 || sleepHours > 16) {
+    return res.status(400).json({ error: 'Sleep hours must be between 0 and 16' });
+  }
+
+  const status = getSleepStatus(sleepHours, 8.0);
+
+  const log = {
+    id: generateId('sleep'),
+    sleepHours: parseFloat(sleepHours),
+    quality: quality || 'normal',
+    status: status.status,
+    percentage: status.percentage,
+    date,
+    createdAt: new Date().toISOString()
+  };
+
+  sleepLogs.push(log);
+  res.status(201).json(log);
+});
+
+/**
+ * Get sleep logs
+ * GET /api/sleep-logs
+ */
+app.get('/api/sleep-logs', (req, res) => {
+  res.json(sleepLogs);
+});
+
+// ========== Grocery Planning ==========
+
+/**
+ * Generate weekly grocery plan
+ * POST /api/grocery-plan
+ */
+app.post('/api/grocery-plan', (req, res) => {
+  const { surveyId, dailyCalories = 2000 } = req.body;
+
+  // If surveyId provided, get calories from survey
+  let targetCalories = dailyCalories;
+  if (surveyId) {
+    const survey = surveys.find(s => s.id === surveyId);
+    if (survey) {
+      targetCalories = survey.metrics.dailyCalories;
+    }
+  }
+
+  // Calculate macros distribution (40% carbs, 30% protein, 30% fat)
+  const weeklyCalories = targetCalories * 7;
+  const carbCalories = weeklyCalories * 0.4;
+  const proteinCalories = weeklyCalories * 0.3;
+  const fatCalories = weeklyCalories * 0.3;
+
+  // Convert to grams (carbs/protein = 4 kcal/g, fat = 9 kcal/g)
+  const carbsGrams = Math.round(carbCalories / 4);
+  const proteinGrams = Math.round(proteinCalories / 4);
+  const fatGrams = Math.round(fatCalories / 9);
+
+  const groceryPlan = {
+    id: generateId('grocery'),
+    surveyId,
+    targetDailyCalories: targetCalories,
+    weeklyCalories,
+    weeklyMacros: {
+      carbsGrams,
+      proteinGrams,
+      fatGrams
+    },
+    items: {
+      vegetables: [
+        { name: 'Broccoli', amount: '700g', category: 'cruciferous' },
+        { name: 'Spinach', amount: '500g', category: 'leafy' },
+        { name: 'Carrots', amount: '600g', category: 'root' },
+        { name: 'Bell Peppers', amount: '400g', category: 'colorful' }
+      ],
+      fruits: [
+        { name: 'Apples', amount: '1.2kg', category: 'common' },
+        { name: 'Bananas', amount: '900g', category: 'tropical' },
+        { name: 'Berries', amount: '400g', category: 'antioxidant' },
+        { name: 'Oranges', amount: '800g', category: 'citrus' }
+      ],
+      proteins: [
+        { name: 'Chicken breast', amount: '1.4kg', category: 'poultry' },
+        { name: 'Salmon', amount: '800g', category: 'fish' },
+        { name: 'Eggs', amount: '18 pcs', category: 'eggs' },
+        { name: 'Tofu', amount: '600g', category: 'plant-based' }
+      ],
+      grainsAndDairy: [
+        { name: 'Brown rice', amount: '1.5kg', category: 'grains' },
+        { name: 'Oats', amount: '700g', category: 'grains' },
+        { name: 'Greek yogurt', amount: '1.4kg', category: 'dairy' },
+        { name: 'Milk', amount: '2L', category: 'dairy' }
+      ]
+    },
+    createdAt: new Date().toISOString()
+  };
+
+  res.status(201).json(groceryPlan);
+});
+
+/**
+ * Optimize grocery plan
+ * POST /api/grocery-optimize
+ */
+app.post('/api/grocery-optimize', (req, res) => {
+  const { surveyId, priceMode = 'budget', deliveryDays = 3 } = req.body;
+
+  const survey = surveyId ? surveys.find(s => s.id === surveyId) : null;
+
+  const optimized = {
+    id: generateId('grocery-opt'),
+    surveyId,
+    priceMode,
+    deliveryDays,
+    estimatedCost: priceMode === 'budget' ? '45-55 USD' : '65-75 USD',
+    savingsTips: [
+      'Buy seasonal produce for better prices',
+      'Consider bulk buying grains and proteins',
+      'Check for weekly specials on meats',
+      'Use frozen vegetables as backup options'
+    ],
+    substitutions: [
+      { original: 'Salmon', alternative: 'Mackerel', reason: 'Similar omega-3s, lower cost' },
+      { original: 'Blueberries', alternative: 'Blackberries', reason: 'Similar antioxidants, in season' }
+    ],
+    createdAt: new Date().toISOString()
+  };
+
+  res.status(201).json(optimized);
+});
+
+// ========== Recipes & Recipe Sharing ==========
+
+/**
+ * Get all recipes
+ * GET /api/recipes
+ */
+app.get('/api/recipes', (req, res) => {
+  res.json(recipes);
+});
+
+/**
+ * Get recipe by ID
+ * GET /api/recipes/:id
+ */
+app.get('/api/recipes/:id', (req, res) => {
+  const recipe = recipes.find(r => r.id === req.params.id);
+  if (!recipe) {
+    return res.status(404).json({ error: 'Recipe not found' });
+  }
+  res.json(recipe);
+});
+
+/**
+ * Shuffle recipes (get random selection)
+ * GET /api/recipes/shuffle?count=3
+ */
+app.get('/api/recipes/shuffle', (req, res) => {
+  const count = Math.min(parseInt(req.query.count) || 3, recipes.length);
+  const shuffled = recipes.sort(() => 0.5 - Math.random()).slice(0, count);
+  res.json(shuffled);
+});
+
+/**
+ * Get shareable recipe URL
+ * GET /api/recipes/:id/share
+ */
+app.get('/api/recipes/:id/share', (req, res) => {
+  const recipe = recipes.find(r => r.id === req.params.id);
+  if (!recipe) {
+    return res.status(404).json({ error: 'Recipe not found' });
+  }
+
+  const shareUrl = `${req.protocol}://${req.get('host')}/api/recipes/${recipe.id}/shared`;
+  const shareText = `${recipe.name}\n${recipe.difficulty} | ${recipe.time}\n${recipe.calories}\n\nIngredients:\n${recipe.ingredients.map(i => `- ${i.item}: ${i.amount}`).join('\n')}\n\nSteps:\n${recipe.steps.map(s => `${s.step}. ${s.text}`).join('\n')}`;
+
+  res.json({
+    url: shareUrl,
+    text: shareText,
+    shareMethods: {
+      whatsapp: `https://wa.me/?text=${encodeURIComponent(shareText)}`,
+      email: `mailto:?subject=${encodeURIComponent(recipe.name)}&body=${encodeURIComponent(shareText)}`,
+      copy: shareText
+    }
+  });
+});
+
+// ========== Meal Plans ==========
+
+app.get('/api/meal-plans', (req, res) => {
+    res.json(userMealPlans);
+});
+
+app.post('/api/meal-plans', (req, res) => {
+    const newPlan = { ...req.body, id: generateId('mealplan') };
+    userMealPlans.push(newPlan);
+    res.status(201).json(newPlan);
+});
+
+app.put('/api/meal-plans/:id', (req, res) => {
+    const { id } = req.params;
+    const index = userMealPlans.findIndex(p => p.id === id);
+    if (index !== -1) {
+        userMealPlans[index] = { ...userMealPlans[index], ...req.body };
+        res.json(userMealPlans[index]);
+    } else {
+        res.status(404).json({ message: "Plan not found" });
+    }
+});
+
+app.delete('/api/meal-plans/:id', (req, res) => {
+    userMealPlans = userMealPlans.filter(p => p.id !== id);
+    res.status(204).send();
+});
+
+// ========== Fasting Windows ==========
+
+/**
+ * Create fasting window
+ * POST /api/fasting-windows
+ */
+app.post('/api/fasting-windows', (req, res) => {
+  const { windowHours = 16, protocol = 'intermittent', notes = '' } = req.body;
+
+  if (windowHours < 8 || windowHours > 23) {
+    return res.status(400).json({ error: 'Fasting window must be between 8 and 23 hours' });
+  }
+
+  const fastingWindow = {
+    id: generateFastingWindowId(),
+    windowHours: parseInt(windowHours),
+    protocol: protocol || 'intermittent',
+    tips: [
+      'Stay hydrated during fasting periods',
+      'Start with a gentle 12-hour fast if new',
+      'Break fast with light, nutrient-dense foods',
+      'Avoid overeating during eating windows',
+      'Listen to your body and adjust as needed'
+    ],
+    notes,
+    createdAt: new Date().toISOString()
+  };
+
+  fastingWindows.push(fastingWindow);
+  res.status(201).json(fastingWindow);
+});
+
+/**
+ * Get all fasting windows
+ * GET /api/fasting-windows
+ */
+app.get('/api/fasting-windows', (req, res) => {
+  res.json(fastingWindows);
+});
+
+// ========== Meal Swaps ==========
+
+/**
+ * Get meal swap suggestions
+ * POST /api/meal-swaps
+ */
+app.post('/api/meal-swaps', (req, res) => {
+  const { ingredients = [], allergies = [], preference = '' } = req.body;
+
+  const swapDatabase = {
+    proteins: {
+      chicken: ['turkey', 'tofu', 'tempeh', 'seitan'],
+      beef: ['bison', 'venison', 'plant-based burger'],
+      salmon: ['mackerel', 'sardines', 'trout'],
+      eggs: ['chickpea flour', 'flax eggs', 'applesauce']
+    },
+    grains: {
+      wheat: ['rice', 'quinoa', 'oats', 'millet'],
+      rice: ['couscous', 'barley', 'bulgur', 'farro'],
+      bread: ['lettuce wraps', 'cloud bread', 'gluten-free bread']
+    },
+    dairy: {
+      milk: ['almond milk', 'oat milk', 'coconut milk', 'cashew milk'],
+      yogurt: ['coconut yogurt', 'soy yogurt', 'cashew cream'],
+      cheese: ['nutritional yeast', 'cashew cheese', 'hemp seeds']
+    }
+  };
+
+  const swaps = [];
+  for (const ingredient of ingredients) {
+    const lower = ingredient.toLowerCase();
+    for (const [category, options] of Object.entries(swapDatabase)) {
+      for (const [original, alternatives] of Object.entries(options)) {
+        if (lower.includes(original)) {
+          const safeAlternatives = alternatives.filter(alt => {
+            for (const allergy of allergies) {
+              if (alt.toLowerCase().includes(allergy.toLowerCase())) return false;
+            }
+            return true;
+          });
+
+          swaps.push({
+            ingredient,
+            category,
+            alternatives: safeAlternatives
+          });
+        }
+      }
+    }
+  }
+
+  const result = {
+    id: generateMealSwapId(),
+    originalIngredients: ingredients,
+    allergies,
+    preference,
+    swaps,
+    createdAt: new Date().toISOString()
+  };
+
+  mealSwaps.push(result);
+  res.status(201).json(result);
+});
+
+/**
+ * Get all meal swaps
+ * GET /api/meal-swaps
+ */
+app.get('/api/meal-swaps', (req, res) => {
+  res.json(mealSwaps);
+});
+
+// ========== Readiness & Wellness ==========
+
+/**
+ * Calculate readiness score
+ * POST /api/readiness
+ */
+app.post('/api/readiness', (req, res) => {
+  const { hrv = 50, restingHr = 60, sleepHours = 7.5 } = req.body;
+
+  const score = getReadinessScore(hrv, restingHr);
+
+  const readiness = {
+    id: generateReadinessId(),
+    score,
+    level: score >= 80 ? 'excellent' : score >= 60 ? 'good' : score >= 40 ? 'fair' : 'poor',
+    hrv: { value: hrv, status: hrv >= 50 ? 'good' : 'low' },
+    restingHr: { value: restingHr, status: restingHr <= 60 ? 'good' : 'elevated' },
+    sleepHours: { value: sleepHours, status: sleepHours >= 7 ? 'adequate' : 'insufficient' },
+    recommendations: [
+      score < 60 ? 'Consider extra rest today' : 'You\'re ready for intense training',
+      sleepHours < 7 ? 'Prioritize sleep recovery' : 'Maintain consistent sleep schedule',
+      hrv < 50 ? 'Reduce stress and increase relaxation' : 'Your nervous system is balanced'
+    ],
+    createdAt: new Date().toISOString()
+  };
+
+  readinessScores.push(readiness);
+  res.status(201).json(readiness);
+});
+
+/**
+ * Get readiness scores
+ * GET /api/readiness
+ */
+app.get('/api/readiness', (req, res) => {
+  res.json(readinessScores);
+});
+
+/**
+ * Calculate sleep debt
+ * POST /api/sleep-debt
+ */
+app.post('/api/sleep-debt', (req, res) => {
+  const { targetHours = 8, sleepHours = [] } = req.body;
+
+  const debt = calculateSleepDebt(
+    sleepHours.map((h, i) => ({ hours: h, date: new Date(Date.now() - (sleepHours.length - i) * 86400000).toISOString() })),
+    targetHours
+  );
+
+  res.json({
+    targetHours,
+    debt: debt.debt,
+    daysTracked: debt.days,
+    averageSleep: debt.avgSleep,
+    daysToRecover: debt.daysToRecover,
+    recoveryTips: [
+      'Go to bed 30 minutes earlier',
+      'Maintain consistent sleep schedule',
+      'Avoid screens 1 hour before bed',
+      'Create a cool, dark sleeping environment',
+      'Consider a short power nap if needed'
+    ]
+  });
+});
+
+/**
+ * Get water reminders based on activity
+ * POST /api/water-reminders
+ */
+app.post('/api/water-reminders', (req, res) => {
+  const { weightKg = 70, activityMinutes = 0 } = req.body;
+
+  const waterTarget = calculateWaterTarget(weightKg, activityMinutes);
+  const reminder = {
+    id: generateId('reminder'),
+    targetLiters: waterTarget,
+    frequency: `Drink ${Math.round(waterTarget / 8)} cups (250ml each) throughout the day`,
+    times: [
+      '7:00 AM - Morning hydration',
+      '10:00 AM - Mid-morning top-up',
+      '1:00 PM - Post-lunch hydration',
+      '4:00 PM - Afternoon refill',
+      '7:00 PM - Evening hydration',
+      '10:00 PM - Before bed (optional)'
+    ],
+    adjustments: activityMinutes > 0 ? [
+      `Bonus: Drink extra ${(calculateWaterTarget(weightKg, activityMinutes) - calculateWaterTarget(weightKg, 0)).toFixed(1)}L due to ${activityMinutes}min activity`
+    ] : [],
+    createdAt: new Date().toISOString()
+  };
+
+  res.json(reminder);
+});
+
+// ========== Offline Logs ==========
+
+/**
+ * Submit offline logs
+ * POST /api/offline-logs
+ */
+app.post('/api/offline-logs', (req, res) => {
+  const { entries = [] } = req.body;
+
+  const validEntries = [];
+  const errors = [];
+
+  for (const entry of entries) {
+    if (!entry.type) {
+      errors.push('Each entry must have a type');
+      continue;
+    }
+
+    if (entry.type === 'weighin' && !entry.data?.weightKg) {
+      errors.push('Weight entry missing weightKg');
+      continue;
+    }
+
+    if (entry.type === 'hydration' && !entry.data?.waterLiters) {
+      errors.push('Hydration entry missing waterLiters');
+      continue;
+    }
+
+    if (entry.type === 'sleep' && !entry.data?.sleepHours) {
+      errors.push('Sleep entry missing sleepHours');
+      continue;
+    }
+
+    validEntries.push({
+      id: generateId('offline'),
+      ...entry,
+      processedAt: new Date().toISOString()
+    });
+  }
+
+  offlineLogs.push(...validEntries);
+
+  res.json({
+    processed: validEntries.length,
+    errors: errors.length > 0 ? errors : undefined,
+    entries: validEntries
+  });
+});
+
+/**
+ * Get offline logs
+ * GET /api/offline-logs
+ */
+app.get('/api/offline-logs', (req, res) => {
+  res.json(offlineLogs);
+});
+
+// ========== AI & Places Stubs ==========
+
+/**
+ * Food photo estimation (stub)
+ * POST /api/food-photo-estimate?mode=real|mock
+ */
+app.post('/api/food-photo-estimate', (req, res) => {
+  const { imageUrl } = req.body;
+  const mode = req.query.mode || 'mock';
+  const useAI = mode === 'real' && process.env.AI_PROVIDER && process.env.AI_API_KEY;
+
+  if (!imageUrl) {
+    return res.status(400).json({ error: 'imageUrl is required' });
+  }
+
+  if (useAI) {
+    // Would integrate real AI provider here
+    return res.json({
+      status: 'pending',
+      message: `AI estimation queued for ${process.env.AI_PROVIDER}`,
+      imageUrl,
+      estimatedCalories: null,
+      nutrients: null,
+      note: 'Processing with real AI (stub - not implemented)'
+    });
+  }
+
+  // Mock response
+  res.json({
+    status: 'mock',
+    imageUrl,
+    estimatedCalories: Math.round(300 + Math.random() * 400),
+    nutrients: {
+      protein: `${Math.round(15 + Math.random() * 20)}g`,
+      carbs: `${Math.round(30 + Math.random() * 40)}g`,
+      fat: `${Math.round(10 + Math.random() * 15)}g`
+    },
+    foodItems: ['Chicken breast', 'Brown rice', 'Broccoli'],
+    confidence: (0.75 + Math.random() * 0.2).toFixed(2),
+    message: 'Mock AI estimation - add real provider via env vars'
+  });
+});
+
+/**
+ * Restaurant suggestions (stub)
+ * POST /api/restaurant-suggestions?mode=real|mock
+ */
+app.post('/api/restaurant-suggestions', (req, res) => {
+  const { location = 'Downtown', cuisine = 'Mediterranean' } = req.body;
+  const mode = req.query.mode || 'mock';
+  const usePlaces = mode === 'real' && process.env.PLACES_PROVIDER && process.env.PLACES_API_KEY;
+
+  if (usePlaces) {
+    // Would integrate real places API here
+    return res.json({
+      status: 'pending',
+      message: `Restaurant search queued for ${process.env.PLACES_PROVIDER}`,
+      location,
+      cuisine,
+      results: null,
+      note: 'Processing with real provider (stub - not implemented)'
+    });
+  }
+
+  // Mock response
+  res.json({
+    status: 'mock',
+    location,
+    cuisine,
+    results: [
+      {
+        name: `${cuisine} Kitchen`,
+        rating: 4.5 + Math.random() * 0.5,
+        distance: '0.5 km',
+        healthyOptions: true,
+        url: '#'
+      },
+      {
+        name: `${cuisine} House`,
+        rating: 4.2 + Math.random() * 0.6,
+        distance: '1.2 km',
+        healthyOptions: true,
+        url: '#'
+      },
+      {
+        name: `${cuisine} Bistro`,
+        rating: 4.7 + Math.random() * 0.3,
+        distance: '1.8 km',
+        healthyOptions: true,
+        url: '#'
+      }
+    ],
+    message: 'Mock restaurant suggestions - add real provider via env vars'
+  });
+});
+
+// ========== Error Handling ==========
+
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ error: 'Internal server error', message: err.message });
+});
+
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
