@@ -1,0 +1,2068 @@
+<!doctype html>
+<html lang="en" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Premium Health Dashboard</title>
+  <script src="/_sdk/element_sdk.js"></script>
+  <script src="/_sdk/data_sdk.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet">
+  <style>
+    body {
+      box-sizing: border-box;
+    }
+    
+    * {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(50px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes slideInRight {
+      from {
+        opacity: 0;
+        transform: translateX(50px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes scaleIn {
+      from {
+        opacity: 0;
+        transform: scale(0.85);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    @keyframes float {
+      0%, 100% {
+        transform: translateY(0) rotate(0deg);
+      }
+      50% {
+        transform: translateY(-20px) rotate(5deg);
+      }
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% {
+        box-shadow: 0 0 40px rgba(16, 185, 129, 0.4);
+      }
+      50% {
+        box-shadow: 0 0 80px rgba(16, 185, 129, 0.8);
+      }
+    }
+
+    @keyframes gradient-move {
+      0%, 100% {
+        background-position: 0% 50%;
+      }
+      50% {
+        background-position: 100% 50%;
+      }
+    }
+
+    @keyframes draw-line {
+      to {
+        stroke-dashoffset: 0;
+      }
+    }
+
+    .animate-fade-in-up {
+      animation: fadeInUp 0.8s ease-out forwards;
+    }
+
+    .animate-slide-in-right {
+      animation: slideInRight 0.8s ease-out forwards;
+    }
+
+    .animate-scale-in {
+      animation: scaleIn 0.6s ease-out forwards;
+    }
+
+    .animate-float {
+      animation: float 4s ease-in-out infinite;
+    }
+
+    .animate-pulse-glow {
+      animation: pulse-glow 3s ease-in-out infinite;
+    }
+
+    .glass-premium {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(30px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+    }
+
+    .glass-card {
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+    }
+
+    .gradient-text {
+      background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .gradient-animated {
+      background: linear-gradient(270deg, #10b981, #3b82f6, #8b5cf6);
+      background-size: 600% 600%;
+      animation: gradient-move 8s ease infinite;
+    }
+
+    .card-hover {
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .card-hover:hover {
+      transform: translateY(-12px);
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+    }
+
+    .input-premium {
+      background: rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      transition: all 0.3s;
+    }
+
+    .input-premium:focus {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(16, 185, 129, 0.5);
+      box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2);
+      outline: none;
+    }
+
+    .btn-premium {
+      position: relative;
+      overflow: hidden;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .btn-premium::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.3);
+      transform: translate(-50%, -50%);
+      transition: width 0.6s, height 0.6s;
+    }
+
+    .btn-premium:hover::before {
+      width: 400px;
+      height: 400px;
+    }
+
+    .btn-premium:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 50px rgba(0, 0, 0, 0.4);
+    }
+
+    .floating-shape {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.25;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .chart-line {
+      stroke-dasharray: 1000;
+      stroke-dashoffset: 1000;
+      animation: draw-line 2s ease-out forwards;
+    }
+
+    .toast-notification {
+      position: fixed;
+      top: 30px;
+      right: 30px;
+      padding: 20px 28px;
+      border-radius: 16px;
+      display: none;
+      align-items: center;
+      gap: 16px;
+      z-index: 9999;
+      animation: slideInRight 0.5s ease-out;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    .toast-notification.show {
+      display: flex;
+    }
+
+    .luxury-scroll::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    .luxury-scroll::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+    }
+
+    .luxury-scroll::-webkit-scrollbar-thumb {
+      background: rgba(16, 185, 129, 0.5);
+      border-radius: 10px;
+    }
+
+    .luxury-scroll::-webkit-scrollbar-thumb:hover {
+      background: rgba(16, 185, 129, 0.8);
+    }
+  </style>
+  <style>@view-transition { navigation: auto; }</style>
+ </head>
+ <body class="h-full">
+  <div id="app-wrapper" class="h-full w-full overflow-auto luxury-scroll">
+   <div class="floating-shape animate-float" style="top: 5%; left: 5%; width: 400px; height: 400px; animation-delay: 0s;"></div>
+   <div class="floating-shape animate-float" style="top: 50%; right: 10%; width: 350px; height: 350px; animation-delay: 2s;"></div>
+   <div class="floating-shape animate-float" style="bottom: 10%; left: 30%; width: 300px; height: 300px; animation-delay: 4s;"></div>
+
+   <div id="toast-notification" class="toast-notification"><span class="text-4xl" id="toast-icon">✅</span>
+    <div>
+     <p class="font-bold text-lg" id="toast-title">Success!</p>
+     <p class="text-sm opacity-90" id="toast-message">Action completed</p>
+    </div>
+   </div>
+
+   <nav class="sticky top-0 z-50 glass-premium">
+    <div class="max-w-7xl mx-auto px-8 py-5">
+     <div class="flex items-center justify-between">
+      <div class="flex items-center space-x-4">
+       <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-4xl animate-float gradient-animated">
+        💎
+       </div>
+       <div>
+        <h1 id="app-title" class="text-3xl font-black gradient-text">Health Pro</h1>
+        <p class="text-xs opacity-70 font-medium">Premium Health Intelligence</p>
+       </div>
+      </div>
+      <div class="flex space-x-3">
+        <button id="nav-dashboard" class="nav-btn px-8 py-3 rounded-xl font-bold transition-all duration-300">Dashboard</button>
+        <button id="nav-survey" class="nav-btn px-8 py-3 rounded-xl font-bold transition-all duration-300">Profile</button>
+        <button id="nav-recipes" class="nav-btn px-8 py-3 rounded-xl font-bold transition-all duration-300">Recipes</button>
+        <button id="nav-grocery" class="nav-btn px-8 py-3 rounded-xl font-bold transition-all duration-300">Grocery</button>
+      </div>
+     </div>
+    </div>
+   </nav>
+
+   <main class="max-w-7xl mx-auto px-8 py-10 relative z-10">
+    <div id="dashboard-view" class="view-content">
+     <div class="mb-10 animate-fade-in-up">
+      <h1 class="text-5xl font-black mb-3">Your Health Dashboard</h1>
+      <p class="text-xl opacity-70">Real-time insights powered by AI-driven analytics</p>
+     </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+       <div class="glass-card rounded-3xl p-8 card-hover animate-scale-in" style="animation-delay: 0.05s;">
+        <div class="flex items-center justify-between mb-4">
+         <h2 class="text-xl font-black">🎯 Today’s Mission</h2>
+         <span id="mission-badge" class="text-xs font-bold px-3 py-1 rounded-full" style="background: rgba(255,255,255,0.08);">NEW</span>
+        </div>
+        <p id="mission-title" class="text-lg font-bold mb-2">—</p>
+        <p id="mission-why" class="text-sm opacity-70 mb-5">—</p>
+        <div class="relative h-3 rounded-full overflow-hidden mb-4" style="background: rgba(255,255,255,0.1);">
+         <div id="mission-progress" class="h-full rounded-full transition-all duration-1000" style="width: 0%"></div>
+        </div>
+        <div class="flex items-center justify-between gap-4">
+         <button id="mission-complete-btn" class="btn-premium px-6 py-3 rounded-2xl font-bold text-sm relative z-10">Complete</button>
+         <button id="mission-next-action-btn" class="px-6 py-3 rounded-2xl font-bold text-sm transition-all duration-300" style="background: rgba(255,255,255,0.08);">Next best action</button>
+        </div>
+       </div>
+
+       <div class="glass-card rounded-3xl p-8 card-hover animate-scale-in" style="animation-delay: 0.1s;">
+        <div class="flex items-center justify-between mb-4">
+         <h2 class="text-xl font-black">🔥 Streak &amp; Rewards</h2>
+         <span id="streak-status" class="text-xs font-bold px-3 py-1 rounded-full" style="background: rgba(255,255,255,0.08);">—</span>
+        </div>
+        <div class="grid grid-cols-3 gap-4 mb-5">
+         <div class="text-center">
+          <p id="streak-current" class="text-4xl font-black gradient-text">0</p>
+          <p class="text-xs opacity-60 mt-1">current</p>
+         </div>
+         <div class="text-center">
+          <p id="streak-best" class="text-2xl font-black">0</p>
+          <p class="text-xs opacity-60">best</p>
+         </div>
+         <div class="text-center">
+          <p id="badge-count" class="text-2xl font-black">0</p>
+          <p class="text-xs opacity-60">badges</p>
+         </div>
+        </div>
+        <div class="flex items-center justify-between gap-4">
+         <button id="streak-saver-btn" class="px-6 py-3 rounded-2xl font-bold text-sm transition-all duration-300" style="background: rgba(255,255,255,0.08);">Use streak saver</button>
+         <button id="open-recap-btn" class="btn-premium px-6 py-3 rounded-2xl font-bold text-sm relative z-10">Monthly recap</button>
+        </div>
+        <p id="streak-hint" class="text-xs opacity-60 mt-4">Keep your chain alive by completing today’s mission.</p>
+       </div>
+
+       <div class="glass-card rounded-3xl p-8 card-hover animate-scale-in" style="animation-delay: 0.15s;">
+        <div class="flex items-center justify-between mb-4">
+         <h2 class="text-xl font-black">🧠 Coach Mode</h2>
+         <span id="weekly-score-badge" class="text-xs font-bold px-3 py-1 rounded-full" style="background: rgba(255,255,255,0.08);">Score</span>
+        </div>
+        <div class="flex items-end justify-between mb-4">
+         <div>
+          <p class="text-sm opacity-70">Weekly score</p>
+          <p id="weekly-score" class="text-4xl font-black">—</p>
+         </div>
+         <div class="text-right">
+          <p class="text-sm opacity-70">vs last week</p>
+          <p id="weekly-trend" class="text-lg font-bold">—</p>
+         </div>
+        </div>
+        <p id="coach-nudge" class="text-sm opacity-80 mb-5">—</p>
+        <div class="flex items-center justify-between gap-4">
+         <button id="start-challenge-btn" class="btn-premium px-6 py-3 rounded-2xl font-bold text-sm relative z-10">Start 7-day challenge</button>
+         <button id="toggle-reminders-btn" class="px-6 py-3 rounded-2xl font-bold text-sm transition-all duration-300" style="background: rgba(255,255,255,0.08);">Reminders: Off</button>
+        </div>
+       </div>
+      </div>
+
+     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+      <div id="calories-card" class="glass-card rounded-3xl p-8 card-hover animate-scale-in" style="animation-delay: 0.1s;">
+       <div class="flex items-center justify-between mb-6">
+        <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl">⚡</div>
+        <div class="text-right">
+         <p class="text-sm opacity-70 font-semibold" id="calories-label">Daily Calories</p>
+         <div class="w-12 h-1 ml-auto mt-2 rounded-full"></div>
+        </div>
+       </div>
+       <h3 id="calories-value" class="text-4xl font-black mb-2">—</h3>
+       <p class="text-sm opacity-70 mb-4">Target: <span id="calories-target">—</span> kcal</p>
+       <div class="relative h-3 rounded-full overflow-hidden" style="background: rgba(255,255,255,0.1);">
+        <div id="calories-progress" class="h-full rounded-full transition-all duration-1000" style="width: 0%"></div>
+       </div>
+       <p class="text-xs mt-3 opacity-60">↗ <span id="calories-diff">0</span> from target</p>
+      </div>
+
+      <div id="water-card" class="glass-card rounded-3xl p-8 card-hover animate-scale-in" style="animation-delay: 0.2s;">
+       <div class="flex items-center justify-between mb-6">
+        <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl">💧</div>
+        <div class="text-right">
+         <p class="text-sm opacity-70 font-semibold" id="water-label">Water Intake</p>
+         <div class="w-12 h-1 ml-auto mt-2 rounded-full"></div>
+        </div>
+       </div>
+       <h3 id="water-value" class="text-4xl font-black mb-2">—</h3>
+       <p class="text-sm opacity-70 mb-4">Target: <span id="water-target">—</span>L</p>
+       <div class="relative h-3 rounded-full overflow-hidden" style="background: rgba(255,255,255,0.1);">
+        <div id="water-progress" class="h-full rounded-full transition-all duration-1000" style="width: 0%"></div>
+       </div>
+       <p class="text-xs mt-3 opacity-60"><span id="water-status">—</span></p>
+      <div class="mt-5 flex items-center justify-between gap-3">
+       <button id="water-minus-btn" class="px-4 py-3 rounded-2xl font-bold text-sm transition-all duration-300" style="background: rgba(255,255,255,0.08);">-250ml</button>
+       <button id="water-plus-btn" class="btn-premium px-4 py-3 rounded-2xl font-bold text-sm relative z-10">+250ml</button>
+       <button id="water-hit-target-btn" class="px-4 py-3 rounded-2xl font-bold text-sm transition-all duration-300" style="background: rgba(255,255,255,0.08);">Hit target</button>
+      </div>
+      </div>
+
+      <div id="sleep-card" class="glass-card rounded-3xl p-8 card-hover animate-scale-in" style="animation-delay: 0.3s;">
+       <div class="flex items-center justify-between mb-6">
+        <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl">😴</div>
+        <div class="text-right">
+         <p class="text-sm opacity-70 font-semibold" id="sleep-label">Sleep Quality</p>
+         <div class="w-12 h-1 ml-auto mt-2 rounded-full"></div>
+        </div>
+       </div>
+       <h3 id="sleep-value" class="text-4xl font-black mb-2">—</h3>
+       <p class="text-sm opacity-70 mb-4">Target: <span id="sleep-target">—</span>h</p>
+       <div class="relative h-3 rounded-full overflow-hidden" style="background: rgba(255,255,255,0.1);">
+        <div id="sleep-progress" class="h-full rounded-full transition-all duration-1000" style="width: 0%"></div>
+       </div>
+       <p class="text-xs mt-3 opacity-60"><span id="sleep-status">—</span></p>
+      <div class="mt-5 flex items-center gap-3">
+       <input id="sleep-quick-input" type="number" min="0" max="16" step="0.1" class="flex-1 px-4 py-3 rounded-2xl input-premium text-sm" placeholder="Last night (hours)">
+       <button id="sleep-save-btn" class="btn-premium px-5 py-3 rounded-2xl font-bold text-sm relative z-10">Save</button>
+      </div>
+      </div>
+
+      <div id="weight-card" class="glass-card rounded-3xl p-8 card-hover animate-scale-in" style="animation-delay: 0.4s;">
+       <div class="flex items-center justify-between mb-6">
+        <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl">📊</div>
+        <div class="text-right">
+         <p class="text-sm opacity-70 font-semibold" id="weight-label">Weight Progress</p>
+         <div class="w-12 h-1 ml-auto mt-2 rounded-full"></div>
+        </div>
+       </div>
+       <h3 id="weight-value" class="text-4xl font-black mb-2">—</h3>
+       <p class="text-sm opacity-70 mb-4">Goal: <span id="weight-target">—</span>kg</p>
+       <div class="relative h-3 rounded-full overflow-hidden" style="background: rgba(255,255,255,0.1);">
+        <div id="weight-progress" class="h-full rounded-full transition-all duration-1000" style="width: 0%"></div>
+       </div>
+       <p class="text-xs mt-3 opacity-60"><span id="weight-status">—</span></p>
+       <div class="mt-5 flex items-center gap-3">
+        <input id="weight-quick-input" type="number" min="20" max="400" step="0.1" class="flex-1 px-4 py-3 rounded-2xl input-premium text-sm" placeholder="Weigh-in (kg)">
+        <button id="weight-save-btn" class="btn-premium px-5 py-3 rounded-2xl font-bold text-sm relative z-10">Save</button>
+       </div>
+      </div>
+     </div>
+
+     <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+      <div class="glass-card rounded-3xl p-10 card-hover animate-fade-in-up" style="animation-delay: 0.45s;">
+       <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-black">🏅 Badges &amp; Challenges</h2>
+        <span id="challenge-badge" class="text-xs font-bold px-3 py-1 rounded-full" style="background: rgba(255,255,255,0.08);">—</span>
+       </div>
+       <div class="mb-6">
+        <p class="text-sm opacity-70 mb-3">Unlocked badges</p>
+        <div id="badges-row" class="flex flex-wrap gap-3"></div>
+       </div>
+       <div class="glass-card rounded-3xl p-6">
+        <div class="flex items-center justify-between mb-3">
+         <p class="font-bold">7-day Hydration Challenge</p>
+         <p id="challenge-progress-text" class="text-sm opacity-70">0/7</p>
+        </div>
+        <div class="relative h-3 rounded-full overflow-hidden" style="background: rgba(255,255,255,0.1);">
+         <div id="challenge-progress-bar" class="h-full rounded-full transition-all duration-1000" style="width: 0%"></div>
+        </div>
+        <div class="flex items-center justify-between gap-4 mt-5">
+         <button id="challenge-start-btn" class="btn-premium px-6 py-3 rounded-2xl font-bold text-sm relative z-10">Start</button>
+         <button id="challenge-reset-btn" class="px-6 py-3 rounded-2xl font-bold text-sm transition-all duration-300" style="background: rgba(255,255,255,0.08);">Reset</button>
+        </div>
+        <p id="challenge-hint" class="text-xs opacity-60 mt-4">Hit your daily water target 7 days in a row.</p>
+       </div>
+      </div>
+
+      <div class="glass-card rounded-3xl p-10 card-hover animate-fade-in-up" style="animation-delay: 0.5s;">
+       <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-black">🌍 Community &amp; Recap</h2>
+        <button id="copy-recap-btn" class="px-6 py-3 rounded-2xl font-bold text-sm transition-all duration-300" style="background: rgba(255,255,255,0.08);">Copy recap</button>
+       </div>
+       <div class="mb-6">
+        <p class="text-sm opacity-70 mb-3">Live momentum feed</p>
+        <div id="social-feed" class="space-y-3"></div>
+       </div>
+       <div class="glass-card rounded-3xl p-6">
+        <p class="font-bold mb-2">Your monthly recap</p>
+        <p id="monthly-recap-text" class="text-sm opacity-80">—</p>
+        <p id="monthly-recap-sub" class="text-xs opacity-60 mt-3">Tip: small wins beat perfect plans.</p>
+       </div>
+      </div>
+     </div>
+
+     <div class="glass-card rounded-3xl p-10 mb-10 card-hover animate-fade-in-up" style="animation-delay: 0.5s;">
+      <h2 class="text-3xl font-black mb-8">7-Day Progress Tracking</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+       <div>
+        <h3 class="text-lg font-bold mb-4 flex items-center gap-2"><span class="text-2xl">📈</span> Weight Trend</h3>
+        <svg id="weight-chart" class="w-full h-64" viewBox="0 0 300 200"></svg>
+       </div>
+       <div>
+        <h3 class="text-lg font-bold mb-4 flex items-center gap-2"><span class="text-2xl">💧</span> Hydration Levels</h3>
+        <svg id="water-chart" class="w-full h-64" viewBox="0 0 300 200"></svg>
+       </div>
+       <div>
+        <h3 class="text-lg font-bold mb-4 flex items-center gap-2"><span class="text-2xl">😴</span> Sleep Hours</h3>
+        <svg id="sleep-chart" class="w-full h-64" viewBox="0 0 300 200"></svg>
+       </div>
+      </div>
+     </div>
+
+     <div id="no-profile-banner" class="glass-card rounded-3xl p-10 mb-10 text-center animate-pulse-glow">
+      <div class="text-6xl mb-6">🎯</div>
+      <h2 class="text-3xl font-black mb-4">Complete Your Health Profile</h2>
+      <p class="text-lg opacity-70 mb-8">Get personalized nutrition, water, and sleep recommendations</p>
+      <button id="start-survey-btn" class="btn-premium px-12 py-4 rounded-2xl font-bold text-lg relative z-10">Start Health Survey</button>
+     </div>
+    </div>
+
+    <div id="survey-view" class="view-content hidden">
+     <div class="max-w-3xl mx-auto">
+      <div class="mb-10 animate-fade-in-up text-center">
+       <div class="text-6xl mb-6">📋</div>
+       <h1 class="text-5xl font-black mb-3">Health Profile Survey</h1>
+       <p class="text-xl opacity-70">Help us personalize your health journey</p>
+      </div>
+      <form id="survey-form" class="glass-card rounded-3xl p-10 animate-scale-in">
+       <div class="space-y-6">
+        <div>
+          <label for="survey-name" class="block text-sm font-bold mb-3">Full Name</label>
+          <input type="text" id="survey-name" required class="w-full px-6 py-4 rounded-2xl input-premium text-lg">
+        </div>
+        <div>
+          <label for="survey-email" class="block text-sm font-bold mb-3">Email Address</label>
+          <input type="email" id="survey-email" required class="w-full px-6 py-4 rounded-2xl input-premium text-lg">
+        </div>
+        <div>
+          <label class="block text-sm font-bold mb-3">Gender</label>
+          <div class="grid grid-cols-3 gap-4">
+            <label class="glass-card rounded-2xl p-4 cursor-pointer transition-all hover:scale-105">
+              <input type="radio" name="gender" value="male" required class="mr-3"> <span class="font-semibold">Male</span>
+            </label>
+            <label class="glass-card rounded-2xl p-4 cursor-pointer transition-all hover:scale-105">
+              <input type="radio" name="gender" value="female" required class="mr-3"> <span class="font-semibold">Female</span>
+            </label>
+            <label class="glass-card rounded-2xl p-4 cursor-pointer transition-all hover:scale-105">
+              <input type="radio" name="gender" value="other" required class="mr-3"> <span class="font-semibold">Other</span>
+            </label>
+          </div>
+        </div>
+        <div>
+          <label for="survey-age" class="block text-sm font-bold mb-3">Age (years)</label>
+          <input type="number" id="survey-age" required min="18" max="100" class="w-full px-6 py-4 rounded-2xl input-premium text-lg">
+        </div>
+        <div>
+          <label for="survey-height" class="block text-sm font-bold mb-3">Height (cm)</label>
+          <input type="number" id="survey-height" required min="100" max="250" step="0.1" class="w-full px-6 py-4 rounded-2xl input-premium text-lg">
+        </div>
+        <div>
+          <label for="survey-weight" class="block text-sm font-bold mb-3">Current Weight (kg)</label>
+          <input type="number" id="survey-weight" required min="30" max="300" step="0.1" class="w-full px-6 py-4 rounded-2xl input-premium text-lg">
+        </div>
+        <div>
+          <label for="survey-target" class="block text-sm font-bold mb-3">Target Weight (kg)</label>
+          <input type="number" id="survey-target" required min="30" max="300" step="0.1" class="w-full px-6 py-4 rounded-2xl input-premium text-lg">
+        </div>
+        <div>
+          <label class="block text-sm font-bold mb-3">Activity Level</label>
+          <select id="survey-activity" required class="w-full px-6 py-4 rounded-2xl input-premium text-lg">
+            <option value="">Select activity level</option>
+            <option value="sedentary">Sedentary (little or no exercise)</option>
+            <option value="light">Light (exercise 1-3 days/week)</option>
+            <option value="moderate">Moderate (exercise 3-5 days/week)</option>
+            <option value="active">Active (exercise 6-7 days/week)</option>
+            <option value="very_active">Very Active (intense exercise daily)</option>
+          </select>
+        </div>
+        <div>
+          <label for="commitment-text" class="block text-sm font-bold mb-3">Commitment (optional)</label>
+          <input type="text" id="commitment-text" class="w-full px-6 py-4 rounded-2xl input-premium text-lg" placeholder="Example: I log water before coffee">
+          <p class="text-xs opacity-60 mt-2">Coach mode will nudge you using this rule.</p>
+        </div>
+        <div class="glass-card rounded-3xl p-6">
+          <p class="font-bold mb-4">Smart reminders (while this tab is open)</p>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <label class="flex items-center gap-3">
+              <input id="reminder-water" type="checkbox"> <span class="font-semibold">Hydration</span>
+            </label>
+            <label class="flex items-center gap-3">
+              <input id="reminder-sleep" type="checkbox"> <span class="font-semibold">Sleep</span>
+            </label>
+            <label class="flex items-center gap-3">
+              <input id="reminder-mission" type="checkbox"> <span class="font-semibold">Daily mission</span>
+            </label>
+          </div>
+        </div>
+        <button type="submit" id="survey-submit-btn" class="w-full btn-premium py-5 rounded-2xl font-bold text-xl relative z-10 animate-pulse-glow">Calculate My Health Plan</button>
+       </div>
+      </form>
+     </div>
+    </div>
+
+    <div id="recipes-view" class="view-content hidden">
+     <div class="mb-10 animate-fade-in-up">
+      <div class="flex items-center justify-between">
+       <div>
+        <h1 class="text-5xl font-black mb-3">Personalized Recipes</h1>
+        <p class="text-xl opacity-70">Matched to your daily calorie target</p>
+       </div>
+       <button id="shuffle-recipes-btn" class="btn-premium px-8 py-4 rounded-2xl font-bold text-lg relative z-10">🔀 Shuffle Recipes</button>
+      </div>
+     </div>
+     <div id="weekly-plan-card" class="glass-card rounded-3xl p-10 mb-10 card-hover">
+      <div class="flex items-center justify-between mb-6">
+       <h2 class="text-2xl font-black">🗓️ Weekly Meal Plan</h2>
+       <div class="flex items-center gap-3">
+        <button id="generate-weekly-plan-btn" class="btn-premium px-6 py-3 rounded-2xl font-bold text-sm relative z-10">Generate</button>
+        <button id="clear-weekly-plan-btn" class="px-6 py-3 rounded-2xl font-bold text-sm transition-all duration-300" style="background: rgba(255,255,255,0.08);">Clear</button>
+       </div>
+      </div>
+      <p class="text-sm opacity-70 mb-6">A simple 7-day plan matched to your calorie target.</p>
+      <div id="weekly-plan-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+     </div>
+     <div id="recipes-grid" class="grid grid-cols-1 md:grid-cols-3 gap-8"></div>
+     <div id="no-recipes-message" class="glass-card rounded-3xl p-16 text-center">
+      <div class="text-6xl mb-6">🍽️</div>
+      <h2 class="text-3xl font-black mb-4">Complete Your Profile First</h2>
+      <p class="text-lg opacity-70">We'll generate recipes matched to your calorie needs</p>
+     </div>
+    </div>
+
+    <div id="grocery-view" class="view-content hidden">
+     <div class="mb-10 animate-fade-in-up">
+      <h1 class="text-5xl font-black mb-3">Weekly Grocery Plan</h1>
+      <p class="text-xl opacity-70">Based on your <span id="grocery-calories">2,000</span> kcal daily target</p>
+     </div>
+     <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+      <div class="glass-card rounded-3xl p-8 card-hover">
+       <div class="text-5xl mb-6 text-center">🥦</div>
+       <h3 class="text-2xl font-black mb-4 text-center">Vegetables</h3>
+       <div class="space-y-3">
+        <div class="flex justify-between"><span>Broccoli</span> <span class="font-bold" id="veg-broccoli">700g</span></div>
+        <div class="flex justify-between"><span>Spinach</span> <span class="font-bold" id="veg-spinach">500g</span></div>
+        <div class="flex justify-between"><span>Carrots</span> <span class="font-bold" id="veg-carrots">600g</span></div>
+        <div class="flex justify-between"><span>Bell Peppers</span> <span class="font-bold" id="veg-peppers">400g</span></div>
+       </div>
+      </div>
+      <div class="glass-card rounded-3xl p-8 card-hover">
+       <div class="text-5xl mb-6 text-center">🍎</div>
+       <h3 class="text-2xl font-black mb-4 text-center">Fruits</h3>
+       <div class="space-y-3">
+        <div class="flex justify-between"><span>Apples</span> <span class="font-bold" id="fruit-apples">1.2kg</span></div>
+        <div class="flex justify-between"><span>Bananas</span> <span class="font-bold" id="fruit-bananas">900g</span></div>
+        <div class="flex justify-between"><span>Berries</span> <span class="font-bold" id="fruit-berries">400g</span></div>
+        <div class="flex justify-between"><span>Oranges</span> <span class="font-bold" id="fruit-oranges">800g</span></div>
+       </div>
+      </div>
+      <div class="glass-card rounded-3xl p-8 card-hover">
+       <div class="text-5xl mb-6 text-center">🍖</div>
+       <h3 class="text-2xl font-black mb-4 text-center">Proteins</h3>
+       <div class="space-y-3">
+        <div class="flex justify-between"><span>Chicken</span> <span class="font-bold" id="protein-chicken">1.4kg</span></div>
+        <div class="flex justify-between"><span>Salmon</span> <span class="font-bold" id="protein-salmon">800g</span></div>
+        <div class="flex justify-between"><span>Eggs</span> <span class="font-bold" id="protein-eggs">18 pcs</span></div>
+        <div class="flex justify-between"><span>Tofu</span> <span class="font-bold" id="protein-tofu">600g</span></div>
+       </div>
+      </div>
+      <div class="glass-card rounded-3xl p-8 card-hover">
+       <div class="text-5xl mb-6 text-center">🌾</div>
+       <h3 class="text-2xl font-black mb-4 text-center">Grains &amp; Dairy</h3>
+       <div class="space-y-3">
+        <div class="flex justify-between"><span>Brown Rice</span> <span class="font-bold" id="grain-rice">1.5kg</span></div>
+        <div class="flex justify-between"><span>Oats</span> <span class="font-bold" id="grain-oats">700g</span></div>
+        <div class="flex justify-between"><span>Greek Yogurt</span> <span class="font-bold" id="dairy-yogurt">1.4kg</span></div>
+        <div class="flex justify-between"><span>Milk</span> <span class="font-bold" id="dairy-milk">2L</span></div>
+       </div>
+      </div>
+     </div>
+     <div id="no-grocery-message" class="glass-card rounded-3xl p-16 text-center mt-10">
+      <div class="text-6xl mb-6">🛒</div>
+      <h2 class="text-3xl font-black mb-4">Complete Your Profile First</h2>
+      <p class="text-lg opacity-70">We'll calculate your weekly grocery needs</p>
+     </div>
+    </div>
+   </main>
+  </div>
+
+  <script>
+    const TOKEN_KEY = 'yahealthy_token';
+    const SURVEY_CACHE_KEY = 'yahealthy_last_survey';
+    const LOGS_KEY = 'yahealthy_logs_v1';
+    const BADGES_KEY = 'yahealthy_badges_v1';
+    const PLAN_KEY = 'yahealthy_meal_plan_v1';
+    const SETTINGS_KEY = 'yahealthy_settings_v1';
+    const COMMITMENT_KEY = 'yahealthy_commitment_v1';
+    const STREAK_SAVER_KEY = 'yahealthy_streak_saver_v1';
+
+    const defaultConfig = {
+      background_color: '#0a0e27',
+      surface_color: '#1a1f3a',
+      text_color: '#f0f4f8',
+      primary_action_color: '#10b981',
+      secondary_action_color: '#3b82f6',
+      font_family: 'Inter',
+      font_size: 16,
+      app_title: 'Health Pro',
+      calories_label: 'Daily Calories',
+      water_label: 'Water Intake',
+      sleep_label: 'Sleep Quality',
+      weight_label: 'Weight Progress'
+    };
+
+    let config = { ...defaultConfig };
+    let currentUser = null;
+    let currentView = 'dashboard';
+    let settings = loadJson(SETTINGS_KEY, { reminders: { water: false, sleep: false, mission: false }, remindersEnabled: false });
+    let commitmentText = '';
+    let reminderTimers = [];
+    let lastToastKeys = loadJson('yahealthy_toasts_v1', {});
+
+    function getToken() {
+      return localStorage.getItem(TOKEN_KEY);
+    }
+
+    function clearToken() {
+      localStorage.removeItem(TOKEN_KEY);
+    }
+
+    async function apiRequest(path, options = {}) {
+      const token = getToken();
+      const headers = { ...(options.headers || {}) };
+      headers['Content-Type'] = headers['Content-Type'] || 'application/json';
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(path, { ...options, headers });
+      if (res.status === 401) {
+        clearToken();
+        window.location.href = '/login';
+        return null;
+      }
+
+      const text = await res.text();
+      let json = null;
+      try { json = text ? JSON.parse(text) : null; } catch { json = null; }
+
+      if (!res.ok) {
+        const message = (json && (json.message || json.error)) || `Request failed (${res.status})`;
+        throw new Error(message);
+      }
+
+      return json;
+    }
+
+    function loadJson(key, fallback) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return fallback;
+        return JSON.parse(raw);
+      } catch {
+        return fallback;
+      }
+    }
+
+    function saveJson(key, value) {
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+      } catch {
+        // ignore
+      }
+    }
+
+    function dateKey(date = new Date()) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function clamp(num, min, max) {
+      return Math.max(min, Math.min(max, num));
+    }
+
+    function getLogs() {
+      const logs = loadJson(LOGS_KEY, []);
+      return Array.isArray(logs) ? logs : [];
+    }
+
+    function saveLogs(logs) {
+      saveJson(LOGS_KEY, logs);
+    }
+
+    function getOrCreateLogForDay(dayKey) {
+      const logs = getLogs();
+      let log = logs.find(l => l && l.date === dayKey);
+      if (!log) {
+        log = { date: dayKey, waterLiters: 0, sleepHours: null, weightKg: null, caloriesConsumed: null, missionCompleted: false, missionId: null, streakSaverUsed: false };
+        logs.unshift(log);
+        saveLogs(logs);
+      }
+      return log;
+    }
+
+    function updateLogForDay(dayKey, patch) {
+      const logs = getLogs();
+      let log = logs.find(l => l && l.date === dayKey);
+      if (!log) {
+        log = { date: dayKey, waterLiters: 0, sleepHours: null, weightKg: null, caloriesConsumed: null, missionCompleted: false, missionId: null, streakSaverUsed: false };
+        logs.unshift(log);
+      }
+      Object.assign(log, patch);
+      saveLogs(logs);
+      return log;
+    }
+
+    function getTargets() {
+      const dailyCalories = Number(currentUser?.daily_calories || 2000);
+      const waterTarget = Number(currentUser?.water_target || 3.0);
+      const sleepTarget = Number(currentUser?.sleep_target || 8.0);
+      const targetWeight = Number(currentUser?.target_weight || 80);
+      return { dailyCalories, waterTarget, sleepTarget, targetWeight };
+    }
+
+    function isDayComplete(log, targets) {
+      if (!log) return false;
+      if (log.missionCompleted) return true;
+      const waterOk = Number(log.waterLiters || 0) >= Number(targets.waterTarget) * 0.7;
+      const sleepOk = (log.sleepHours != null) ? Number(log.sleepHours) >= Number(targets.sleepTarget) * 0.9 : false;
+      const weighOk = (log.weightKg != null);
+      return waterOk && sleepOk && weighOk;
+    }
+
+    function computeStreak(targets) {
+      const logs = getLogs();
+      const byDate = new Map(logs.map(l => [l.date, l]));
+
+      const saver = loadJson(STREAK_SAVER_KEY, { usedFor: [] });
+      const usedSet = new Set((saver.usedFor || []));
+
+      let streak = 0;
+      let date = new Date();
+      for (let i = 0; i < 365; i++) {
+        const k = dateKey(date);
+        const log = byDate.get(k);
+        const complete = isDayComplete(log, targets);
+        const saved = usedSet.has(k);
+        if (complete || saved) {
+          streak += 1;
+          date.setDate(date.getDate() - 1);
+          continue;
+        }
+        break;
+      }
+
+      let best = 0;
+      let run = 0;
+      const sorted = [...byDate.keys()].sort();
+      let prev = null;
+      for (const k of sorted) {
+        const d = new Date(`${k}T00:00:00`);
+        if (prev) {
+          const delta = Math.round((d - prev) / (1000 * 60 * 60 * 24));
+          if (delta !== 1) run = 0;
+        }
+        prev = d;
+        const complete = isDayComplete(byDate.get(k), targets) || usedSet.has(k);
+        run = complete ? run + 1 : 0;
+        best = Math.max(best, run);
+      }
+
+      return { current: streak, best, saverUsedFor: [...usedSet] };
+    }
+
+    function useStreakSaverForYesterday() {
+      const y = new Date();
+      y.setDate(y.getDate() - 1);
+      const k = dateKey(y);
+
+      const saver = loadJson(STREAK_SAVER_KEY, { usedFor: [] });
+      const usedFor = Array.isArray(saver.usedFor) ? saver.usedFor : [];
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      const usedRecently = usedFor.filter(dk => {
+        const d = new Date(`${dk}T00:00:00`);
+        return d >= weekAgo;
+      });
+
+      if (usedRecently.length >= 1) {
+        throw new Error('Streak saver already used this week');
+      }
+
+      if (!usedFor.includes(k)) usedFor.push(k);
+      saveJson(STREAK_SAVER_KEY, { usedFor });
+      return k;
+    }
+
+    function getDailyMission(targets, todayLog) {
+      if (!currentUser) {
+        return { id: 'complete_profile', title: 'Complete your Health Profile', why: 'Personalization unlocks your plan.', progress: 0, target: 1, current: 0, nextView: 'survey' };
+      }
+
+      const waterPct = Number(todayLog.waterLiters || 0) / Math.max(0.1, Number(targets.waterTarget));
+      const sleepPct = todayLog.sleepHours != null ? Number(todayLog.sleepHours) / Math.max(0.1, Number(targets.sleepTarget)) : 0;
+      const weighOk = todayLog.weightKg != null;
+
+      // Adaptive difficulty: if last 2 days incomplete, make mission smaller.
+      const logs = getLogs();
+      const today = dateKey(new Date());
+      const idx = logs.findIndex(l => l.date === today);
+      const prev1 = idx >= 0 ? logs[idx + 1] : null;
+      const prev2 = idx >= 0 ? logs[idx + 2] : null;
+      const missed = [prev1, prev2].filter(l => l && !isDayComplete(l, targets)).length;
+      const difficulty = missed >= 2 ? 'easy' : missed === 1 ? 'medium' : 'normal';
+
+      if (waterPct < 0.6) {
+        const targetMl = difficulty === 'easy' ? 500 : difficulty === 'medium' ? 750 : 1000;
+        const currentMl = Math.round(Number(todayLog.waterLiters || 0) * 1000);
+        return {
+          id: 'hydrate',
+          title: `Drink ${targetMl}ml water`,
+          why: 'Hydration boosts energy and appetite control.',
+          progress: clamp((currentMl / targetMl) * 100, 0, 100),
+          target: targetMl,
+          current: currentMl,
+          nextView: 'dashboard'
+        };
+      }
+
+      if (sleepPct < 0.8) {
+        const targetH = difficulty === 'easy' ? 7 : difficulty === 'medium' ? 7.5 : Number(targets.sleepTarget);
+        const currentH = Number(todayLog.sleepHours || 0);
+        return {
+          id: 'sleep',
+          title: `Log your sleep (aim ${targetH}h)`,
+          why: 'Sleep drives recovery and hunger hormones.',
+          progress: clamp((currentH / Math.max(0.1, targetH)) * 100, 0, 100),
+          target: targetH,
+          current: currentH,
+          nextView: 'dashboard'
+        };
+      }
+
+      if (!weighOk) {
+        return {
+          id: 'weigh_in',
+          title: 'Do a 10‑second weigh‑in',
+          why: 'Tiny feedback loops keep goals on track.',
+          progress: 0,
+          target: 1,
+          current: 0,
+          nextView: 'dashboard'
+        };
+      }
+
+      return {
+        id: 'plan_meals',
+        title: 'Generate your weekly meal plan',
+        why: 'Planning reduces friction and impulsive eating.',
+        progress: 0,
+        target: 1,
+        current: 0,
+        nextView: 'recipes'
+      };
+    }
+
+    function computeWeeklyScore(targets) {
+      const logs = getLogs();
+      const today = new Date();
+      const keys = [];
+      for (let i = 0; i < 14; i++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        keys.push(dateKey(d));
+      }
+      const firstWeek = keys.slice(0, 7);
+      const secondWeek = keys.slice(7, 14);
+
+      function scoreForKeys(dayKeys) {
+        let sum = 0;
+        let count = 0;
+        for (const k of dayKeys) {
+          const log = logs.find(l => l.date === k);
+          if (!log) continue;
+          const waterPct = clamp(Number(log.waterLiters || 0) / Math.max(0.1, targets.waterTarget), 0, 1);
+          const sleepPct = log.sleepHours != null ? clamp(Number(log.sleepHours) / Math.max(0.1, targets.sleepTarget), 0, 1) : 0;
+          const cals = log.caloriesConsumed != null ? Number(log.caloriesConsumed) : null;
+          const calPct = cals == null ? 0.5 : 1 - clamp(Math.abs(cals - targets.dailyCalories) / Math.max(300, targets.dailyCalories * 0.25), 0, 1);
+          const missionBonus = log.missionCompleted ? 0.08 : 0;
+          const dayScore = (waterPct * 0.4 + sleepPct * 0.4 + calPct * 0.2 + missionBonus) * 100;
+          sum += dayScore;
+          count += 1;
+        }
+        return count ? sum / count : 0;
+      }
+
+      const current = scoreForKeys(firstWeek);
+      const previous = scoreForKeys(secondWeek);
+      const delta = current - previous;
+      return { current: Math.round(current), previous: Math.round(previous), delta: Math.round(delta) };
+    }
+
+    function getBadges() {
+      const badges = loadJson(BADGES_KEY, []);
+      return Array.isArray(badges) ? badges : [];
+    }
+
+    function addBadge(id, label, emoji) {
+      const badges = getBadges();
+      if (badges.some(b => b.id === id)) return;
+      badges.push({ id, label, emoji, unlockedAt: new Date().toISOString() });
+      saveJson(BADGES_KEY, badges);
+    }
+
+    function updateBadgesAndRewards(targets, streakInfo, todayLog) {
+      if (currentUser) addBadge('profile', 'Profile complete', '✅');
+      if (todayLog.waterLiters > 0) addBadge('water_first', 'First water log', '💧');
+      if (todayLog.sleepHours != null) addBadge('sleep_first', 'Sleep logged', '😴');
+      if (todayLog.weightKg != null) addBadge('weight_first', 'Weigh‑in done', '📊');
+      if (todayLog.missionCompleted) addBadge('mission_first', 'Mission complete', '🎯');
+      if (streakInfo.current >= 3) addBadge('streak_3', '3‑day streak', '🔥');
+      if (streakInfo.current >= 7) addBadge('streak_7', '7‑day streak', '🏆');
+
+      const badges = getBadges();
+      const row = document.getElementById('badges-row');
+      row.innerHTML = '';
+      if (!badges.length) {
+        const el = document.createElement('div');
+        el.className = 'text-sm opacity-70';
+        el.textContent = 'No badges yet — complete a mission to start.';
+        row.appendChild(el);
+      } else {
+        badges.slice().reverse().slice(0, 10).forEach(b => {
+          const chip = document.createElement('div');
+          chip.className = 'px-4 py-2 rounded-2xl font-bold text-sm';
+          chip.style.background = 'rgba(255,255,255,0.08)';
+          chip.textContent = `${b.emoji} ${b.label}`;
+          row.appendChild(chip);
+        });
+      }
+
+      document.getElementById('badge-count').textContent = String(badges.length);
+    }
+
+    function getChallenge() {
+      return loadJson('yahealthy_challenge_v1', { id: 'hydration7', startedAt: null, days: [] });
+    }
+
+    function saveChallenge(ch) {
+      saveJson('yahealthy_challenge_v1', ch);
+    }
+
+    function updateChallengeUI(targets, todayLog) {
+      const ch = getChallenge();
+      const started = Boolean(ch.startedAt);
+      const today = dateKey(new Date());
+
+      if (started) {
+        const hit = Number(todayLog.waterLiters || 0) >= Number(targets.waterTarget);
+        if (hit && !ch.days.includes(today)) {
+          ch.days.push(today);
+          saveChallenge(ch);
+        }
+      }
+
+      const progress = clamp((ch.days.length / 7) * 100, 0, 100);
+      document.getElementById('challenge-progress-text').textContent = `${Math.min(7, ch.days.length)}/7`;
+      document.getElementById('challenge-progress-bar').style.width = `${progress}%`;
+      document.getElementById('challenge-badge').textContent = started ? 'ACTIVE' : 'READY';
+      document.getElementById('challenge-progress-bar').style.background = `linear-gradient(90deg, ${config.primary_action_color || defaultConfig.primary_action_color}, ${config.secondary_action_color || defaultConfig.secondary_action_color})`;
+
+      if (ch.days.length >= 7) {
+        addBadge('challenge_hydration7', 'Hydration champ', '💎');
+      }
+    }
+
+    function generateSocialFeed() {
+      const seed = dateKey(new Date()).replace(/-/g, '');
+      const n = Number(seed.slice(-4));
+      const people = ['Someone', 'A user', 'A teammate', 'A local runner', 'A night-owl'];
+      const wins = ['hit a 7-day streak', 'logged water 3 days straight', 'completed today’s mission', 'generated a meal plan', 'kept the chain alive'];
+      const items = [];
+      for (let i = 0; i < 4; i++) {
+        const p = people[(n + i) % people.length];
+        const w = wins[(n + i * 3) % wins.length];
+        items.push(`${p} ${w}.`);
+      }
+      return items;
+    }
+
+    function updateSocialFeedUI() {
+      const feed = document.getElementById('social-feed');
+      const items = generateSocialFeed();
+      feed.innerHTML = '';
+      items.forEach((text, idx) => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between px-5 py-4 rounded-2xl';
+        row.style.background = 'rgba(255,255,255,0.06)';
+        const left = document.createElement('div');
+        left.className = 'font-semibold';
+        left.textContent = text;
+        const right = document.createElement('div');
+        right.className = 'text-xs opacity-60';
+        right.textContent = idx === 0 ? 'Just now' : `${idx * 9 + 7}m ago`;
+        row.appendChild(left);
+        row.appendChild(right);
+        feed.appendChild(row);
+      });
+    }
+
+    function buildMonthlyRecapText(targets, streakInfo) {
+      const logs = getLogs();
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const monthKeyPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-`;
+      const monthLogs = logs.filter(l => l && typeof l.date === 'string' && l.date.startsWith(monthKeyPrefix));
+      const activeDays = monthLogs.filter(l => isDayComplete(l, targets)).length;
+      const avgWater = monthLogs.length ? (monthLogs.reduce((s, l) => s + Number(l.waterLiters || 0), 0) / monthLogs.length) : 0;
+      const start = monthStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      const end = now.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      return `${start}–${end}: ${activeDays} strong days • avg water ${avgWater.toFixed(1)}L • best streak ${streakInfo.best}`;
+    }
+
+    async function copyToClipboard(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast('📋', 'Copied', 'Recap copied to clipboard');
+      } catch {
+        showToast('⚠️', 'Copy failed', 'Your browser blocked clipboard access');
+      }
+    }
+
+    function toastOncePerDay(key, icon, title, message) {
+      const day = dateKey(new Date());
+      const k = `${key}:${day}`;
+      if (lastToastKeys[k]) return;
+      lastToastKeys[k] = true;
+      saveJson('yahealthy_toasts_v1', lastToastKeys);
+      showToast(icon, title, message);
+    }
+
+    function clearReminderTimers() {
+      reminderTimers.forEach(id => clearTimeout(id));
+      reminderTimers = [];
+    }
+
+    function scheduleReminderAt(hour, minute, fn) {
+      const now = new Date();
+      const next = new Date(now);
+      next.setHours(hour, minute, 0, 0);
+      if (next <= now) next.setDate(next.getDate() + 1);
+      const ms = next - now;
+      const id = setTimeout(() => {
+        fn();
+        scheduleReminderAt(hour, minute, fn);
+      }, ms);
+      reminderTimers.push(id);
+    }
+
+    function applyReminderScheduling(targets, todayLog, mission) {
+      clearReminderTimers();
+      if (!settings.remindersEnabled) return;
+
+      if (settings.reminders?.water) {
+        scheduleReminderAt(11, 30, () => {
+          const pct = Number(todayLog.waterLiters || 0) / Math.max(0.1, targets.waterTarget);
+          if (pct < 0.4) showToast('💧', 'Hydration check', 'Quick +250ml keeps the streak alive');
+        });
+      }
+      if (settings.reminders?.sleep) {
+        scheduleReminderAt(21, 15, () => {
+          if (todayLog.sleepHours == null) showToast('😴', 'Sleep reminder', 'Log last night’s sleep — tiny action, big payoff');
+        });
+      }
+      if (settings.reminders?.mission) {
+        scheduleReminderAt(20, 30, () => {
+          if (!todayLog.missionCompleted) showToast('🔥', 'Don’t break the chain', `Finish: ${mission.title}`);
+        });
+      }
+    }
+
+    function showToast(icon, title, message, duration = 4000) {
+      const toast = document.getElementById('toast-notification');
+      toast.style.background = `linear-gradient(135deg, ${config.primary_action_color || defaultConfig.primary_action_color}, ${config.secondary_action_color || defaultConfig.secondary_action_color})`;
+      toast.style.color = config.background_color || defaultConfig.background_color;
+      document.getElementById('toast-icon').textContent = icon;
+      document.getElementById('toast-title').textContent = title;
+      document.getElementById('toast-message').textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), duration);
+    }
+
+    function getStatusColor(percentage) {
+      if (percentage < 70) return 'red';
+      if (percentage < 90) return 'yellow';
+      return 'green';
+    }
+
+    function getStatusEmoji(percentage) {
+      if (percentage < 70) return '🔴';
+      if (percentage < 90) return '🟡';
+      return '🟢';
+    }
+
+    function updateDashboard() {
+      const banner = document.getElementById('no-profile-banner');
+      if (!currentUser) {
+        banner.style.display = 'block';
+        document.getElementById('no-recipes-message').style.display = 'block';
+        document.getElementById('recipes-grid').style.display = 'none';
+        document.getElementById('no-grocery-message').style.display = 'block';
+
+        // Engagement UI still shows meaningful defaults.
+        const targets = getTargets();
+        const todayLog = getOrCreateLogForDay(dateKey(new Date()));
+        const mission = getDailyMission(targets, todayLog);
+        renderEngagementUI(targets, todayLog, mission);
+        return;
+      }
+
+      banner.style.display = 'none';
+
+      const targets = getTargets();
+      const today = dateKey(new Date());
+      const todayLog = getOrCreateLogForDay(today);
+
+      const caloriesValue = Number(targets.dailyCalories);
+      const caloriesConsumed = todayLog.caloriesConsumed != null ? Number(todayLog.caloriesConsumed) : Math.round(caloriesValue * (0.9 + Math.random() * 0.2));
+      const caloriesPercent = (caloriesConsumed / caloriesValue) * 100;
+      document.getElementById('calories-value').textContent = caloriesConsumed.toLocaleString();
+      document.getElementById('calories-target').textContent = caloriesValue.toLocaleString();
+      document.getElementById('calories-diff').textContent = caloriesConsumed > caloriesValue ? `+${caloriesConsumed - caloriesValue}` : `${caloriesConsumed - caloriesValue}`;
+      setTimeout(() => {
+        document.getElementById('calories-progress').style.width = `${Math.min(100, caloriesPercent)}%`;
+      }, 100);
+
+      const waterTarget = Number(targets.waterTarget);
+      const waterConsumed = todayLog.waterLiters != null ? Number(todayLog.waterLiters) : Number((waterTarget * (0.7 + Math.random() * 0.3)).toFixed(1));
+      const waterPercent = (waterConsumed / waterTarget) * 100;
+      const waterStatus = getStatusColor(waterPercent);
+      document.getElementById('water-value').textContent = `${waterConsumed.toFixed(1)}L`;
+      document.getElementById('water-target').textContent = `${waterTarget.toFixed(1)}`;
+      document.getElementById('water-status').textContent = `${getStatusEmoji(waterPercent)} ${waterStatus === 'green' ? 'Excellent' : waterStatus === 'yellow' ? 'On track' : 'Need more'}`;
+      setTimeout(() => {
+        document.getElementById('water-progress').style.width = `${Math.min(100, waterPercent)}%`;
+      }, 200);
+
+      const sleepTarget = Number(targets.sleepTarget);
+      const sleepActual = todayLog.sleepHours != null ? Number(todayLog.sleepHours) : Number((sleepTarget * (0.85 + Math.random() * 0.15)).toFixed(1));
+      const sleepPercent = (sleepActual / sleepTarget) * 100;
+      const sleepStatus = getStatusColor(sleepPercent);
+      document.getElementById('sleep-value').textContent = `${sleepActual.toFixed(1)}h`;
+      document.getElementById('sleep-target').textContent = `${sleepTarget.toFixed(1)}`;
+      document.getElementById('sleep-status').textContent = `${getStatusEmoji(sleepPercent)} ${sleepStatus === 'green' ? 'Excellent' : sleepStatus === 'yellow' ? 'Good' : 'Poor'}`;
+      setTimeout(() => {
+        document.getElementById('sleep-progress').style.width = `${Math.min(100, sleepPercent)}%`;
+      }, 300);
+
+      const currentWeight = todayLog.weightKg != null ? Number(todayLog.weightKg) : Number(currentUser.weight || 90);
+      const targetWeight = Number(targets.targetWeight);
+      const startWeight = Number(currentUser.start_weight || currentWeight);
+      const weightLost = startWeight - currentWeight;
+      const totalToLose = Math.max(1, startWeight - targetWeight);
+      const weightPercent = (weightLost / totalToLose) * 100;
+      document.getElementById('weight-value').textContent = `${currentWeight.toFixed(1)}kg`;
+      document.getElementById('weight-target').textContent = `${targetWeight.toFixed(1)}kg`;
+      document.getElementById('weight-status').textContent = `${getStatusEmoji(weightPercent)} ${weightLost > 0 ? `-${weightLost.toFixed(1)}kg lost` : 'Starting'}`;
+      setTimeout(() => {
+        document.getElementById('weight-progress').style.width = `${Math.min(100, Math.max(0, weightPercent))}%`;
+      }, 400);
+
+      drawCharts(waterStatus, sleepStatus, getStatusColor(weightPercent));
+      updateRecipes();
+      updateGrocery();
+
+      const mission = getDailyMission(targets, todayLog);
+      renderEngagementUI(targets, todayLog, mission);
+
+      // Celebrations (once/day)
+      if (waterPercent >= 100) toastOncePerDay('water100', '💧', 'Hydration complete', 'You hit your water target — streak-safe day.');
+      if (sleepPercent >= 95) toastOncePerDay('sleep95', '😴', 'Sleep locked', 'Recovery looks great — keep it rolling.');
+      if (weightPercent >= 100) toastOncePerDay('goal100', '🏁', 'Goal achieved', 'You reached your weight goal. Legendary.');
+    }
+
+    function renderEngagementUI(targets, todayLog, mission) {
+      const streak = computeStreak(targets);
+      updateBadgesAndRewards(targets, streak, todayLog);
+      updateChallengeUI(targets, todayLog);
+      updateSocialFeedUI();
+
+      document.getElementById('mission-title').textContent = mission.title;
+      document.getElementById('mission-why').textContent = mission.why;
+      document.getElementById('mission-progress').style.width = `${clamp(mission.progress, 0, 100)}%`;
+      document.getElementById('mission-progress').style.background = `linear-gradient(90deg, ${config.primary_action_color || defaultConfig.primary_action_color}, ${config.secondary_action_color || defaultConfig.secondary_action_color})`;
+      document.getElementById('mission-badge').textContent = todayLog.missionCompleted ? 'DONE' : mission.id === 'complete_profile' ? 'START' : 'TODAY';
+
+      document.getElementById('streak-current').textContent = String(streak.current);
+      document.getElementById('streak-best').textContent = String(streak.best);
+      document.getElementById('streak-status').textContent = streak.current >= 7 ? 'ON FIRE' : streak.current >= 3 ? 'ROLLING' : 'STARTING';
+      document.getElementById('streak-hint').textContent = todayLog.missionCompleted ? 'Mission done — your streak is protected.' : 'Complete today’s mission to keep the chain alive.';
+
+      const weekly = computeWeeklyScore(targets);
+      document.getElementById('weekly-score').textContent = `${weekly.current}`;
+      document.getElementById('weekly-trend').textContent = weekly.previous ? `${weekly.delta >= 0 ? '+' : ''}${weekly.delta}` : '—';
+
+      const commitment = commitmentText || loadJson(COMMITMENT_KEY, '');
+      const nudge = buildCoachNudge(targets, todayLog, weekly, commitment);
+      document.getElementById('coach-nudge').textContent = nudge;
+
+      const recapText = buildMonthlyRecapText(targets, streak);
+      document.getElementById('monthly-recap-text').textContent = recapText;
+
+      const remOn = Boolean(settings.remindersEnabled);
+      document.getElementById('toggle-reminders-btn').textContent = `Reminders: ${remOn ? 'On' : 'Off'}`;
+      applyReminderScheduling(targets, todayLog, mission);
+    }
+
+    function buildCoachNudge(targets, todayLog, weekly, commitment) {
+      const waterPct = Number(todayLog.waterLiters || 0) / Math.max(0.1, targets.waterTarget);
+      const sleepPct = todayLog.sleepHours != null ? Number(todayLog.sleepHours) / Math.max(0.1, targets.sleepTarget) : 0;
+      const commitmentLine = commitment ? ` Your rule: “${commitment}”.` : '';
+      if (weekly.current < 55) {
+        return `If you do nothing else today: +250ml water right now.${commitmentLine}`;
+      }
+      if (waterPct < 0.6) return `Hydration is your highest leverage today. Two taps: +250ml, +250ml.${commitmentLine}`;
+      if (sleepPct < 0.8) return `Sleep is the multiplier. Log last night and aim earlier wind-down.${commitmentLine}`;
+      return `You’re on track. Keep the chain alive with one tiny win.${commitmentLine}`;
+    }
+
+    function drawCharts(waterStatus, sleepStatus, weightStatus) {
+      const weightData = [90, 89.5, 89.2, 88.8, 88.5, 88.0, 87.9];
+      const waterData = [2.1, 2.4, 2.8, 2.6, 2.9, 2.5, 2.4];
+      const sleepData = [6.5, 7.0, 7.8, 7.2, 7.5, 8.0, 7.5];
+      drawChart('weight-chart', weightData, weightStatus, 'kg');
+      drawChart('water-chart', waterData, waterStatus, 'L');
+      drawChart('sleep-chart', sleepData, sleepStatus, 'h');
+    }
+
+    function drawChart(svgId, data, status, unit) {
+      const svg = document.getElementById(svgId);
+      if (!svg) return;
+      svg.innerHTML = '';
+
+      const colors = { red: '#ef4444', yellow: '#f59e0b', green: '#10b981' };
+      const color = colors[status] || colors.green;
+
+      const padding = 20;
+      const width = 300;
+      const height = 200;
+      const dataWidth = width - padding * 2;
+      const dataHeight = height - padding * 2;
+      const maxVal = Math.max(...data);
+      const minVal = Math.min(...data);
+      const range = maxVal - minVal || 1;
+
+      const points = data.map((val, i) => {
+        const x = padding + (i / (data.length - 1)) * dataWidth;
+        const y = padding + dataHeight - ((val - minVal) / range) * dataHeight;
+        return `${x},${y}`;
+      }).join(' ');
+
+      const grid = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      for (let i = 0; i <= 4; i++) {
+        const y = padding + (i / 4) * dataHeight;
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', padding);
+        line.setAttribute('y1', y);
+        line.setAttribute('x2', width - padding);
+        line.setAttribute('y2', y);
+        line.setAttribute('stroke', 'rgba(255,255,255,0.1)');
+        line.setAttribute('stroke-width', '1');
+        grid.appendChild(line);
+      }
+      svg.appendChild(grid);
+
+      const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+      polyline.setAttribute('points', points);
+      polyline.setAttribute('fill', 'none');
+      polyline.setAttribute('stroke', color);
+      polyline.setAttribute('stroke-width', '3');
+      polyline.setAttribute('stroke-linecap', 'round');
+      polyline.setAttribute('stroke-linejoin', 'round');
+      polyline.classList.add('chart-line');
+      svg.appendChild(polyline);
+
+      data.forEach((val, i) => {
+        const x = padding + (i / (data.length - 1)) * dataWidth;
+        const y = padding + dataHeight - ((val - minVal) / range) * dataHeight;
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', x);
+        circle.setAttribute('cy', y);
+        circle.setAttribute('r', '5');
+        circle.setAttribute('fill', color);
+        svg.appendChild(circle);
+
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', x);
+        text.setAttribute('y', y - 12);
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('fill', color);
+        text.setAttribute('font-size', '11');
+        text.setAttribute('font-weight', '600');
+        text.textContent = `${val}${unit}`;
+        svg.appendChild(text);
+      });
+    }
+
+    function updateRecipes() {
+      const recipesGrid = document.getElementById('recipes-grid');
+      const noRecipesMsg = document.getElementById('no-recipes-message');
+      const weeklyPlanCard = document.getElementById('weekly-plan-card');
+      if (!currentUser) {
+        recipesGrid.style.display = 'none';
+        noRecipesMsg.style.display = 'block';
+        weeklyPlanCard.style.display = 'none';
+        return;
+      }
+      recipesGrid.style.display = 'grid';
+      noRecipesMsg.style.display = 'none';
+      weeklyPlanCard.style.display = 'block';
+
+      const dailyCalories = Number(currentUser.daily_calories || 2000);
+      const mealCalories = Math.round(dailyCalories / 3);
+      const recipes = getRecipeCatalog(mealCalories);
+      const plan = loadJson(PLAN_KEY, { selected: [], weekly: null });
+      const selected = new Set(plan.selected || []);
+
+      recipesGrid.innerHTML = '';
+      recipes.forEach((recipe, i) => {
+        const isSelected = selected.has(recipe.id);
+        const card = document.createElement('div');
+        card.className = 'glass-card rounded-3xl overflow-hidden card-hover animate-scale-in';
+        card.style.animationDelay = `${i * 0.1}s`;
+        card.innerHTML = `
+          <div class="gradient-animated p-12 text-center"><div class="text-7xl">${recipe.emoji}</div></div>
+          <div class="p-8">
+            <h3 class="text-2xl font-black mb-4">${recipe.name}</h3>
+            <div class="flex items-center justify-between mb-6">
+              <div class="text-center"><p class="text-3xl font-black gradient-text">${recipe.calories}</p><p class="text-xs opacity-60 mt-1">calories</p></div>
+              <div class="text-center"><p class="text-lg font-bold">${recipe.protein}</p><p class="text-xs opacity-60">protein</p></div>
+              <div class="text-center"><p class="text-lg font-bold">${recipe.carbs}</p><p class="text-xs opacity-60">carbs</p></div>
+              <div class="text-center"><p class="text-lg font-bold">${recipe.fat}</p><p class="text-xs opacity-60">fat</p></div>
+            </div>
+            <button class="w-full ${isSelected ? '' : 'btn-premium'} py-4 rounded-2xl font-bold relative z-10" data-recipe-id="${recipe.id}" style="${isSelected ? 'background: rgba(255,255,255,0.08);' : ''}">${isSelected ? 'In Plan ✓' : 'Add to Plan'}</button>
+          </div>
+        `;
+
+        const btn = card.querySelector('button');
+        btn.addEventListener('click', () => {
+          const id = recipe.id;
+          const next = loadJson(PLAN_KEY, { selected: [], weekly: null });
+          const set = new Set(next.selected || []);
+          if (set.has(id)) {
+            set.delete(id);
+            showToast('➖', 'Removed', 'Removed from your plan');
+          } else {
+            set.add(id);
+            showToast('➕', 'Added', 'Added to your plan');
+          }
+          next.selected = [...set];
+          saveJson(PLAN_KEY, next);
+          updateRecipes();
+          updateGrocery();
+        });
+        recipesGrid.appendChild(card);
+      });
+
+      renderWeeklyPlan(recipes);
+    }
+
+    function getRecipeCatalog(mealCalories) {
+      return [
+        { id: 'salmon_bowl', name: 'Grilled Salmon Bowl', emoji: '🐟', calories: mealCalories - 50, protein: '35g', carbs: '45g', fat: '18g', grocery: { protein_salmon_g: 250, veg_broccoli_g: 200 } },
+        { id: 'quinoa_bowl', name: 'Quinoa Buddha Bowl', emoji: '🥗', calories: mealCalories, protein: '22g', carbs: '52g', fat: '14g', grocery: { grain_rice_g: 150, veg_spinach_g: 150, veg_peppers_g: 150 } },
+        { id: 'chicken_wrap', name: 'Chicken Avocado Wrap', emoji: '🌯', calories: mealCalories + 30, protein: '38g', carbs: '48g', fat: '20g', grocery: { protein_chicken_g: 300, fruit_oranges_g: 0 } },
+        { id: 'yogurt_parfait', name: 'Greek Yogurt Parfait', emoji: '🥛', calories: Math.round(mealCalories * 0.6), protein: '18g', carbs: '35g', fat: '8g', grocery: { dairy_yogurt_g: 300, fruit_berries_g: 200, grain_oats_g: 100 } },
+        { id: 'veggie_stirfry', name: 'Veggie Stir-Fry Rice', emoji: '🍜', calories: mealCalories - 20, protein: '16g', carbs: '58g', fat: '12g', grocery: { veg_carrots_g: 200, veg_peppers_g: 200, grain_rice_g: 200, protein_tofu_g: 150 } },
+        { id: 'turkey_salad', name: 'Turkey Power Salad', emoji: '🥙', calories: mealCalories + 10, protein: '32g', carbs: '28g', fat: '16g', grocery: { protein_eggs_count: 2, veg_spinach_g: 150, fruit_apples_g: 150 } }
+      ];
+    }
+
+    function renderWeeklyPlan(recipes) {
+      const grid = document.getElementById('weekly-plan-grid');
+      const plan = loadJson(PLAN_KEY, { selected: [], weekly: null });
+      const weekly = plan.weekly;
+      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      grid.innerHTML = '';
+
+      if (!weekly) {
+        const empty = document.createElement('div');
+        empty.className = 'text-sm opacity-70';
+        empty.textContent = 'Generate a weekly plan to reduce friction.';
+        grid.appendChild(empty);
+        return;
+      }
+
+      days.forEach((day, i) => {
+        const r = recipes.find(x => x.id === weekly[i]) || recipes[i % recipes.length];
+        const card = document.createElement('div');
+        card.className = 'glass-card rounded-3xl p-6';
+        card.innerHTML = `
+          <div class="flex items-center justify-between mb-3">
+            <p class="font-black text-lg">${day}</p>
+            <p class="text-sm opacity-70">${r.calories} kcal</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="text-3xl">${r.emoji}</div>
+            <div>
+              <p class="font-bold">${r.name}</p>
+              <p class="text-xs opacity-60">Protein ${r.protein} • Carbs ${r.carbs}</p>
+            </div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function updateGrocery() {
+      const noGroceryMsg = document.getElementById('no-grocery-message');
+      if (!currentUser) {
+        noGroceryMsg.style.display = 'block';
+        return;
+      }
+      noGroceryMsg.style.display = 'none';
+
+      const dailyCalories = Number(currentUser.daily_calories || 2000);
+      document.getElementById('grocery-calories').textContent = dailyCalories.toLocaleString();
+      const weeklyCalories = dailyCalories * 7;
+      const multiplier = weeklyCalories / 14000;
+
+      const plan = loadJson(PLAN_KEY, { selected: [], weekly: null });
+      const selectedRecipes = new Set(plan.selected || []);
+      const mealCalories = Math.round(dailyCalories / 3);
+      const catalog = getRecipeCatalog(mealCalories);
+
+      let extra = {
+        veg_broccoli_g: 0,
+        veg_spinach_g: 0,
+        veg_carrots_g: 0,
+        veg_peppers_g: 0,
+        fruit_apples_g: 0,
+        fruit_bananas_g: 0,
+        fruit_berries_g: 0,
+        fruit_oranges_g: 0,
+        protein_chicken_g: 0,
+        protein_salmon_g: 0,
+        protein_tofu_g: 0,
+        protein_eggs_count: 0,
+        grain_rice_g: 0,
+        grain_oats_g: 0,
+        dairy_yogurt_g: 0,
+        dairy_milk_l: 0
+      };
+
+      catalog.forEach(r => {
+        if (!selectedRecipes.has(r.id)) return;
+        const g = r.grocery || {};
+        extra.veg_broccoli_g += g.veg_broccoli_g || 0;
+        extra.veg_spinach_g += g.veg_spinach_g || 0;
+        extra.veg_carrots_g += g.veg_carrots_g || 0;
+        extra.veg_peppers_g += g.veg_peppers_g || 0;
+        extra.fruit_apples_g += g.fruit_apples_g || 0;
+        extra.fruit_berries_g += g.fruit_berries_g || 0;
+        extra.fruit_oranges_g += g.fruit_oranges_g || 0;
+        extra.protein_chicken_g += g.protein_chicken_g || 0;
+        extra.protein_salmon_g += g.protein_salmon_g || 0;
+        extra.protein_tofu_g += g.protein_tofu_g || 0;
+        extra.protein_eggs_count += g.protein_eggs_count || 0;
+        extra.grain_rice_g += g.grain_rice_g || 0;
+        extra.grain_oats_g += g.grain_oats_g || 0;
+        extra.dairy_yogurt_g += g.dairy_yogurt_g || 0;
+      });
+
+      // Map extras into existing UI quantities (approx for selected recipes)
+      const extraMultiplier = Math.min(2, 0.5 + selectedRecipes.size * 0.25);
+
+      document.getElementById('veg-broccoli').textContent = `${Math.round(700 * multiplier + extra.veg_broccoli_g * extraMultiplier)}g`;
+      document.getElementById('veg-spinach').textContent = `${Math.round(500 * multiplier + extra.veg_spinach_g * extraMultiplier)}g`;
+      document.getElementById('veg-carrots').textContent = `${Math.round(600 * multiplier + extra.veg_carrots_g * extraMultiplier)}g`;
+      document.getElementById('veg-peppers').textContent = `${Math.round(400 * multiplier + extra.veg_peppers_g * extraMultiplier)}g`;
+
+      document.getElementById('fruit-apples').textContent = `${((1.2 * multiplier) + (extra.fruit_apples_g * extraMultiplier) / 1000).toFixed(1)}kg`;
+      document.getElementById('fruit-bananas').textContent = `${Math.round(900 * multiplier)}g`;
+      document.getElementById('fruit-berries').textContent = `${Math.round(400 * multiplier + extra.fruit_berries_g * extraMultiplier)}g`;
+      document.getElementById('fruit-oranges').textContent = `${Math.round(800 * multiplier + extra.fruit_oranges_g * extraMultiplier)}g`;
+
+      document.getElementById('protein-chicken').textContent = `${((1.4 * multiplier) + (extra.protein_chicken_g * extraMultiplier) / 1000).toFixed(1)}kg`;
+      document.getElementById('protein-salmon').textContent = `${Math.round(800 * multiplier + extra.protein_salmon_g * extraMultiplier)}g`;
+      document.getElementById('protein-eggs').textContent = `${Math.round(18 * multiplier + extra.protein_eggs_count * extraMultiplier)} pcs`;
+      document.getElementById('protein-tofu').textContent = `${Math.round(600 * multiplier + extra.protein_tofu_g * extraMultiplier)}g`;
+
+      document.getElementById('grain-rice').textContent = `${((1.5 * multiplier) + (extra.grain_rice_g * extraMultiplier) / 1000).toFixed(1)}kg`;
+      document.getElementById('grain-oats').textContent = `${Math.round(700 * multiplier + extra.grain_oats_g * extraMultiplier)}g`;
+      document.getElementById('dairy-yogurt').textContent = `${((1.4 * multiplier) + (extra.dairy_yogurt_g * extraMultiplier) / 1000).toFixed(1)}kg`;
+      document.getElementById('dairy-milk').textContent = `${(2 * multiplier).toFixed(1)}L`;
+    }
+
+    async function onConfigChange(newConfig) {
+      config = { ...config, ...newConfig };
+
+      const customFont = config.font_family || defaultConfig.font_family;
+      const baseSize = config.font_size || defaultConfig.font_size;
+      const baseFontStack = 'Inter, -apple-system, BlinkMacSystemFont, sans-serif';
+
+      document.body.style.fontFamily = `${customFont}, ${baseFontStack}`;
+      document.body.style.background = `linear-gradient(135deg, ${config.background_color || defaultConfig.background_color}, ${config.surface_color || defaultConfig.surface_color})`;
+      document.body.style.color = config.text_color || defaultConfig.text_color;
+
+      const floatingShapes = document.querySelectorAll('.floating-shape');
+      floatingShapes.forEach((shape, i) => {
+        if (i === 0) shape.style.background = config.primary_action_color || defaultConfig.primary_action_color;
+        if (i === 1) shape.style.background = config.secondary_action_color || defaultConfig.secondary_action_color;
+        if (i === 2) shape.style.background = config.primary_action_color || defaultConfig.primary_action_color;
+      });
+
+      const glassCards = document.querySelectorAll('.glass-card, .glass-premium');
+      glassCards.forEach(card => {
+        card.style.background = `rgba(${hexToRgb(config.surface_color || defaultConfig.surface_color)}, 0.4)`;
+        card.style.borderColor = `rgba(${hexToRgb(config.text_color || defaultConfig.text_color)}, 0.12)`;
+      });
+
+      const progressBars = document.querySelectorAll('#calories-progress, #water-progress, #sleep-progress, #weight-progress');
+      progressBars.forEach(bar => {
+        bar.style.background = `linear-gradient(90deg, ${config.primary_action_color || defaultConfig.primary_action_color}, ${config.secondary_action_color || defaultConfig.secondary_action_color})`;
+      });
+
+      const statusBars = document.querySelectorAll('.w-12.h-1');
+      statusBars.forEach(bar => {
+        bar.style.background = config.primary_action_color || defaultConfig.primary_action_color;
+      });
+
+      const navButtons = document.querySelectorAll('.nav-btn');
+      navButtons.forEach(btn => {
+        if (btn.classList.contains('active')) {
+          btn.style.background = `linear-gradient(135deg, ${config.primary_action_color || defaultConfig.primary_action_color}, ${config.secondary_action_color || defaultConfig.secondary_action_color})`;
+          btn.style.color = config.background_color || defaultConfig.background_color;
+        } else {
+          btn.style.background = 'transparent';
+          btn.style.color = config.text_color || defaultConfig.text_color;
+        }
+      });
+
+      const buttons = document.querySelectorAll('.btn-premium');
+      buttons.forEach(btn => {
+        btn.style.background = `linear-gradient(135deg, ${config.primary_action_color || defaultConfig.primary_action_color}, ${config.secondary_action_color || defaultConfig.secondary_action_color})`;
+        btn.style.color = config.background_color || defaultConfig.background_color;
+      });
+
+      document.getElementById('app-title').textContent = config.app_title || defaultConfig.app_title;
+      document.getElementById('calories-label').textContent = config.calories_label || defaultConfig.calories_label;
+      document.getElementById('water-label').textContent = config.water_label || defaultConfig.water_label;
+      document.getElementById('sleep-label').textContent = config.sleep_label || defaultConfig.sleep_label;
+      document.getElementById('weight-label').textContent = config.weight_label || defaultConfig.weight_label;
+
+      const h1Elements = document.querySelectorAll('h1');
+      h1Elements.forEach(h => h.style.fontSize = `${baseSize * 3.125}px`);
+      const h2Elements = document.querySelectorAll('h2');
+      h2Elements.forEach(h => h.style.fontSize = `${baseSize * 1.875}px`);
+      const h3Elements = document.querySelectorAll('h3');
+      h3Elements.forEach(h => h.style.fontSize = `${baseSize * 1.5}px`);
+    }
+
+    function hexToRgb(hex) {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : '30, 31, 58';
+    }
+
+    function switchView(viewName) {
+      currentView = viewName;
+      document.querySelectorAll('.view-content').forEach(v => v.classList.add('hidden'));
+      document.getElementById(`${viewName}-view`).classList.remove('hidden');
+
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('active');
+        btn.style.background = 'transparent';
+        btn.style.color = config.text_color || defaultConfig.text_color;
+      });
+
+      const activeBtn = document.getElementById(`nav-${viewName}`);
+      activeBtn.classList.add('active');
+      activeBtn.style.background = `linear-gradient(135deg, ${config.primary_action_color || defaultConfig.primary_action_color}, ${config.secondary_action_color || defaultConfig.secondary_action_color})`;
+      activeBtn.style.color = config.background_color || defaultConfig.background_color;
+    }
+
+    function applySurveyToUi(survey) {
+      if (!survey) return;
+      currentUser = {
+        daily_calories: survey.daily_calories,
+        water_target: survey.water_target_liters,
+        sleep_target: survey.sleep_target_hours,
+        weight: survey.weight_kg,
+        target_weight: survey.target_weight_kg,
+        start_weight: survey.weight_kg
+      };
+      try {
+        localStorage.setItem(SURVEY_CACHE_KEY, JSON.stringify(survey));
+      } catch {
+        // ignore
+      }
+      updateDashboard();
+    }
+
+    async function loadSurveyAndUser() {
+      const token = getToken();
+      if (!token) {
+        window.location.href = '/login';
+        return;
+      }
+
+      // Instant render from cache for snappy UX
+      try {
+        const cached = localStorage.getItem(SURVEY_CACHE_KEY);
+        if (cached) applySurveyToUi(JSON.parse(cached));
+      } catch {
+        // ignore
+      }
+
+      const me = await apiRequest('/api/auth/me');
+      if (me && me.name) {
+        document.getElementById('app-title').textContent = config.app_title || defaultConfig.app_title;
+      }
+
+      const surveys = await apiRequest('/api/surveys');
+      if (surveys && surveys.length > 0) {
+        applySurveyToUi(surveys[0]);
+      } else {
+        currentUser = null;
+        updateDashboard();
+      }
+    }
+
+    document.getElementById('nav-dashboard').addEventListener('click', () => switchView('dashboard'));
+    document.getElementById('nav-survey').addEventListener('click', () => switchView('survey'));
+    document.getElementById('nav-recipes').addEventListener('click', () => switchView('recipes'));
+    document.getElementById('nav-grocery').addEventListener('click', () => switchView('grocery'));
+    document.getElementById('start-survey-btn').addEventListener('click', () => switchView('survey'));
+
+    document.getElementById('mission-next-action-btn').addEventListener('click', () => {
+      const targets = getTargets();
+      const todayLog = getOrCreateLogForDay(dateKey(new Date()));
+      const mission = getDailyMission(targets, todayLog);
+      switchView(mission.nextView || 'dashboard');
+      if (mission.nextView === 'dashboard') {
+        document.getElementById('mission-title')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+
+    document.getElementById('mission-complete-btn').addEventListener('click', () => {
+      const targets = getTargets();
+      const today = dateKey(new Date());
+      const log = getOrCreateLogForDay(today);
+      const mission = getDailyMission(targets, log);
+      if (!currentUser && mission.id === 'complete_profile') {
+        showToast('📋', 'Profile needed', 'Complete your profile to unlock your plan');
+        switchView('survey');
+        return;
+      }
+      updateLogForDay(today, { missionCompleted: true, missionId: mission.id });
+      showToast('🎯', 'Mission complete', 'Streak protected for today');
+      updateDashboard();
+    });
+
+    document.getElementById('streak-saver-btn').addEventListener('click', () => {
+      try {
+        const day = useStreakSaverForYesterday();
+        showToast('🛡️', 'Streak saver used', `Saved ${day}`);
+        updateDashboard();
+      } catch (err) {
+        showToast('⚠️', 'Not available', err?.message || 'Streak saver unavailable');
+      }
+    });
+
+    document.getElementById('open-recap-btn').addEventListener('click', () => {
+      document.getElementById('monthly-recap-text')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+
+    document.getElementById('copy-recap-btn').addEventListener('click', async () => {
+      const text = document.getElementById('monthly-recap-text')?.textContent || '';
+      await copyToClipboard(text);
+    });
+
+    document.getElementById('toggle-reminders-btn').addEventListener('click', () => {
+      settings = loadJson(SETTINGS_KEY, { reminders: { water: false, sleep: false, mission: false }, remindersEnabled: false });
+      const next = !settings.remindersEnabled;
+      settings.remindersEnabled = next;
+      if (next && !settings.reminders?.water && !settings.reminders?.sleep && !settings.reminders?.mission) {
+        settings.reminders = { water: true, sleep: false, mission: true };
+      }
+      saveJson(SETTINGS_KEY, settings);
+      showToast('⏰', 'Reminders updated', next ? 'Reminders are on (this tab only)' : 'Reminders are off');
+      updateDashboard();
+    });
+
+    document.getElementById('start-challenge-btn').addEventListener('click', () => {
+      const ch = getChallenge();
+      if (!ch.startedAt) {
+        ch.startedAt = new Date().toISOString();
+        ch.days = [];
+        saveChallenge(ch);
+        showToast('🏁', 'Challenge started', 'Hit your water target for 7 days');
+      } else {
+        showToast('✅', 'Challenge active', 'Keep going — you’re already in');
+      }
+      updateDashboard();
+    });
+
+    document.getElementById('challenge-start-btn').addEventListener('click', () => {
+      const ch = getChallenge();
+      ch.startedAt = new Date().toISOString();
+      ch.days = [];
+      saveChallenge(ch);
+      showToast('🏁', 'Challenge started', 'Day 1 begins now');
+      updateDashboard();
+    });
+
+    document.getElementById('challenge-reset-btn').addEventListener('click', () => {
+      saveChallenge({ id: 'hydration7', startedAt: null, days: [] });
+      showToast('🔄', 'Challenge reset', 'Start again when you’re ready');
+      updateDashboard();
+    });
+
+    document.getElementById('water-plus-btn').addEventListener('click', () => {
+      if (!currentUser) {
+        showToast('ℹ️', 'Profile needed', 'Complete your profile to unlock targets');
+        switchView('survey');
+        return;
+      }
+      const today = dateKey(new Date());
+      const targets = getTargets();
+      const log = getOrCreateLogForDay(today);
+      const next = clamp(Number(log.waterLiters || 0) + 0.25, 0, targets.waterTarget * 2);
+      updateLogForDay(today, { waterLiters: Number(next.toFixed(2)) });
+      showToast('💧', 'Logged water', '+250ml');
+      updateDashboard();
+    });
+
+    document.getElementById('water-minus-btn').addEventListener('click', () => {
+      if (!currentUser) {
+        showToast('ℹ️', 'Profile needed', 'Complete your profile to unlock targets');
+        switchView('survey');
+        return;
+      }
+      const today = dateKey(new Date());
+      const log = getOrCreateLogForDay(today);
+      const next = clamp(Number(log.waterLiters || 0) - 0.25, 0, 100);
+      updateLogForDay(today, { waterLiters: Number(next.toFixed(2)) });
+      showToast('💧', 'Adjusted', '-250ml');
+      updateDashboard();
+    });
+
+    document.getElementById('water-hit-target-btn').addEventListener('click', () => {
+      if (!currentUser) {
+        showToast('ℹ️', 'Profile needed', 'Complete your profile to unlock targets');
+        switchView('survey');
+        return;
+      }
+      const today = dateKey(new Date());
+      const targets = getTargets();
+      updateLogForDay(today, { waterLiters: Number(targets.waterTarget.toFixed(2)) });
+      showToast('💧', 'Target hit', 'Nice.');
+      updateDashboard();
+    });
+
+    document.getElementById('sleep-save-btn').addEventListener('click', () => {
+      if (!currentUser) {
+        showToast('ℹ️', 'Profile needed', 'Complete your profile to unlock targets');
+        switchView('survey');
+        return;
+      }
+      const raw = document.getElementById('sleep-quick-input').value;
+      const val = Number(raw);
+      if (!raw || Number.isNaN(val)) {
+        showToast('⚠️', 'Missing value', 'Enter hours slept');
+        return;
+      }
+      const today = dateKey(new Date());
+      updateLogForDay(today, { sleepHours: clamp(val, 0, 16) });
+      showToast('😴', 'Sleep saved', `${val}h`);
+      updateDashboard();
+    });
+
+    document.getElementById('weight-save-btn').addEventListener('click', () => {
+      if (!currentUser) {
+        showToast('ℹ️', 'Profile needed', 'Complete your profile to unlock targets');
+        switchView('survey');
+        return;
+      }
+      const raw = document.getElementById('weight-quick-input').value;
+      const val = Number(raw);
+      if (!raw || Number.isNaN(val)) {
+        showToast('⚠️', 'Missing value', 'Enter your weight');
+        return;
+      }
+      const today = dateKey(new Date());
+      updateLogForDay(today, { weightKg: clamp(val, 20, 400) });
+      currentUser.weight = clamp(val, 20, 400);
+      showToast('📊', 'Weigh‑in saved', `${val}kg`);
+      updateDashboard();
+    });
+
+    document.getElementById('generate-weekly-plan-btn').addEventListener('click', () => {
+      if (!currentUser) {
+        showToast('ℹ️', 'Complete profile', 'Create your plan first');
+        switchView('survey');
+        return;
+      }
+      const targets = getTargets();
+      const mealCalories = Math.round(targets.dailyCalories / 3);
+      const recipes = getRecipeCatalog(mealCalories);
+      const plan = loadJson(PLAN_KEY, { selected: [], weekly: null });
+      const daySeed = Number(dateKey(new Date()).replace(/-/g, '').slice(-3));
+      const weekly = [];
+      for (let i = 0; i < 7; i++) {
+        weekly.push(recipes[(daySeed + i * 2) % recipes.length].id);
+      }
+      plan.weekly = weekly;
+      saveJson(PLAN_KEY, plan);
+      showToast('🗓️', 'Plan generated', 'Friction removed for the week');
+      updateRecipes();
+      updateGrocery();
+      // Mission autop-complete if the mission is meal planning.
+      const today = dateKey(new Date());
+      const log = getOrCreateLogForDay(today);
+      const mission = getDailyMission(targets, log);
+      if (mission.id === 'plan_meals' && !log.missionCompleted) {
+        updateLogForDay(today, { missionCompleted: true, missionId: mission.id });
+        toastOncePerDay('mission_plan', '🎯', 'Mission complete', 'Meal plan generated — streak protected.');
+      }
+      updateDashboard();
+    });
+
+    document.getElementById('clear-weekly-plan-btn').addEventListener('click', () => {
+      const plan = loadJson(PLAN_KEY, { selected: [], weekly: null });
+      plan.weekly = null;
+      saveJson(PLAN_KEY, plan);
+      showToast('🧹', 'Cleared', 'Weekly plan cleared');
+      updateRecipes();
+      updateGrocery();
+    });
+
+    document.getElementById('survey-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const btn = document.getElementById('survey-submit-btn');
+      const originalText = btn.textContent;
+      btn.textContent = 'Saving...';
+      btn.style.opacity = '0.7';
+      btn.style.pointerEvents = 'none';
+
+      try {
+        // Persist commitment + reminder preferences
+        commitmentText = document.getElementById('commitment-text').value || '';
+        saveJson(COMMITMENT_KEY, commitmentText);
+
+        settings = loadJson(SETTINGS_KEY, { reminders: { water: false, sleep: false, mission: false }, remindersEnabled: false });
+        settings.reminders = {
+          water: Boolean(document.getElementById('reminder-water').checked),
+          sleep: Boolean(document.getElementById('reminder-sleep').checked),
+          mission: Boolean(document.getElementById('reminder-mission').checked)
+        };
+        saveJson(SETTINGS_KEY, settings);
+
+        const gender = document.querySelector('input[name="gender"]:checked')?.value;
+        const payload = {
+          gender,
+          age: Number(document.getElementById('survey-age').value),
+          heightCm: Number(document.getElementById('survey-height').value),
+          weightKg: Number(document.getElementById('survey-weight').value),
+          targetWeightKg: Number(document.getElementById('survey-target').value),
+          targetDays: 90,
+          lifestyle: document.getElementById('survey-activity').value
+        };
+
+        const created = await apiRequest('/api/surveys', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+
+        applySurveyToUi(created);
+        showToast('🎉', 'Profile Saved!', `Plan: ${created.daily_calories} kcal • ${created.water_target_liters}L water • ${created.sleep_target_hours}h sleep`);
+        switchView('dashboard');
+      } catch (err) {
+        showToast('❌', 'Save Failed', err?.message || 'Please try again');
+      } finally {
+        btn.textContent = originalText;
+        btn.style.opacity = '1';
+        btn.style.pointerEvents = 'auto';
+      }
+    });
+
+    document.getElementById('shuffle-recipes-btn').addEventListener('click', () => {
+      if (currentUser) {
+        updateRecipes();
+        showToast('🔀', 'Recipes Shuffled!', 'Discover new meal ideas');
+      } else {
+        showToast('ℹ️', 'Complete Profile', 'Please complete your health profile first');
+      }
+    });
+
+    function mapToCapabilities(config) {
+      return {
+        recolorables: [
+          {
+            get: () => config.background_color || defaultConfig.background_color,
+            set: (value) => {
+              config.background_color = value;
+              if (window.elementSdk) window.elementSdk.setConfig({ background_color: value });
+            }
+          },
+          {
+            get: () => config.surface_color || defaultConfig.surface_color,
+            set: (value) => {
+              config.surface_color = value;
+              if (window.elementSdk) window.elementSdk.setConfig({ surface_color: value });
+            }
+          },
+          {
+            get: () => config.text_color || defaultConfig.text_color,
+            set: (value) => {
+              config.text_color = value;
+              if (window.elementSdk) window.elementSdk.setConfig({ text_color: value });
+            }
+          },
+          {
+            get: () => config.primary_action_color || defaultConfig.primary_action_color,
+            set: (value) => {
+              config.primary_action_color = value;
+              if (window.elementSdk) window.elementSdk.setConfig({ primary_action_color: value });
+            }
+          },
+          {
+            get: () => config.secondary_action_color || defaultConfig.secondary_action_color,
+            set: (value) => {
+              config.secondary_action_color = value;
+              if (window.elementSdk) window.elementSdk.setConfig({ secondary_action_color: value });
+            }
+          }
+        ],
+        borderables: [],
+        fontEditable: {
+          get: () => config.font_family || defaultConfig.font_family,
+          set: (value) => {
+            config.font_family = value;
+            if (window.elementSdk) window.elementSdk.setConfig({ font_family: value });
+          }
+        },
+        fontSizeable: {
+          get: () => config.font_size || defaultConfig.font_size,
+          set: (value) => {
+            config.font_size = value;
+            if (window.elementSdk) window.elementSdk.setConfig({ font_size: value });
+          }
+        }
+      };
+    }
+
+    function mapToEditPanelValues(config) {
+      return new Map([
+        ['app_title', config.app_title || defaultConfig.app_title],
+        ['calories_label', config.calories_label || defaultConfig.calories_label],
+        ['water_label', config.water_label || defaultConfig.water_label],
+        ['sleep_label', config.sleep_label || defaultConfig.sleep_label],
+        ['weight_label', config.weight_label || defaultConfig.weight_label]
+      ]);
+    }
+
+    async function init() {
+      if (window.elementSdk) {
+        window.elementSdk.init({
+          defaultConfig,
+          onConfigChange,
+          mapToCapabilities,
+          mapToEditPanelValues
+        });
+      }
+
+      await onConfigChange(config);
+      switchView('dashboard');
+
+      // Hydrate UI controls from persisted settings
+      commitmentText = loadJson(COMMITMENT_KEY, '');
+      const commitmentEl = document.getElementById('commitment-text');
+      if (commitmentEl) commitmentEl.value = commitmentText;
+      settings = loadJson(SETTINGS_KEY, { reminders: { water: false, sleep: false, mission: false }, remindersEnabled: false });
+      document.getElementById('reminder-water').checked = Boolean(settings.reminders?.water);
+      document.getElementById('reminder-sleep').checked = Boolean(settings.reminders?.sleep);
+      document.getElementById('reminder-mission').checked = Boolean(settings.reminders?.mission);
+
+      await loadSurveyAndUser();
+    }
+
+    init();
+  </script>
+ </body>
+</html>

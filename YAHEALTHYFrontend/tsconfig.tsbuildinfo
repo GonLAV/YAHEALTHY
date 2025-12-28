@@ -1,0 +1,1 @@
+{"root":["./src/App.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/PrivateRoute.tsx","./src/hooks/useAuth.tsx","./src/pages/CoachingPage.tsx","./src/pages/DashboardPage.tsx","./src/pages/FoodLogPage.tsx","./src/pages/LoginPage.tsx","./src/pages/SignupPage.tsx","./src/services/api.ts"],"version":"5.9.3"}

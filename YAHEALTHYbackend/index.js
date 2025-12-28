@@ -2,873 +2,3516 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const path = require('path');
+const swaggerUi = require('swagger-ui-express');
+const { z, ZodError } = require('zod');
+
+// Import utilities
+const { 
+  validateWeight, 
+  validateHeight, 
+  validateAge, 
+  validateGender,
+  normalizeLifestyle
+} = require('./utils/constants');
+
+const {
+  calculateBMI,
+  calculateBodyFat,
+  calculateBMR,
+  calculateTDEE,
+  calculateDailyCalories,
+  calculateWaterTarget,
+  calculateSleepTarget,
+  calculateWeightProgress,
+  getHydrationStatus,
+  getSleepStatus,
+  getReadinessScore,
+  calculateSleepDebt
+} = require('./utils/health-calculations');
+
+const {
+  generateId
+} = require('./utils/id-generator');
+
+const auth = require('./utils/auth');
+const db = require('./utils/database');
+
+const { apiLimiter, authLimiter } = require('./middleware/rateLimit');
+const { requestContext } = require('./middleware/requestContext');
+const { notFoundHandler, errorHandler } = require('./utils/error-handler');
+const { buildOpenApiSpec } = require('./openapi');
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Middleware
 app.use(cors());
+app.use(requestContext);
 app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
+
+// Rate limiting
+app.use('/api', apiLimiter);
+app.use('/api/auth', authLimiter);
+
+// OpenAPI docs (not authenticated)
+const openApiSpec = buildOpenApiSpec({ version: '2.0' });
+app.get('/api/docs.json', (req, res) => res.json(openApiSpec));
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openApiSpec, {
+  swaggerOptions: { persistAuthorization: true }
+}));
+
+// ========== STATIC PAGES ==========
 
 app.get('/', (req, res) => {
-  res.send('YAHEALTHY API is running...');
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-// Sample Recipes Data (In-memory for now, can be moved to DB later)
-const recipes = [
-  {
-    id: "1",
-    name: "סלט קינואה עם ירקות צלויים",
-    nutritionist: "ד״ר שרה כהן",
-    difficulty: "קל",
-    time: "30 דקות",
-    calories: "320 קלוריות",
-    category: "צהריים",
-    rating: 4.8,
-    image: "🥗",
-    ingredients: [
-      { item: "קינואה", amount: "1 כוס", category: "דגנים" },
-      { item: "בטטה", amount: "1 בינונית", category: "ירקות" },
-      { item: "גזר", amount: "2 יחידות", category: "ירקות" },
-      { item: "זוקיני", amount: "1 יחידה", category: "ירקות" },
-      { item: "שמן זית", amount: "2 כפות", category: "שמנים" },
-      { item: "לימון", amount: "1 יחידה", category: "פירות" }
-    ],
-    steps: [
-      { step: 1, text: "הדליקו תנור ל-200 מעלות", video: "prep" },
-      { step: 2, text: "חתכו את הירקות לקוביות בגודל אחיד", video: "chop" },
-      { step: 3, text: "ערבבו ירקות עם שמן זית ותבלינים", video: "mix" },
-      { step: 4, text: "אפו 25 דקות עד שהירקות מקבלים צבע זהוב", video: "bake" },
-      { step: 5, text: "בשלו קינואה לפי ההוראות על האריזה", video: "cook" },
-      { step: 6, text: "ערבבו הכל יחד והוסיפו מיץ לימון", video: "combine" }
-    ],
-    tips: "אפשר להוסיף גבינת פטה או אגוזים לחלבון נוסף",
-    nutritionistNote: "מנה מאוזנת עם פחמימות מורכבות וסיבים תזונתיים"
-  },
-  {
-    id: "2",
-    name: "עוף בגריל עם ירקות על הפלנצ׳ה",
-    nutritionist: "דני לוי",
-    difficulty: "בינוני",
-    time: "45 דקות",
-    calories: "410 קלוריות",
-    category: "ערב",
-    rating: 4.9,
-    image: "🍗",
-    ingredients: [
-      { item: "חזה עוף", amount: "400 גרם", category: "חלבונים" },
-      { item: "פלפל צבעוני", amount: "3 יחידות", category: "ירקות" },
-      { item: "בצל", amount: "2 יחידות", category: "ירקות" },
-      { item: "שום", amount: "4 שיניים", category: "תבלינים" },
-      { item: "פפריקה מעושנת", amount: "1 כפית", category: "תבלינים" },
-      { item: "שמן זית", amount: "3 כפות", category: "שמנים" }
-    ],
-    steps: [
-      { step: 1, text: "חתכו עוף לרצועות דקות", video: "cut" },
-      { step: 2, text: "מרינדה: שמן, שום, פפריקה - 20 דקות", video: "marinate" },
-      { step: 3, text: "חתכו ירקות לרצועות", video: "slice" },
-      { step: 4, text: "חממו מחבת על אש גבוהה", video: "heat" },
-      { step: 5, text: "טגנו עוף 4 דקות כל צד", video: "cook" },
-      { step: 6, text: "הוסיפו ירקות וטגנו 5 דקות נוספות", video: "finish" }
-    ],
-    tips: "מוגש עם אורז מלא או לחם פיתה מחיטה מלאה",
-    nutritionistNote: "עשיר בחלבון איכותי ונמוך בשומן רווי"
-  },
-  {
-    id: "3",
-    name: "שייק פירות וגרנולה",
-    nutritionist: "ד״ר מיכל רוזן",
-    difficulty: "קל מאוד",
-    time: "10 דקות",
-    calories: "280 קלוריות",
-    category: "בוקר",
-    rating: 4.7,
-    image: "🥤",
-    ingredients: [
-      { item: "בננה קפואה", amount: "1 יחידה", category: "פירות" },
-      { item: "תותים", amount: "1 כוס", category: "פירות" },
-      { item: "יוגורט יווני", amount: "150 גרם", category: "חלבונים" },
-      { item: "חלב שקדים", amount: "1 כוס", category: "משקאות" },
-      { item: "גרנולה", amount: "3 כפות", category: "דגנים" },
-      { item: "דבש", amount: "1 כפית", category: "ממתיקים" }
-    ],
-    steps: [
-      { step: 1, text: "שימו את הפירות הקפואים בבלנדר", video: "add" },
-      { step: 2, text: "הוסיפו יוגורט וחלב שקדים", video: "pour" },
-      { step: 3, text: "טחנו עד לקבלת מרקם חלק", video: "blend" },
-      { step: 4, text: "טעמו והוסיפו דבש לפי הצורך", video: "taste" },
-      { step: 5, text: "מזגו לכוס והוסיפו גרנולה מלמעלה", video: "serve" }
-    ],
-    tips: "אפשר להוסיף זרעי צ׳יה או פשתן לאומגה 3",
-    nutritionistNote: "ארוחת בוקר מאוזנת עם חלבון ופחמימות מורכבות"
-  }
-];
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
 
-let userMealPlans = [];
-let userSurveys = [];
-let weightGoals = [];
-let weightLogs = [];
-let fastingWindows = [];
-let readinessLogs = [];
-let travelModes = [];
-let offlineLogs = [];
-let streakLogs = [];
-let photoEstimates = [];
+app.get('/dashboard', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// ========== HEALTH CHECK ==========
+
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    message: 'YAHEALTHY API is running with authentication and Supabase...',
+    version: '2.0',
+    features: [
+      'authentication',
+      'surveys',
+      'weight-goals',
+      'weight-logs',
+      'hydration-tracking',
+      'sleep-tracking',
+      'grocery-planning',
+      'recipes',
+      'meal-plans',
+      'fasting-windows',
+      'meal-swaps',
+      'readiness-scoring',
+      'sleep-debt-tracking',
+      'offline-logs'
+    ]
+  });
+});
+
+// Readiness check: includes DB connectivity
+app.get('/api/ready', async (req, res) => {
+  try {
+    const result = await db.ping();
+    if (!result.ok) {
+      return res.status(503).json({ status: 'not_ready', ...result });
+    }
+    return res.json({ status: 'ready', ...result });
+  } catch (error) {
+    return res.status(503).json({ status: 'not_ready', error: error.message, requestId: req.id });
+  }
+});
+
+// ========== AUTHENTICATION ENDPOINTS ==========
 
 /**
- * Health calculation constants (simplified, non-medical guidance)
+ * POST /api/auth/signup
+ * Create a new user account
  */
-const CALORIES_PER_KG = 7700;
-const MIN_DAILY_CALORIES = 1200;
-const BASE_KCAL_PER_KG = 22;
-const DEFAULT_DAILY_DEFICIT = 500;
-const PROTEIN_MIN_G_PER_KG = 1.2; // general guideline
-const FIBER_MIN_GRAMS = 25;
-const WATER_ACTIVITY_L_PER_MIN = 0.012; // ~12 ml per active minute
-const STREAK_DAY_TOLERANCE = 1.1; // days
-const READINESS_HRV_WEIGHT = 50;
-const READINESS_SLEEP_WEIGHT = 50;
-const READINESS_SLEEP_REF = 8;
-const DEFAULT_WATER_REMINDER_TIMES = ["08:00", "11:00", "14:00", "17:00", "20:00"];
-const MAX_OFFLINE_ENTRIES = 100;
-const MAX_STRING_DATA_LENGTH = 1000;
-const MAX_JSON_DATA_LENGTH = 2000;
-const MILLISECONDS_PER_DAY = 1000 * 60 * 60 * 24;
-const AI_PROVIDER = process.env.AI_PROVIDER || "mock";
-const AI_API_KEY = process.env.AI_API_KEY || null;
-const AI_ENDPOINT = process.env.AI_ENDPOINT || null;
-const PLACES_PROVIDER = process.env.PLACES_PROVIDER || "mock";
-const PLACES_API_KEY = process.env.PLACES_API_KEY || null;
-const PLACES_ENDPOINT = process.env.PLACES_ENDPOINT || null;
-const BODY_FAT_BMI_COEF = 1.2;
-const BODY_FAT_AGE_COEF = 0.23;
-const BODY_FAT_SEX_COEF = 10.8;
-const BODY_FAT_BASE = 5.4;
+app.post('/api/auth/signup', async (req, res) => {
+  try {
+    const signupSchema = z.object({
+      email: z.string().email(),
+      password: z.string().min(6),
+      name: z.string().min(1).optional()
+    });
+    const { email, password, name } = signupSchema.parse(req.body);
 
-const activityMultipliers = {
-  athlete: 1.75,
-  nonathlete: 1.3,
-  senior: 1.15,
-  recovery: 1.1,
-  pregnant: 1.4,
-  default: 1.3
-};
-
-function buildWeeklyGroceryPlan(dailyCalories) {
-  if (!Number.isFinite(dailyCalories) || dailyCalories <= 0) return null;
-  const weeklyCalories = dailyCalories * 7;
-  const splits = { produce: 0.35, protein: 0.25, carbs: 0.25, fats: 0.15 };
-  const grams = {
-    produce: Math.round((weeklyCalories * splits.produce) / 0.6),
-    protein: Math.round((weeklyCalories * splits.protein) / 4),
-    carbs: Math.round((weeklyCalories * splits.carbs) / 4),
-    fats: Math.round((weeklyCalories * splits.fats) / 9)
-  };
-  const bundle = [
-    { category: "vegetables", amount: `${Math.round(grams.produce * 0.6)} g`, suggestion: "leafy greens, peppers, broccoli" },
-    { category: "fruits", amount: `${Math.round(grams.produce * 0.4)} g`, suggestion: "berries, apples, citrus" },
-    { category: "protein", amount: `${grams.protein} g`, suggestion: "chicken, fish, tofu, legumes" },
-    { category: "carbs", amount: `${grams.carbs} g`, suggestion: "whole grains, quinoa, sweet potatoes" },
-    { category: "fats", amount: `${grams.fats} g`, suggestion: "olive oil, nuts, seeds, avocado" }
-  ];
-  return { dailyCalories, weeklyCalories, grams, bundle };
-}
-
-function suggestSwaps(ingredients = [], allergies = [], preference = "") {
-  const allergySet = new Set(allergies.map(a => a.toLowerCase()));
-  const swaps = ingredients.map(item => {
-    const name = (item.item || item.name || "").toLowerCase();
-    if (allergySet.has(name) || name.includes(preference.toLowerCase())) {
-      return { original: item, substitute: "tofu" };
+    // Validate input
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password required' });
     }
-    if (name.includes("chicken")) return { original: item, substitute: "turkey" };
-    if (name.includes("fish")) return { original: item, substitute: "salmon" };
-    if (name.includes("beef")) return { original: item, substitute: "lentils" };
-    return { original: item, substitute: "beans" };
-  });
-  return swaps;
-}
 
-function optimizeGroceries(plan, pricePerGram = {}) {
-  if (!plan?.grams) return null;
-  const defaults = { produce: 0.005, protein: 0.01, carbs: 0.004, fats: 0.02 };
-  const calc = key => Number(((plan.grams[key] || 0) * (pricePerGram[key] || defaults[key])).toFixed(2));
-  const cost = {
-    produce: calc("produce"),
-    protein: calc("protein"),
-    carbs: calc("carbs"),
-    fats: calc("fats")
-  };
-  const total = Object.values(cost).reduce((a, b) => a + b, 0);
-  return { cost, total: Number(total.toFixed(2)), deliveryEtaMinutes: 90 };
-}
-
-function fastingGuidance(windowHours) {
-  if (!Number.isFinite(windowHours) || windowHours <= 0) return null;
-  const type = windowHours >= 16 ? "16:8" : windowHours >= 14 ? "14:10" : "12:12";
-  const tips = [
-    "Hydrate during fasting window",
-    "Prioritize protein and fiber at first meal",
-    "Avoid heavy sugar during eating window"
-  ];
-  return { protocol: type, tips, windowHours };
-}
-
-function scoreNutrition(weightKg, calories, proteinG, fiberG) {
-  if (!Number.isFinite(weightKg) || weightKg <= 0 || !Number.isFinite(calories) || calories <= 0) return null;
-  const proteinMin = Math.round(weightKg * PROTEIN_MIN_G_PER_KG);
-  const proteinScore = Math.min(1, proteinG / proteinMin || 0);
-  const fiberScore = Math.min(1, fiberG / FIBER_MIN_GRAMS || 0);
-  const score = Number(((proteinScore * 0.6 + fiberScore * 0.4) * 100).toFixed(1));
-  return { proteinMin, fiberMin: FIBER_MIN_GRAMS, proteinScore, fiberScore, score };
-}
-
-function planLeftovers(servings, days) {
-  if (!Number.isFinite(servings) || servings <= 0) return null;
-  const keepDays = Number.isFinite(days) && days > 0 ? days : 3;
-  return {
-    servings,
-    keepDays,
-    schedule: [
-      { day: 1, action: "Fresh cook & portion" },
-      { day: Math.min(keepDays, 3), action: "Reheat half" },
-      { day: keepDays, action: "Freeze remaining and label" }
-    ]
-  };
-}
-
-function readinessScore(hrv, restingHr, sleepHours) {
-  if (!Number.isFinite(hrv) || !Number.isFinite(restingHr) || !Number.isFinite(sleepHours)) return null;
-  const totalWeight = READINESS_HRV_WEIGHT + READINESS_SLEEP_WEIGHT;
-  const blended = ((hrv / restingHr) * READINESS_HRV_WEIGHT + (sleepHours / READINESS_SLEEP_REF) * READINESS_SLEEP_WEIGHT) / totalWeight;
-  const normalized = Math.max(0, Math.min(100, blended * 100));
-  const status = normalized >= 75 ? "green" : normalized >= 55 ? "yellow" : "red";
-  return { score: Number(normalized.toFixed(1)), status };
-}
-
-function waterReminderPlan(weightKg, activityMinutes) {
-  if (!Number.isFinite(weightKg) || weightKg <= 0) return null;
-  const base = Math.max(2, weightKg * 0.033);
-  const extra = Math.max(0, activityMinutes || 0) * WATER_ACTIVITY_L_PER_MIN;
-  const targetLiters = Number((base + extra).toFixed(2));
-  const times = Array.isArray(DEFAULT_WATER_REMINDER_TIMES) && DEFAULT_WATER_REMINDER_TIMES.length
-    ? DEFAULT_WATER_REMINDER_TIMES
-    : ["09:00", "12:00", "15:00", "18:00"];
-  const reminders = times.map(time => ({ time, amountLiters: Number((targetLiters / times.length).toFixed(2)) }));
-  return { targetLiters, reminders };
-}
-
-function sleepDebt(targetHours, sleepHoursList = []) {
-  if (!Number.isFinite(targetHours) || targetHours <= 0 || !Array.isArray(sleepHoursList) || sleepHoursList.length === 0) return null;
-  const filtered = sleepHoursList.filter(Number.isFinite);
-  if (!filtered.length) return null;
-  const avg = filtered.reduce((a, b) => a + b, 0) / filtered.length;
-  const debt = Number((targetHours - avg).toFixed(2));
-  return { targetHours, averageSleep: Number(avg.toFixed(2)), debt };
-}
-
-function streakFromDates(dates = []) {
-  const days = dates.map(d => new Date(d)).filter(d => !isNaN(d)).sort((a, b) => a - b);
-  if (!days.length) return { current: 0, longest: 0 };
-  let current = 1, longest = 1;
-  for (let i = 1; i < days.length; i++) {
-    const diff = (days[i] - days[i - 1]) / MILLISECONDS_PER_DAY;
-    if (diff >= 1 && diff <= STREAK_DAY_TOLERANCE) {
-      current += 1;
-    } else {
-      longest = Math.max(longest, current);
-      current = 1;
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
-  }
-  longest = Math.max(longest, current);
-  return { current, longest };
-}
 
-function travelSuggestions(location, cuisine) {
-  return {
-    location: location || "unspecified",
-    cuisine: cuisine || "balanced",
-    suggestions: [
-      { meal: "Breakfast", idea: "Greek yogurt, berries, nuts" },
-      { meal: "Lunch", idea: "Grilled protein, mixed greens, olive oil" },
-      { meal: "Dinner", idea: "Fish, roasted veggies, quinoa" }
-    ]
-  };
-}
-
-function restaurantSuggestions(location, cuisine) {
-  return {
-    location: location || "unspecified",
-    cuisine: cuisine || "balanced",
-    results: [
-      { name: "Lean Grill", type: "grill", proteinFocus: true, distanceKm: 1.2 },
-      { name: "Green Bowl", type: "salad", proteinFocus: false, distanceKm: 0.8 },
-      { name: "Mediterraneo", type: "mediterranean", proteinFocus: true, distanceKm: 2.1 }
-    ]
-  };
-}
-
-function generateId() {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function getSexFactor(genderText) {
-  switch (genderText) {
-    case 'men':
-    case 'male':
-      return 1;
-    case 'women':
-    case 'female':
-      return 0;
-    default:
-      return 0.5;
-  }
-}
-
-function normalizeLifestyle(value) {
-  return (value || '').toLowerCase().replace(/\s+/g, '');
-}
-
-function calculateBodyFatPercentage(bmi, age, sexFactor) {
-  if (bmi === null) return null;
-  return Number((BODY_FAT_BMI_COEF * bmi + BODY_FAT_AGE_COEF * (age || 0) - BODY_FAT_SEX_COEF * sexFactor - BODY_FAT_BASE).toFixed(1));
-}
-
-function isRealisticNumber(value, min, max) {
-  const num = Number(value);
-  return Number.isFinite(num) && num >= min && num <= max;
-}
-
-function calculateSurveyMetrics(data) {
-  const weightKg = Number(data.weightKg);
-  const hasWeight = Number.isFinite(weightKg) && weightKg > 0;
-  const targetWeightKg = data.targetWeightKg ? Number(data.targetWeightKg) : null;
-  const heightM = data.heightCm ? data.heightCm / 100 : 0;
-  const hasHeight = Number.isFinite(heightM) && heightM > 0;
-  const bmi = hasHeight && hasWeight ? Number((weightKg / (heightM * heightM)).toFixed(1)) : null;
-  const genderText = (data.gender || '').toLowerCase();
-  const sexFactor = getSexFactor(genderText);
-  const bodyFatPercentage = calculateBodyFatPercentage(bmi, data.age, sexFactor);
-  const activityKey = normalizeLifestyle(data.lifestyle);
-  const activity = activityMultipliers[activityKey] || activityMultipliers.default;
-
-  const maintenanceCalories = weightKg ? Math.round(weightKg * activity * BASE_KCAL_PER_KG) : null;
-  const calorieFloor = data.calorieFloor && Number(data.calorieFloor) > 0 ? Number(data.calorieFloor) : MIN_DAILY_CALORIES;
-
-  let recommendedDailyCalories = maintenanceCalories ? maintenanceCalories - DEFAULT_DAILY_DEFICIT : null;
-  if (maintenanceCalories && targetWeightKg !== null) {
-    const totalLossKg = Math.max(0, weightKg - targetWeightKg);
-    const targetDays = data.targetDays && data.targetDays > 0 ? data.targetDays : 90;
-    const totalDeficit = totalLossKg * CALORIES_PER_KG;
-    const perDayDeficit = totalDeficit / targetDays;
-    recommendedDailyCalories = Math.max(calorieFloor, Math.round(maintenanceCalories - perDayDeficit));
-  }
-
-  const waterLitersTarget = hasWeight ? Number((Math.max(2, weightKg * 0.033)).toFixed(2)) : null;
-  const sleepHoursTarget = Number.isFinite(data.age)
-    ? (data.age < 18 ? 9 : data.age < 65 ? 8 : 7.5)
-    : 8;
-
-  return {
-    bmi,
-    bodyFatPercentage,
-    maintenanceCalories,
-    recommendedDailyCalories,
-    activityMultiplierUsed: activity,
-    lifestyleAccepted: Boolean(activityMultipliers[activityKey]),
-    calorieFloorUsed: calorieFloor,
-    waterLitersTarget,
-    sleepHoursTarget
-  };
-}
-
-function calculateGoalProgress(goal) {
-  const relatedLogs = weightLogs
-    .filter(log => log.goalId === goal.id)
-    .sort((a, b) => new Date(a.date) - new Date(b.date));
-  const latestLog = relatedLogs[relatedLogs.length - 1];
-  const totalLossKg = Math.max(0, goal.startWeightKg - goal.targetWeightKg);
-  const lostSoFarKg = latestLog ? goal.startWeightKg - latestLog.weightKg : 0;
-  const remainingKg = Math.max(0, totalLossKg - lostSoFarKg);
-  const startDate = goal.startDate ? new Date(goal.startDate) : new Date();
-  const targetDate = goal.targetDate ? new Date(goal.targetDate) : null;
-  const today = new Date();
-  const totalDays = targetDate ? Math.max(1, Math.round((targetDate - startDate) / (1000 * 60 * 60 * 24))) : null;
-  const lastProgressDate = latestLog ? new Date(latestLog.date) : today;
-  const daysElapsed = Math.max(0, Math.round((lastProgressDate - startDate) / (1000 * 60 * 60 * 24)));
-  const expectedLossByNow = totalDays ? Math.min(totalLossKg, (totalLossKg / totalDays) * daysElapsed) : 0;
-  const celebration = totalLossKg > 0 && lostSoFarKg >= expectedLossByNow && lostSoFarKg > 0;
-  const progressColor = lostSoFarKg / (totalLossKg || 1);
-  const progressStatus = progressColor >= 0.8 ? 'green' : progressColor >= 0.4 ? 'yellow' : 'red';
-
-  const waterTarget = goal.waterLitersTarget || (goal.startWeightKg ? Number((Math.max(2, goal.startWeightKg * 0.033)).toFixed(2)) : null);
-  const sleepTarget = goal.sleepHoursTarget || 8;
-  const hydrationStatus = latestLog?.waterLiters && waterTarget ? (latestLog.waterLiters >= waterTarget ? 'green' : 'red') : 'yellow';
-  const sleepStatus = latestLog?.sleepHours && sleepTarget ? (latestLog.sleepHours >= sleepTarget ? 'green' : 'red') : 'yellow';
-
-  return {
-    goal,
-    latestWeightKg: latestLog ? latestLog.weightKg : goal.startWeightKg,
-    totalLossKg: Number(totalLossKg.toFixed(1)),
-    lostSoFarKg: Number(lostSoFarKg.toFixed(1)),
-    remainingKg: Number(remainingKg.toFixed(1)),
-    progressPercent: totalLossKg ? Number(((lostSoFarKg / totalLossKg) * 100).toFixed(1)) : 0,
-    expectedLossByNow: Number(expectedLossByNow.toFixed(2)),
-    celebration,
-    logs: relatedLogs,
-    statusColors: {
-      weight: progressStatus,
-      water: hydrationStatus,
-      sleep: sleepStatus
+    // Check if user exists
+    const existingUser = await db.getUserByEmail(email);
+    if (existingUser) {
+      return res.status(409).json({ error: 'User already exists' });
     }
-  };
-}
 
-const features = [
-  { id: "f1", name: "Personalized meal plans", description: "Adaptive weekly plans tuned to user goals" },
-  { id: "f2", name: "Macro tracking", description: "Daily targets with remaining macros summary" },
-  { id: "f3", name: "Barcode scanner", description: "Scan packaged foods to log nutrients" },
-  { id: "f4", name: "Food search", description: "Global database search with filters" },
-  { id: "f5", name: "Recipe generator", description: "AI-assisted recipes from pantry items" },
-  { id: "f6", name: "Water reminders", description: "Smart hydration nudges based on schedule" },
-  { id: "f7", name: "Fasting timer", description: "Intermittent fasting windows with alerts" },
-  { id: "f8", name: "Grocery list", description: "Auto-built shopping list from plans" },
-  { id: "f9", name: "Allergen alerts", description: "Flag recipes containing selected allergens" },
-  { id: "f10", name: "Meal prep mode", description: "Batch cooking steps and timers" },
-  { id: "f11", name: "Offline access", description: "Cached plans and logs without internet" },
-  { id: "f12", name: "Wearable sync", description: "Import calories burned and steps" },
-  { id: "f13", name: "Calorie budget", description: "Adaptive daily calorie budgeting" },
-  { id: "f14", name: "Progress charts", description: "Weekly and monthly trend visualizations" },
-  { id: "f15", name: "Community challenges", description: "Join group challenges for accountability" },
-  { id: "f16", name: "Coach chat", description: "In-app chat with nutrition coaches" },
-  { id: "f17", name: "Mood & energy log", description: "Track how meals impact energy levels" },
-  { id: "f18", name: "Sleep insights", description: "Correlate sleep quality with nutrition" },
-  { id: "f19", name: "Glucose-friendly filter", description: "Highlight low glycemic recipes" },
-  { id: "f20", name: "Dietary presets", description: "Keto, vegan, paleo, and Mediterranean presets" },
-  { id: "f21", name: "Portion guidance", description: "Hand-measure equivalents and swap suggestions" },
-  { id: "f22", name: "Micronutrient tracking", description: "Vitamins and minerals coverage view" },
-  { id: "f23", name: "Supplement reminders", description: "Schedule supplement intake" },
-  { id: "f24", name: "Restaurant mode", description: "Healthier menu picks nearby" },
-  { id: "f25", name: "Budget-friendly filter", description: "Low-cost meal options" },
-  { id: "f26", name: "Food mood journal", description: "Link meals to mood entries" },
-  { id: "f27", name: "Goal streaks", description: "Daily streak tracking and rewards" },
-  { id: "f28", name: "Smart substitutions", description: "Automatic swaps to meet goals" },
-  { id: "f29", name: "Voice logging", description: "Hands-free meal logging" },
-  { id: "f30", name: "Export & share", description: "Share plans with trainers or friends" }
-];
+    // Hash password and create user
+    const passwordHash = await auth.hashPassword(password);
+    const user = await db.createUser(email, passwordHash, name);
 
-const premiumFeatures = [
-  {
-    id: "p1",
-    name: "Live nutritionist coaching",
-    description: "Unlimited chat and weekly video check-ins with licensed dietitians for personalized guidance",
-    price: "usd_29.99_month"
-  },
-  {
-    id: "p2",
-    name: "Personalized biomarker labs",
-    description: "Quarterly bloodwork kit with dietitian review and tailored nutrition targets",
-    price: "usd_79.00_quarter"
-  },
-  {
-    id: "p3",
-    name: "Concierge meal prep plans",
-    description: "Chef-designed weekly prep plans with smart grocery swaps and bulk-cook timers",
-    price: "usd_14.99_month"
-  }
-];
+    // Generate token
+    const token = auth.generateToken(user.id, user.email);
 
-const isValidCaloriesTarget = (caloriesTarget) => {
-  if (caloriesTarget === undefined) return true;
-  if (typeof caloriesTarget !== "number") return false;
-  if (Number.isNaN(caloriesTarget) || !Number.isFinite(caloriesTarget)) return false;
-  return caloriesTarget > 0;
-};
-
-const allowedPlanFields = ["name", "meals", "caloriesTarget"];
-
-const validateMealPlanPayload = (body, { requireName }) => {
-  const payload = body || {};
-  const invalidKeys = Object.keys(payload).filter(key => !allowedPlanFields.includes(key));
-  if (invalidKeys.length) {
-    return { error: `invalid fields: ${invalidKeys.join(", ")}` };
-  }
-
-  const result = {};
-  if (requireName || "name" in payload) {
-    if (typeof payload.name !== "string" || payload.name.trim() === "") {
-      return { error: "name is required" };
+    res.status(201).json({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      token
+    });
+  } catch (error) {
+    console.error('Signup error:', error);
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
     }
-    result.name = payload.name;
+    res.status(500).json({ error: 'Signup failed', details: error.message, requestId: req.id });
   }
-
-  if ("meals" in payload) {
-    if (!Array.isArray(payload.meals)) {
-      return { error: "meals must be an array" };
-    }
-    result.meals = payload.meals;
-  }
-
-  if ("caloriesTarget" in payload) {
-    if (!isValidCaloriesTarget(payload.caloriesTarget)) {
-      return { error: "caloriesTarget must be a positive number when provided" };
-    }
-    result.caloriesTarget = payload.caloriesTarget;
-  }
-
-  return { value: result, hasUpdates: Object.keys(result).length > 0 };
-};
-
-// ---------- Routes ----------
-
-// Recipes
-app.get('/api/recipes', (req, res) => {
-  res.json(recipes.map(r => ({ ...r, shareUrl: `/share/recipes/${r.id}` })));
 });
 
-app.get('/api/recipes/shuffle', (req, res) => {
-  const limit = Number(req.query.limit) || recipes.length;
-  const shuffled = [...recipes].sort(() => Math.random() - 0.5).slice(0, limit);
+/**
+ * POST /api/auth/login
+ * User login
+ */
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const loginSchema = z.object({
+      email: z.string().email(),
+      password: z.string().min(1)
+    });
+    const { email, password } = loginSchema.parse(req.body);
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password required' });
+    }
+
+    const user = await db.getUserByEmail(email);
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    const passwordMatch = await auth.comparePassword(password, user.password_hash);
+    if (!passwordMatch) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    const token = auth.generateToken(user.id, user.email);
+
+    res.json({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      token
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
+    }
+    res.status(500).json({ error: 'Login failed', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * GET /api/auth/me
+ * Get current user info
+ */
+app.get('/api/auth/me', auth.authMiddleware, async (req, res) => {
+  try {
+    const user = await db.getUser(req.user.userId);
+    res.json({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      preferences: user.preferences
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get user', details: error.message });
+  }
+});
+
+/**
+ * POST /api/auth/change-password
+ * Change password for the current user
+ */
+app.post('/api/auth/change-password', auth.authMiddleware, async (req, res) => {
+  try {
+    const schema = z.object({
+      oldPassword: z.string().min(1),
+      newPassword: z.string().min(6)
+    });
+    const { oldPassword, newPassword } = schema.parse(req.body);
+
+    const user = await db.getUser(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found', requestId: req.id });
+    }
+
+    const ok = await auth.comparePassword(oldPassword, user.password_hash);
+    if (!ok) {
+      return res.status(401).json({ error: 'Invalid password', requestId: req.id });
+    }
+
+    const passwordHash = await auth.hashPassword(newPassword);
+    await db.updateUserPasswordHash(user.id, passwordHash);
+    return res.json({ status: 'ok' });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Change password failed', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * POST /api/auth/request-password-reset
+ * Requests a password reset token. In production you would email it.
+ */
+app.post('/api/auth/request-password-reset', async (req, res) => {
+  try {
+    const schema = z.object({ email: z.string().email() });
+    const { email } = schema.parse(req.body);
+
+    const user = await db.getUserByEmail(email);
+    const response = {
+      message: 'If an account exists for that email, password reset instructions were sent.'
+    };
+
+    if (user && process.env.NODE_ENV !== 'production') {
+      response.resetToken = auth.generatePasswordResetToken(user.id, user.email);
+    }
+
+    return res.json(response);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Password reset request failed', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * POST /api/auth/reset-password
+ * Resets password using a valid password reset token
+ */
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const schema = z.object({
+      token: z.string().min(1),
+      newPassword: z.string().min(6)
+    });
+    const { token, newPassword } = schema.parse(req.body);
+
+    const decoded = auth.verifyPasswordResetToken(token);
+    if (!decoded) {
+      return res.status(400).json({ error: 'Invalid or expired reset token', requestId: req.id });
+    }
+
+    const passwordHash = await auth.hashPassword(newPassword);
+    const updated = await db.updateUserPasswordHash(decoded.userId, passwordHash);
+    if (!updated) {
+      return res.status(404).json({ error: 'User not found', requestId: req.id });
+    }
+
+    return res.json({ status: 'ok' });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Reset password failed', details: error.message, requestId: req.id });
+  }
+});
+
+// ========== USER PREFERENCES ==========
+
+/**
+ * GET /api/users/me/preferences
+ */
+app.get('/api/users/me/preferences', auth.authMiddleware, async (req, res) => {
+  try {
+    const user = await db.getUser(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found', requestId: req.id });
+    }
+    return res.json({ preferences: user.preferences || {} });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to get preferences', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * PUT /api/users/me/preferences
+ */
+app.put('/api/users/me/preferences', auth.authMiddleware, async (req, res) => {
+  try {
+    const macroSchema = z.object({
+      proteinGrams: z.number().nonnegative().optional(),
+      carbsGrams: z.number().nonnegative().optional(),
+      fatGrams: z.number().nonnegative().optional(),
+      protein_grams: z.number().nonnegative().optional(),
+      carbs_grams: z.number().nonnegative().optional(),
+      fat_grams: z.number().nonnegative().optional(),
+      protein: z.number().nonnegative().optional(),
+      carbs: z.number().nonnegative().optional(),
+      fat: z.number().nonnegative().optional()
+    }).partial();
+
+    const schema = z.object({
+      preferences: z.object({
+        macroTargets: macroSchema.optional(),
+        macro_targets: macroSchema.optional()
+      }).passthrough()
+    });
+
+    const { preferences } = schema.parse(req.body);
+
+    const normalizedPreferences = { ...(preferences || {}) };
+    const incomingMacro = normalizedPreferences.macroTargets || normalizedPreferences.macro_targets;
+    if (incomingMacro && typeof incomingMacro === 'object') {
+      const macro = macroSchema.parse(incomingMacro);
+      const toNumberOrNull = (v) => {
+        if (v === undefined || v === null) return null;
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+      };
+      normalizedPreferences.macroTargets = {
+        protein_grams: toNumberOrNull(macro.protein_grams ?? macro.proteinGrams ?? macro.protein),
+        carbs_grams: toNumberOrNull(macro.carbs_grams ?? macro.carbsGrams ?? macro.carbs),
+        fat_grams: toNumberOrNull(macro.fat_grams ?? macro.fatGrams ?? macro.fat)
+      };
+    }
+
+    const updated = await db.updateUserPreferences(req.user.userId, normalizedPreferences);
+    if (!updated) {
+      return res.status(404).json({ error: 'User not found', requestId: req.id });
+    }
+    return res.json({ preferences: updated.preferences || {} });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to update preferences', details: error.message, requestId: req.id });
+  }
+});
+
+// ========== SURVEY ENDPOINTS ==========
+
+/**
+ * POST /api/surveys
+ * Create a new health survey with metrics calculation
+ */
+app.post('/api/surveys', auth.authMiddleware, async (req, res) => {
+  try {
+    const { gender, age, heightCm, weightKg, targetWeightKg, targetDays, lifestyle } = req.body;
+    const userId = req.user.userId;
+
+    // Validate inputs
+    if (!validateGender(gender)) {
+      return res.status(400).json({ error: 'Invalid gender' });
+    }
+    if (!validateAge(age)) {
+      return res.status(400).json({ error: 'Age must be between 10 and 120' });
+    }
+    if (!validateHeight(heightCm)) {
+      return res.status(400).json({ error: 'Height must be between 100cm and 250cm' });
+    }
+    if (!validateWeight(weightKg)) {
+      return res.status(400).json({ error: 'Weight must be between 30kg and 300kg' });
+    }
+
+    // Normalize and calculate
+    const normalizedGender = gender.toLowerCase();
+    const normalizedLifestyle = normalizeLifestyle(lifestyle);
+
+    const bmi = calculateBMI(weightKg, heightCm);
+    const bodyFat = calculateBodyFat(bmi, age, normalizedGender);
+    const bmr = calculateBMR(weightKg, heightCm, age, normalizedGender);
+    const tdee = calculateTDEE(bmr, normalizedLifestyle);
+    const dailyCalories = calculateDailyCalories(tdee, weightKg, targetWeightKg, targetDays);
+    const waterTarget = calculateWaterTarget(weightKg, 0);
+    const sleepTarget = calculateSleepTarget(age);
+    const proteinTarget = weightKg * 1.6;
+
+    const survey = await db.createSurvey(userId, {
+      gender: normalizedGender,
+      age,
+      height_cm: heightCm,
+      weight_kg: weightKg,
+      target_weight_kg: targetWeightKg,
+      target_days: targetDays,
+      lifestyle: normalizedLifestyle,
+      bmi: Math.round(bmi * 10) / 10,
+      body_fat_percent: Math.round(bodyFat * 10) / 10,
+      bmr: Math.round(bmr),
+      tdee: Math.round(tdee),
+      daily_calories: dailyCalories,
+      water_target_liters: Math.round(waterTarget * 10) / 10,
+      sleep_target_hours: sleepTarget,
+      protein_target_g: Math.round(proteinTarget * 10) / 10
+    });
+
+    res.status(201).json(survey);
+  } catch (error) {
+    console.error('Survey creation error:', error);
+    res.status(500).json({ error: 'Failed to create survey', details: error.message });
+  }
+});
+
+/**
+ * GET /api/surveys
+ * Get all surveys for the user
+ */
+app.get('/api/surveys', auth.authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const surveys = await db.getSurveys(userId);
+    res.json(surveys || []);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get surveys', details: error.message });
+  }
+});
+
+/**
+ * GET /api/surveys/:id
+ */
+app.get('/api/surveys/:id', auth.authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const survey = await db.getSurveyById(req.params.id, userId);
+    if (!survey) {
+      return res.status(404).json({ error: 'Survey not found' });
+    }
+    res.json(survey);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get survey', details: error.message });
+  }
+});
+
+// ========== WEIGHT GOAL ENDPOINTS ==========
+
+/**
+ * POST /api/weight-goals
+ */
+app.post('/api/weight-goals', auth.authMiddleware, async (req, res) => {
+  try {
+    const { startWeightKg, targetWeightKg, weighInDays } = req.body;
+    const userId = req.user.userId;
+
+    if (!validateWeight(startWeightKg) || !validateWeight(targetWeightKg)) {
+      return res.status(400).json({ error: 'Invalid weight values' });
+    }
+
+    const goal = await db.createWeightGoal(userId, {
+      start_weight_kg: startWeightKg,
+      target_weight_kg: targetWeightKg,
+      weigh_in_days: JSON.stringify(weighInDays || ['Mon', 'Fri'])
+    });
+
+    res.status(201).json(goal);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create weight goal', details: error.message });
+  }
+});
+
+/**
+ * GET /api/weight-goals
+ */
+app.get('/api/weight-goals', auth.authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const goals = await db.getWeightGoals(userId);
+    res.json(goals || []);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get weight goals', details: error.message });
+  }
+});
+
+/**
+ * GET /api/weight-goals/:id
+ */
+app.get('/api/weight-goals/:id', auth.authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const goal = await db.getWeightGoalById(req.params.id, userId);
+    if (!goal) {
+      return res.status(404).json({ error: 'Weight goal not found' });
+    }
+    res.json(goal);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get weight goal', details: error.message });
+  }
+});
+
+// ========== WEIGHT LOG ENDPOINTS ==========
+
+/**
+ * POST /api/weight-logs
+ */
+app.post('/api/weight-logs', auth.authMiddleware, async (req, res) => {
+  try {
+    const { goalId, weightKg, waterLiters, sleepHours } = req.body;
+    const userId = req.user.userId;
+
+    if (!validateWeight(weightKg)) {
+      return res.status(400).json({ error: 'Invalid weight' });
+    }
+
+    // Get the goal to check progress
+    const goal = await db.getWeightGoalById(goalId, userId);
+    if (!goal) {
+      return res.status(404).json({ error: 'Weight goal not found' });
+    }
+
+    // Get all logs for this goal to check for celebration eligibility
+    const logs = await db.getWeightLogs(userId, goalId);
+    let celebration = null;
+
+    if (logs && logs.length > 0) {
+      const lastLog = logs[0];
+      const weightLost = lastLog.weight_kg - weightKg;
+      
+      if (weightLost > 0) {
+        celebration = {
+          message: `Great job! Lost ${weightLost.toFixed(1)}kg`,
+          remaining: Math.max(0, goal.target_weight_kg - weightKg).toFixed(1)
+        };
+      }
+    }
+
+    const log = await db.createWeightLog(userId, {
+      goal_id: goalId,
+      weight_kg: weightKg,
+      water_liters: waterLiters || null,
+      sleep_hours: sleepHours || null,
+      celebration: celebration ? JSON.stringify(celebration) : null
+    });
+
+    res.status(201).json({ ...log, celebration });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create weight log', details: error.message });
+  }
+});
+
+/**
+ * GET /api/weight-logs
+ */
+app.get('/api/weight-logs', auth.authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { goalId } = req.query;
+    const logs = await db.getWeightLogs(userId, goalId);
+    res.json(logs || []);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get weight logs', details: error.message });
+  }
+});
+
+// ========== HYDRATION ENDPOINTS ==========
+
+/**
+ * POST /api/hydration-logs
+ */
+app.post('/api/hydration-logs', auth.authMiddleware, async (req, res) => {
+  try {
+    const { date, litersConsumed, timeOfDay, source } = req.body;
+    const userId = req.user.userId;
+
+    if (!litersConsumed || litersConsumed < 0 || litersConsumed > 10) {
+      return res.status(400).json({ error: 'Hydration must be between 0 and 10 liters' });
+    }
+
+    const log = await db.createHydrationLog(userId, {
+      date: date || new Date().toISOString().split('T')[0],
+      liters_consumed: litersConsumed,
+      time_of_day: timeOfDay,
+      source
+    });
+
+    res.status(201).json(log);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to log hydration', details: error.message });
+  }
+});
+
+/**
+ * GET /api/hydration-logs
+ */
+app.get('/api/hydration-logs', auth.authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { date } = req.query;
+    const logs = await db.getHydrationLogs(userId, date);
+    res.json(logs || []);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get hydration logs', details: error.message });
+  }
+});
+
+// ========== SLEEP ENDPOINTS ==========
+
+/**
+ * POST /api/sleep-logs
+ */
+app.post('/api/sleep-logs', auth.authMiddleware, async (req, res) => {
+  try {
+    const { date, sleepHours, sleepQuality, notes } = req.body;
+    const userId = req.user.userId;
+
+    if (!sleepHours || sleepHours < 0 || sleepHours > 16) {
+      return res.status(400).json({ error: 'Sleep hours must be between 0 and 16' });
+    }
+
+    const log = await db.createSleepLog(userId, {
+      date: date || new Date().toISOString().split('T')[0],
+      sleep_hours: sleepHours,
+      sleep_quality: sleepQuality,
+      notes
+    });
+
+    res.status(201).json(log);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to log sleep', details: error.message });
+  }
+});
+
+/**
+ * GET /api/sleep-logs
+ */
+app.get('/api/sleep-logs', auth.authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { date } = req.query;
+    const logs = await db.getSleepLogs(userId, date);
+    res.json(logs || []);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get sleep logs', details: error.message });
+  }
+});
+
+// ========== FASTING WINDOW ENDPOINTS ==========
+
+/**
+ * POST /api/fasting-windows
+ */
+app.post('/api/fasting-windows', auth.authMiddleware, async (req, res) => {
+  try {
+    const { windowHours } = req.body;
+    const userId = req.user.userId;
+
+    if (!windowHours || windowHours < 8 || windowHours > 23) {
+      return res.status(400).json({ error: 'Fasting window must be between 8 and 23 hours' });
+    }
+
+    const protocols = {
+      16: '16:8 Intermittent Fasting (popular)',
+      18: '18:6 Extended Fasting',
+      20: '20:4 Warrior Diet',
+      23: '23:1 OMAD (One Meal A Day)'
+    };
+
+    const tips = windowHours >= 16 ? 'Stay hydrated during fasting. Black coffee/tea is fine.' : 'Moderate fasting window. Perfect for beginners.';
+
+    const window = await db.createFastingWindow(userId, {
+      window_hours: windowHours,
+      protocol: protocols[windowHours] || `${windowHours}-hour fasting`,
+      tips
+    });
+
+    res.status(201).json(window);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create fasting window', details: error.message });
+  }
+});
+
+/**
+ * GET /api/fasting-windows
+ */
+app.get('/api/fasting-windows', auth.authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const windows = await db.getFastingWindows(userId);
+    res.json(windows || []);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get fasting windows', details: error.message });
+  }
+});
+
+// ========== MEAL SWAP ENDPOINTS ==========
+
+/**
+ * POST /api/meal-swaps
+ */
+app.post('/api/meal-swaps', auth.authMiddleware, async (req, res) => {
+  try {
+    const { ingredients, allergies } = req.body;
+    const userId = req.user.userId;
+
+    const swapSuggestions = {
+      chicken: ['turkey', 'fish', 'lean beef', 'tofu'],
+      beef: ['turkey', 'chicken', 'fish', 'beans'],
+      milk: ['almond milk', 'oat milk', 'soy milk', 'coconut milk'],
+      bread: ['whole wheat bread', 'brown rice', 'quinoa', 'sweet potato'],
+      rice: ['quinoa', 'couscous', 'brown rice', 'millet'],
+      oil: ['olive oil', 'coconut oil', 'avocado oil']
+    };
+
+    const swaps = {};
+    (ingredients || []).forEach(ingredient => {
+      const lowerIngredient = ingredient.toLowerCase();
+      swaps[ingredient] = (swapSuggestions[lowerIngredient] || ['no suitable swap'])
+        .filter(swap => !(allergies || []).some(allergy => 
+          swap.toLowerCase().includes(allergy.toLowerCase())
+        ));
+    });
+
+    const swap = await db.createMealSwap(userId, {
+      ingredients: JSON.stringify(ingredients || []),
+      allergies: JSON.stringify(allergies || []),
+      swaps: JSON.stringify(swaps)
+    });
+
+    res.status(201).json({ ...swap, swaps });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create meal swap', details: error.message });
+  }
+});
+
+/**
+ * GET /api/meal-swaps
+ */
+app.get('/api/meal-swaps', auth.authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const swaps = await db.getMealSwaps(userId);
+    res.json(swaps || []);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get meal swaps', details: error.message });
+  }
+});
+
+// ========== READINESS ENDPOINTS ==========
+
+/**
+ * POST /api/readiness
+ */
+app.post('/api/readiness', auth.authMiddleware, async (req, res) => {
+  try {
+    const { hrv, restingHr, sleepHours } = req.body;
+    const userId = req.user.userId;
+
+    const score = getReadinessScore(hrv || 50, restingHr || 60);
+    const levels = ['poor', 'fair', 'good', 'excellent'];
+    const level = levels[Math.floor(score / 25)];
+    
+    const recommendations = level === 'excellent' 
+      ? 'You are ready for intense training!' 
+      : 'Consider moderate activity. Rest is important.';
+
+    const readiness = await db.createReadinessScore(userId, {
+      hrv: hrv || 50,
+      resting_hr: restingHr || 60,
+      sleep_hours: sleepHours || 0,
+      score: Math.round(score),
+      level,
+      recommendations
+    });
+
+    res.status(201).json({ ...readiness, level });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to calculate readiness', details: error.message });
+  }
+});
+
+/**
+ * GET /api/readiness
+ */
+app.get('/api/readiness', auth.authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const readinessScores = await db.getReadinessScores(userId);
+    res.json(readinessScores || []);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get readiness scores', details: error.message });
+  }
+});
+
+/**
+ * POST /api/sleep-debt
+ */
+app.post('/api/sleep-debt', auth.authMiddleware, async (req, res) => {
+  try {
+    const { targetHours } = req.body;
+    const userId = req.user.userId;
+
+    const sleepLogs = await db.getSleepLogs(userId);
+    const debt = calculateSleepDebt(sleepLogs || [], targetHours || 8);
+
+    res.json({
+      debtHours: debt.debtHours,
+      daysToRecover: debt.daysToRecover,
+      recommendation: debt.daysToRecover > 0 
+        ? `Get ${debt.debtHours} extra hours of sleep over the next ${debt.daysToRecover} days` 
+        : 'You are all caught up!'
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to calculate sleep debt', details: error.message });
+  }
+});
+
+/**
+ * POST /api/water-reminders
+ */
+app.post('/api/water-reminders', auth.authMiddleware, async (req, res) => {
+  try {
+    const { weightKg, activityMinutes } = req.body;
+    const userId = req.user.userId;
+
+    const targetLiters = calculateWaterTarget(weightKg || 70, activityMinutes || 0);
+    const reminders = [];
+    const intervalsPerDay = 7;
+    const literPerReminder = targetLiters / intervalsPerDay;
+
+    for (let i = 0; i < intervalsPerDay; i++) {
+      reminders.push({
+        time: `${Math.floor((i * 24) / intervalsPerDay)}:00`,
+        liters: Math.round(literPerReminder * 10) / 10,
+        message: `Time to drink water! Aim for ${Math.round(literPerReminder * 10) / 10}L`
+      });
+    }
+
+    res.json({
+      targetLiters: Math.round(targetLiters * 10) / 10,
+      reminders,
+      activityBonus: Math.round((activityMinutes / 30) * 0.5 * 10) / 10
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get water reminders', details: error.message });
+  }
+});
+
+// ========== OFFLINE LOG ENDPOINTS ==========
+
+/**
+ * POST /api/offline-logs
+ */
+app.post('/api/offline-logs', auth.authMiddleware, async (req, res) => {
+  try {
+    const { logType, data } = req.body;
+    const userId = req.user.userId;
+
+    if (!logType || !data) {
+      return res.status(400).json({ error: 'logType and data required' });
+    }
+
+    const log = await db.createOfflineLog(userId, {
+      log_type: logType,
+      data: JSON.stringify(data),
+      synced: false
+    });
+
+    res.status(201).json(log);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create offline log', details: error.message });
+  }
+});
+
+/**
+ * GET /api/offline-logs
+ */
+app.get('/api/offline-logs', auth.authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const logs = await db.getOfflineLogs(userId, false);
+    res.json(logs || []);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get offline logs', details: error.message });
+  }
+});
+
+/**
+ * POST /api/offline-logs/:id/sync
+ */
+app.post('/api/offline-logs/:id/sync', auth.authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const log = await db.markOfflineLogSynced(req.params.id, userId);
+    res.json(log);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to sync offline log', details: error.message });
+  }
+});
+
+// ========== RECIPE ENDPOINTS ==========
+
+// Existing hardcoded recipes for now
+const recipes = [
+  {
+    id: 'recipe_1',
+    name: 'Sabich - Israeli Eggplant Salad',
+    category: 'salad',
+    difficulty: 'easy',
+    time_minutes: 15,
+    calories: 280,
+    ingredients: ['eggplant', 'tahini', 'lemon', 'garlic', 'olive oil'],
+    steps: ['Roast eggplant', 'Mix with tahini', 'Add lemon and garlic', 'Serve with olive oil']
+  },
+  {
+    id: 'recipe_2',
+    name: 'Shakshuka - Eggs in Tomato Sauce',
+    category: 'breakfast',
+    difficulty: 'easy',
+    time_minutes: 20,
+    calories: 350,
+    ingredients: ['eggs', 'tomatoes', 'onion', 'garlic', 'olive oil', 'cumin'],
+    steps: ['Cook tomato sauce', 'Make wells', 'Crack eggs', 'Simmer until set']
+  },
+  {
+    id: 'recipe_3',
+    name: 'Tabbouleh - Herb Salad',
+    category: 'salad',
+    difficulty: 'easy',
+    time_minutes: 15,
+    calories: 220,
+    ingredients: ['parsley', 'bulgur', 'tomato', 'lemon', 'olive oil', 'mint'],
+    steps: ['Soak bulgur', 'Chop herbs', 'Mix all ingredients', 'Dress with lemon oil']
+  }
+];
+
+/**
+ * GET /api/recipes
+ */
+app.get('/api/recipes', auth.authMiddleware, (req, res) => {
+  res.json(recipes);
+});
+
+/**
+ * GET /api/recipes/shuffle
+ */
+app.get('/api/recipes/shuffle', auth.authMiddleware, (req, res) => {
+  const count = parseInt(req.query.count) || 2;
+  const shuffled = recipes.sort(() => Math.random() - 0.5).slice(0, count);
   res.json(shuffled);
 });
 
-// Meal Plans (merged: validation + generateId)
-app.get('/api/meal-plans', (req, res) => {
-  res.json(userMealPlans);
-});
-
-app.post('/api/meal-plans', (req, res) => {
-  const validation = validateMealPlanPayload(req.body, { requireName: true });
-  if (validation.error) {
-    return res.status(400).json({ message: validation.error });
+/**
+ * GET /api/recipes/:id
+ */
+app.get('/api/recipes/:id', auth.authMiddleware, (req, res) => {
+  const recipe = recipes.find(r => r.id === req.params.id);
+  if (!recipe) {
+    return res.status(404).json({ error: 'Recipe not found' });
   }
-  const newPlan = { id: generateId(), ...validation.value };
-  userMealPlans.push(newPlan);
-  res.status(201).json(newPlan);
+  res.json(recipe);
 });
 
-app.put('/api/meal-plans/:id', (req, res) => {
-  const { id } = req.params;
-  const index = userMealPlans.findIndex(p => p.id === id);
-  if (index !== -1) {
-    const validation = validateMealPlanPayload(req.body, { requireName: false });
-    if (validation.error) {
-      return res.status(400).json({ message: validation.error });
-    }
-    if (!validation.hasUpdates) {
-      return res.json(userMealPlans[index]);
-    }
-    userMealPlans[index] = { ...userMealPlans[index], ...validation.value };
-    res.json(userMealPlans[index]);
-  } else {
-    res.status(404).json({ message: "Plan not found" });
+/**
+ * GET /api/recipes/:id/share
+ */
+app.get('/api/recipes/:id/share', auth.authMiddleware, (req, res) => {
+  const recipe = recipes.find(r => r.id === req.params.id);
+  if (!recipe) {
+    return res.status(404).json({ error: 'Recipe not found' });
   }
-});
 
-app.delete('/api/meal-plans/:id', (req, res) => {
-  const { id } = req.params;
-  userMealPlans = userMealPlans.filter(p => p.id !== id);
-  res.status(204).send();
-});
+  const recipeText = `${recipe.name}\n${recipe.ingredients.join(', ')}\n\nCheck it out on YAHEALTHY!`;
+  const encodedText = encodeURIComponent(recipeText);
 
-// Features (from copilot branch)
-app.get('/api/features', (req, res) => {
-  res.json(features);
-});
-
-app.get('/api/premium-features', (req, res) => {
-  res.json(premiumFeatures);
-});
-
-app.get('/api/health', (req, res) => {
   res.json({
-    status: "ok",
-    uptimeSeconds: process.uptime(),
-    timestamp: new Date().toISOString()
+    whatsapp: `https://wa.me/?text=${encodedText}`,
+    email: `mailto:?subject=${recipe.name}&body=${encodedText}`,
+    copy: recipeText
   });
 });
 
-// Surveys & derived endpoints (from main branch)
-app.get('/api/surveys', (req, res) => {
-  res.json(userSurveys);
+// ========== MEAL PLAN ENDPOINTS ==========
+
+const mealPlans = [];
+
+function parseISODate(dateStr) {
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return null;
+  // Normalize to YYYY-MM-DD (UTC-ish) for comparisons used by this API.
+  return d;
+}
+
+function isDateInRange(dateStr, start, end) {
+  if (!dateStr) return false;
+  const d = parseISODate(dateStr);
+  if (!d) return false;
+  if (start && d < start) return false;
+  if (end && d > end) return false;
+  return true;
+}
+
+function formatDateYYYYMMDD(date) {
+  const yyyy = date.getUTCFullYear();
+  const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(date.getUTCDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function addDaysUTC(date, days) {
+  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  d.setUTCDate(d.getUTCDate() + days);
+  return d;
+}
+
+function daysBetweenUTC(start, end) {
+  const ms = 24 * 60 * 60 * 1000;
+  const s = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate());
+  const e = Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate());
+  return Math.floor((e - s) / ms);
+}
+
+/**
+ * GET /api/meal-plans
+ */
+app.get('/api/meal-plans', auth.authMiddleware, (req, res) => {
+  const userId = req.user.userId;
+  res.json(mealPlans.filter(p => p.user_id === userId));
 });
 
-app.post('/api/surveys', (req, res) => {
-  const heightCm = Number(req.body.heightCm);
-  const weightKg = Number(req.body.weightKg);
-  const age = Number(req.body.age);
-  if (!isRealisticNumber(heightCm, 1, 300) || !isRealisticNumber(weightKg, 1, 500) || !isRealisticNumber(age, 1, 150)) {
-    return res.status(400).json({ message: "heightCm, weightKg, and age must be within realistic positive ranges for survey insights" });
-  }
-  const survey = { ...req.body, id: generateId() };
-  const metrics = calculateSurveyMetrics(survey);
-  const enrichedSurvey = { ...survey, metrics };
-  userSurveys.push(enrichedSurvey);
-  res.status(201).json(enrichedSurvey);
-});
-
-app.post('/api/grocery-plan', (req, res) => {
-  let dailyCalories = Number(req.body.dailyCalories);
-  if (!dailyCalories && req.body.surveyId) {
-    const found = userSurveys.find(s => s.id === req.body.surveyId);
-    dailyCalories = found?.metrics?.recommendedDailyCalories || found?.metrics?.maintenanceCalories;
-  }
-  const plan = buildWeeklyGroceryPlan(dailyCalories);
-  if (!plan) {
-    return res.status(400).json({ message: "dailyCalories is required or must be derivable from surveyId" });
-  }
-  res.json(plan);
-});
-
-app.post('/api/meal-swaps', (req, res) => {
-  const ingredients = req.body.ingredients || [];
-  const allergies = req.body.allergies || [];
-  const preference = req.body.preference || "";
-  res.json({ swaps: suggestSwaps(ingredients, allergies, preference) });
-});
-
-app.post('/api/grocery-optimize', (req, res) => {
-  let plan = req.body.plan;
-  if (!plan && req.body.surveyId) {
-    const found = userSurveys.find(s => s.id === req.body.surveyId);
-    plan = buildWeeklyGroceryPlan(found?.metrics?.recommendedDailyCalories || found?.metrics?.maintenanceCalories);
-  }
-  const optimized = optimizeGroceries(plan, req.body.pricePerGram || {});
-  if (!optimized) return res.status(400).json({ message: "Valid plan is required" });
-  res.json({ plan, optimized });
-});
-
-app.post('/api/fasting-windows', (req, res) => {
-  const userId = req.body.userId || 'anonymous';
-  const windowHours = Number(req.body.windowHours);
-  const guidance = fastingGuidance(windowHours);
-  if (!guidance) return res.status(400).json({ message: "windowHours must be positive" });
-  const entry = { id: generateId(), userId, windowHours, startTime: req.body.startTime || "20:00", guidance };
-  fastingWindows.push(entry);
-  res.status(201).json(entry);
-});
-
-app.get('/api/fasting-windows', (req, res) => {
-  res.json(fastingWindows);
-});
-
-app.post('/api/nutrition-score', (req, res) => {
-  const weightKg = Number(req.body.weightKg);
-  const calories = Number(req.body.calories);
-  const proteinG = Number(req.body.proteinG || 0);
-  const fiberG = Number(req.body.fiberG || 0);
-  const result = scoreNutrition(weightKg, calories, proteinG, fiberG);
-  if (!result) return res.status(400).json({ message: "weightKg and calories must be positive" });
-  res.json(result);
-});
-
-app.post('/api/leftovers-plan', (req, res) => {
-  const servings = Number(req.body.servings);
-  const days = Number(req.body.keepDays);
-  const plan = planLeftovers(servings, days);
-  if (!plan) return res.status(400).json({ message: "servings must be positive" });
-  res.json(plan);
-});
-
-app.post('/api/readiness', (req, res) => {
-  const hrv = Number(req.body.hrv);
-  const restingHr = Number(req.body.restingHr);
-  const sleepHours = Number(req.body.sleepHours);
-  const result = readinessScore(hrv, restingHr, sleepHours);
-  if (!result) return res.status(400).json({ message: "hrv, restingHr, and sleepHours are required numbers" });
-  const entry = {
+/**
+ * POST /api/meal-plans
+ */
+app.post('/api/meal-plans', auth.authMiddleware, (req, res) => {
+  const { recipeId, date, mealType } = req.body;
+  const userId = req.user.userId;
+  const plan = {
     id: generateId(),
-    userId: req.body.userId || 'anonymous',
-    hrv,
-    restingHr,
-    sleepHours,
-    ...result,
-    date: req.body.date || new Date().toISOString()
+    user_id: userId,
+    recipe_id: recipeId,
+    date,
+    meal_type: mealType,
+    completed: false
   };
-  readinessLogs.push(entry);
-  res.status(201).json(entry);
+  mealPlans.push(plan);
+  res.status(201).json(plan);
 });
 
-app.get('/api/readiness', (req, res) => {
-  res.json(readinessLogs);
-});
+/**
+ * POST /api/meal-plans/generate
+ * Auto-generate meal plans for a date range.
+ */
+app.post('/api/meal-plans/generate', auth.authMiddleware, (req, res) => {
+  const userId = req.user.userId;
 
-app.post('/api/water-reminders', (req, res) => {
-  const weightKg = Number(req.body.weightKg);
-  const activityMinutes = Number(req.body.activityMinutes || 0);
-  const plan = waterReminderPlan(weightKg, activityMinutes);
-  if (!plan) return res.status(400).json({ message: "weightKg must be positive" });
-  res.json(plan);
-});
+  const schema = z.object({
+    startDate: z.string().min(1),
+    endDate: z.string().min(1),
+    mealTypes: z.array(z.string().min(1)).optional(),
+    overwrite: z.boolean().optional()
+  });
 
-app.post('/api/sleep-debt', (req, res) => {
-  const targetHours = Number(req.body.targetHours || 8);
-  const sleepHoursList = Array.isArray(req.body.sleepHours) ? req.body.sleepHours.map(Number) : [];
-  const result = sleepDebt(targetHours, sleepHoursList);
-  if (!result) return res.status(400).json({ message: "Invalid targetHours or sleepHours data" });
-  res.json(result);
-});
+  let startDate;
+  let endDate;
+  let mealTypes;
+  let overwrite;
 
-app.post('/api/streaks', (req, res) => {
-  const dates = req.body.dates || [];
-  const result = streakFromDates(dates);
-  const userId = req.body.userId || 'anonymous';
-  const entry = { id: generateId(), userId, dates, ...result };
-  const idx = streakLogs.findIndex(s => s.userId === userId);
-  if (idx >= 0) {
-    streakLogs[idx] = entry;
-  } else {
-    streakLogs.push(entry);
+  try {
+    const parsed = schema.parse(req.body);
+    startDate = parseISODate(parsed.startDate);
+    endDate = parseISODate(parsed.endDate);
+    mealTypes = parsed.mealTypes && parsed.mealTypes.length > 0 ? parsed.mealTypes : ['breakfast', 'lunch', 'dinner'];
+    overwrite = Boolean(parsed.overwrite);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
+    }
+    return res.status(400).json({ error: 'Invalid input', requestId: req.id });
   }
-  res.json(entry);
-});
 
-app.post('/api/challenges/share', (req, res) => {
-  const name = req.body.name || "challenge";
-  res.json({ name, shareUrl: `/share/challenges/${encodeURIComponent(name)}` });
-});
-
-app.post('/api/travel-mode', (req, res) => {
-  const entry = {
-    id: generateId(),
-    userId: req.body.userId || 'anonymous',
-    location: req.body.location,
-    cuisine: req.body.cuisine,
-    plan: travelSuggestions(req.body.location, req.body.cuisine)
-  };
-  travelModes.push(entry);
-  res.status(201).json(entry);
-});
-
-app.get('/api/travel-mode', (req, res) => {
-  res.json(travelModes);
-});
-
-app.post('/api/offline-logs', (req, res) => {
-  const entries = Array.isArray(req.body.entries) ? req.body.entries : [];
-  if (!entries.length) {
-    return res.status(400).json({ message: "entries array required" });
+  if (!startDate || !endDate) {
+    return res.status(400).json({ error: 'Invalid startDate or endDate', requestId: req.id });
   }
-  if (entries.length > MAX_OFFLINE_ENTRIES) {
-    return res.status(400).json({ message: `entries exceeds limit of ${MAX_OFFLINE_ENTRIES}` });
+  if (endDate < startDate) {
+    return res.status(400).json({ error: 'endDate must be >= startDate', requestId: req.id });
   }
-  const valid = entries
-    .filter(e => e && typeof e === 'object' && typeof e.type === 'string' && e.data)
-    .filter(e => {
-      if (typeof e.data === 'string') return e.data.length <= MAX_STRING_DATA_LENGTH;
-      try {
-        const keys = Object.keys(e.data || {});
-        if (keys.length > 50) return false;
-        return JSON.stringify(e.data).length <= MAX_JSON_DATA_LENGTH;
-      } catch {
-        return false;
+
+  const rangeDays = daysBetweenUTC(startDate, endDate);
+  if (rangeDays > 31) {
+    return res.status(400).json({ error: 'Date range too large (max 31 days)', requestId: req.id });
+  }
+
+  const created = [];
+  let skipped = 0;
+  let deleted = 0;
+
+  if (overwrite) {
+    for (let i = mealPlans.length - 1; i >= 0; i -= 1) {
+      const p = mealPlans[i];
+      if (p.user_id !== userId) continue;
+      if (!isDateInRange(p.date, startDate, endDate)) continue;
+      if (!mealTypes.includes(p.meal_type)) continue;
+      mealPlans.splice(i, 1);
+      deleted += 1;
+    }
+  }
+
+  for (let dayOffset = 0; dayOffset <= rangeDays; dayOffset += 1) {
+    const date = formatDateYYYYMMDD(addDaysUTC(startDate, dayOffset));
+    for (const mealType of mealTypes) {
+      const exists = mealPlans.some(p => p.user_id === userId && p.date === date && p.meal_type === mealType);
+      if (exists) {
+        skipped += 1;
+        continue;
       }
-    })
-    .map(e => ({
-      type: e.type,
-      data: e.data,
-      timestamp: e.timestamp || new Date().toISOString(),
-      id: generateId(),
-      synced: false
-    }));
-  if (!valid.length) return res.status(400).json({ message: "entries must include type and data" });
-  for (const v of valid) {
-    offlineLogs.push(v);
+
+      const recipe = recipes[Math.floor(Math.random() * recipes.length)];
+      if (!recipe) {
+        skipped += 1;
+        continue;
+      }
+
+      const plan = {
+        id: generateId(),
+        user_id: userId,
+        recipe_id: recipe.id,
+        date,
+        meal_type: mealType,
+        completed: false
+      };
+      mealPlans.push(plan);
+      created.push(plan);
+    }
   }
-  res.status(201).json({ stored: valid });
+
+  return res.status(201).json({
+    startDate: req.body.startDate,
+    endDate: req.body.endDate,
+    mealTypes,
+    overwrite,
+    deleted,
+    createdCount: created.length,
+    skippedCount: skipped,
+    plans: created
+  });
 });
 
-app.post('/api/food-photo-estimate', (req, res) => {
-  const imageUrl = req.body.imageUrl || null;
-  const imageBase64 = req.body.imageBase64 || null;
-  if (!imageUrl && !imageBase64) {
-    return res.status(400).json({ message: "imageUrl or imageBase64 is required" });
+/**
+ * PUT /api/meal-plans/:id
+ */
+app.put('/api/meal-plans/:id', auth.authMiddleware, (req, res) => {
+  const userId = req.user.userId;
+  const plan = mealPlans.find(p => p.id === req.params.id && p.user_id === userId);
+  if (!plan) {
+    return res.status(404).json({ error: 'Meal plan not found' });
   }
-  const mode = req.query.mode === 'mock' || !AI_API_KEY ? 'mock' : 'real';
-  const entry = {
-    id: generateId(),
-    imageUrl,
-    status: mode === 'real' ? "pending" : "mock",
-    calories: null,
-    macros: null,
-    note: mode === 'real'
-      ? `Will call provider ${AI_PROVIDER} at ${AI_ENDPOINT || 'default'}`
-      : "AI estimation not configured; using mock mode."
-  };
-  photoEstimates.push(entry);
-  res.status(mode === 'real' ? 202 : 200).json(entry);
+  Object.assign(plan, req.body);
+  res.json(plan);
 });
 
-app.post('/api/restaurant-suggestions', (req, res) => {
-  const mode = req.query.mode === 'mock' || !PLACES_API_KEY ? 'mock' : 'real';
-  if (mode === 'real') {
-    return res.status(200).json({
-      provider: PLACES_PROVIDER,
-      endpoint: PLACES_ENDPOINT || 'default',
-      status: "pending",
-      note: "Live places lookup not implemented; configure integration to enable."
+/**
+ * DELETE /api/meal-plans/:id
+ */
+app.delete('/api/meal-plans/:id', auth.authMiddleware, (req, res) => {
+  const userId = req.user.userId;
+  const index = mealPlans.findIndex(p => p.id === req.params.id && p.user_id === userId);
+  if (index === -1) {
+    return res.status(404).json({ error: 'Meal plan not found' });
+  }
+  const deleted = mealPlans.splice(index, 1);
+  res.json(deleted[0]);
+});
+
+/**
+ * GET /api/grocery-list
+ * Build a grocery list from the user's meal plans (optional date range)
+ */
+app.get('/api/grocery-list', auth.authMiddleware, (req, res) => {
+  const userId = req.user.userId;
+
+  const querySchema = z.object({
+    start: z.string().optional(),
+    end: z.string().optional()
+  });
+
+  let startDate = null;
+  let endDate = null;
+
+  try {
+    const { start, end } = querySchema.parse(req.query);
+    if (start) {
+      startDate = parseISODate(start);
+      if (!startDate) {
+        return res.status(400).json({ error: 'Invalid start date', requestId: req.id });
+      }
+    }
+    if (end) {
+      endDate = parseISODate(end);
+      if (!endDate) {
+        return res.status(400).json({ error: 'Invalid end date', requestId: req.id });
+      }
+    }
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
+    }
+    return res.status(400).json({ error: 'Invalid query', requestId: req.id });
+  }
+
+  const plans = mealPlans
+    .filter(p => p.user_id === userId)
+    .filter(p => {
+      if (!startDate && !endDate) return true;
+      return isDateInRange(p.date, startDate, endDate);
     });
+
+  const counts = new Map();
+  const recipeIds = new Set();
+
+  for (const plan of plans) {
+    recipeIds.add(plan.recipe_id);
+    const recipe = recipes.find(r => r.id === plan.recipe_id);
+    if (!recipe || !Array.isArray(recipe.ingredients)) continue;
+    for (const ingredient of recipe.ingredients) {
+      const key = String(ingredient).trim().toLowerCase();
+      if (!key) continue;
+      const prev = counts.get(key) || 0;
+      counts.set(key, prev + 1);
+    }
   }
-  const data = restaurantSuggestions(req.body.location, req.body.cuisine);
-  res.json({ mode, ...data });
+
+  const items = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([item, count]) => ({ item, count }));
+
+  return res.json({
+    start: req.query.start || null,
+    end: req.query.end || null,
+    mealPlansCount: plans.length,
+    recipeIds: [...recipeIds],
+    totalUniqueItems: items.length,
+    items
+  });
 });
 
-app.get('/api/weight-goals', (req, res) => {
-  res.json(weightGoals.map(goal => calculateGoalProgress(goal)));
-});
+// ========== GROCERY PLANNING ENDPOINTS ==========
 
-app.post('/api/weight-goals', (req, res) => {
-  const startWeightKg = Number(req.body.startWeightKg);
-  const targetWeightKg = Number(req.body.targetWeightKg);
-  if (!Number.isFinite(startWeightKg) || startWeightKg <= 0 || !Number.isFinite(targetWeightKg) || targetWeightKg <= 0) {
-    return res.status(400).json({ message: "startWeightKg and targetWeightKg must be valid positive numbers" });
-  }
-  const goal = {
-    id: generateId(),
-    userId: req.body.userId || 'anonymous',
-    startWeightKg,
-    targetWeightKg,
-    weighInDays: req.body.weighInDays || [],
-    startDate: req.body.startDate || new Date().toISOString(),
-    targetDate: req.body.targetDate || null,
-    notes: req.body.notes || '',
-    waterLitersTarget: Number(req.body.waterLitersTarget) || Number((Math.max(2, startWeightKg * 0.033)).toFixed(2)),
-    sleepHoursTarget: Number(req.body.sleepHoursTarget) || 8
+/**
+ * POST /api/grocery-plan
+ */
+app.post('/api/grocery-plan', auth.authMiddleware, (req, res) => {
+  const { dailyCalories } = req.body;
+  const calories = dailyCalories || 2000;
+
+  const plan = {
+    carbs_grams: Math.round(calories * 0.4 / 4),
+    protein_grams: Math.round(calories * 0.3 / 4),
+    fat_grams: Math.round(calories * 0.3 / 9),
+    recommended_items: [
+      'Lean proteins: chicken, fish, eggs, tofu',
+      'Whole grains: rice, oats, whole wheat bread',
+      'Vegetables: broccoli, spinach, bell peppers',
+      'Fruits: apples, bananas, berries',
+      'Healthy fats: olive oil, avocado, nuts'
+    ],
+    weekly_budget: '400-600 NIS'
   };
-  weightGoals.push(goal);
-  res.status(201).json(calculateGoalProgress(goal));
+
+  res.json(plan);
 });
 
-app.post('/api/weight-logs', (req, res) => {
-  const goal = weightGoals.find(g => g.id === req.body.goalId);
-  if (!goal) {
-    return res.status(404).json({ message: "Goal not found" });
-  }
-  const weightKg = Number(req.body.weightKg);
-  if (!Number.isFinite(weightKg) || weightKg <= 0) {
-    return res.status(400).json({ message: "weightKg must be a valid positive number" });
-  }
-  const newLog = {
-    id: generateId(),
-    goalId: goal.id,
-    date: req.body.date || new Date().toISOString(),
-    weightKg,
-    waterLiters: Number(req.body.waterLiters) || null,
-    sleepHours: Number(req.body.sleepHours) || null
-  };
-  weightLogs.push(newLog);
-  res.status(201).json({ log: newLog, progress: calculateGoalProgress(goal) });
+/**
+ * POST /api/grocery-optimize
+ */
+app.post('/api/grocery-optimize', auth.authMiddleware, (req, res) => {
+  const { budget, allergies } = req.body;
+
+  res.json({
+    budget: budget || '400 NIS',
+    tips: [
+      'Buy seasonal vegetables for better prices',
+      'Compare unit prices at different stores',
+      'Use store apps for discounts',
+      'Buy in bulk for non-perishables'
+    ],
+    allergyWarning: allergies ? `Avoid: ${allergies.join(', ')}` : 'No allergies noted',
+    stores: ['Shufersal', 'Rami Levy', 'Carrefour']
+  });
 });
 
-app.get('/api/weight-goals/:id/progress', (req, res) => {
-  const goal = weightGoals.find(g => g.id === req.params.id);
-  if (!goal) {
-    return res.status(404).json({ message: "Goal not found" });
+// ========== FOOD LOGGING ENDPOINTS ==========
+
+const FOOD_LOG_MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
+
+/**
+ * POST /api/food-logs
+ * Log a single food item for a given date
+ */
+app.post('/api/food-logs', auth.authMiddleware, async (req, res) => {
+  try {
+    const schema = z.object({
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      name: z.string().min(1),
+      mealType: z.enum(FOOD_LOG_MEAL_TYPES).optional(),
+      calories: z.number().nonnegative(),
+      proteinGrams: z.number().nonnegative().optional(),
+      carbsGrams: z.number().nonnegative().optional(),
+      fatGrams: z.number().nonnegative().optional(),
+      notes: z.string().max(500).optional()
+    });
+
+    const data = schema.parse(req.body);
+    const row = await db.createFoodLog(req.user.userId, {
+      date: data.date,
+      name: data.name,
+      meal_type: data.mealType || null,
+      calories: data.calories,
+      protein_grams: data.proteinGrams ?? null,
+      carbs_grams: data.carbsGrams ?? null,
+      fat_grams: data.fatGrams ?? null,
+      notes: data.notes ?? null
+    });
+
+    return res.status(201).json(row);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to create food log', details: error.message, requestId: req.id });
   }
-  res.json(calculateGoalProgress(goal));
 });
+
+/**
+ * POST /api/food-logs/bulk
+ * Log multiple food items in one request
+ */
+app.post('/api/food-logs/bulk', auth.authMiddleware, async (req, res) => {
+  try {
+    const itemSchema = z.object({
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      name: z.string().min(1),
+      mealType: z.enum(FOOD_LOG_MEAL_TYPES).optional(),
+      calories: z.number().nonnegative(),
+      proteinGrams: z.number().nonnegative().optional(),
+      carbsGrams: z.number().nonnegative().optional(),
+      fatGrams: z.number().nonnegative().optional(),
+      notes: z.string().max(500).optional()
+    });
+
+    const schema = z.object({
+      logs: z.array(itemSchema).min(1).max(100)
+    });
+
+    const { logs } = schema.parse(req.body);
+
+    const created = [];
+    for (const data of logs) {
+      // Keep deterministic ordering in response
+      const row = await db.createFoodLog(req.user.userId, {
+        date: data.date,
+        name: data.name,
+        meal_type: data.mealType || null,
+        calories: data.calories,
+        protein_grams: data.proteinGrams ?? null,
+        carbs_grams: data.carbsGrams ?? null,
+        fat_grams: data.fatGrams ?? null,
+        notes: data.notes ?? null
+      });
+      created.push(row);
+    }
+
+    return res.status(201).json({ createdCount: created.length, logs: created });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to create food logs', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * POST /api/food-logs/import
+ * Import food logs from a CSV-ish JSON payload (strings allowed)
+ */
+app.post('/api/food-logs/import', auth.authMiddleware, async (req, res) => {
+  try {
+    const emptyStringToUndefined = (v) => {
+      if (typeof v !== 'string') return v;
+      const t = v.trim();
+      return t === '' ? undefined : t;
+    };
+    const emptyStringToNull = (v) => {
+      if (v == null) return null;
+      if (typeof v !== 'string') return v;
+      const t = v.trim();
+      return t === '' ? null : t;
+    };
+
+    const rowSchema = z.object({
+      date: z.preprocess(emptyStringToUndefined, z.string().regex(/^\d{4}-\d{2}-\d{2}$/)),
+      name: z.preprocess(emptyStringToUndefined, z.string().min(1)),
+      mealType: z.preprocess(emptyStringToNull, z.enum(FOOD_LOG_MEAL_TYPES).nullable()).optional(),
+      calories: z.preprocess(emptyStringToUndefined, z.coerce.number().nonnegative()),
+      proteinGrams: z.preprocess(emptyStringToNull, z.coerce.number().nonnegative().nullable()).optional(),
+      carbsGrams: z.preprocess(emptyStringToNull, z.coerce.number().nonnegative().nullable()).optional(),
+      fatGrams: z.preprocess(emptyStringToNull, z.coerce.number().nonnegative().nullable()).optional(),
+      notes: z.preprocess(emptyStringToNull, z.string().max(500).nullable()).optional()
+    });
+
+    const bodySchema = z.object({
+      rows: z.array(rowSchema).min(1).max(500)
+    });
+
+    const { rows } = bodySchema.parse(req.body);
+
+    const created = [];
+    for (const r of rows) {
+      const row = await db.createFoodLog(req.user.userId, {
+        date: r.date,
+        name: r.name,
+        meal_type: Object.prototype.hasOwnProperty.call(r, 'mealType') ? (r.mealType ?? null) : null,
+        calories: r.calories,
+        protein_grams: Object.prototype.hasOwnProperty.call(r, 'proteinGrams') ? (r.proteinGrams ?? null) : null,
+        carbs_grams: Object.prototype.hasOwnProperty.call(r, 'carbsGrams') ? (r.carbsGrams ?? null) : null,
+        fat_grams: Object.prototype.hasOwnProperty.call(r, 'fatGrams') ? (r.fatGrams ?? null) : null,
+        notes: Object.prototype.hasOwnProperty.call(r, 'notes') ? (r.notes ?? null) : null
+      });
+      created.push(row);
+    }
+
+    return res.status(201).json({ createdCount: created.length, logs: created });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to import food logs', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * POST /api/food-logs/copy
+ * Copy all food logs from one date to another
+ */
+app.post('/api/food-logs/copy', auth.authMiddleware, async (req, res) => {
+  try {
+    const bodySchema = z
+      .object({
+        fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+      })
+      .refine((v) => v.fromDate !== v.toDate, { message: 'fromDate must be different than toDate' });
+
+    const { fromDate, toDate } = bodySchema.parse(req.body);
+    const sourceLogs = await db.getFoodLogs(req.user.userId, { date: fromDate });
+
+    const created = [];
+    for (const l of sourceLogs || []) {
+      const row = await db.createFoodLog(req.user.userId, {
+        date: toDate,
+        name: l.name,
+        meal_type: l.meal_type ?? null,
+        calories: l.calories,
+        protein_grams: Object.prototype.hasOwnProperty.call(l, 'protein_grams') ? (l.protein_grams ?? null) : null,
+        carbs_grams: Object.prototype.hasOwnProperty.call(l, 'carbs_grams') ? (l.carbs_grams ?? null) : null,
+        fat_grams: Object.prototype.hasOwnProperty.call(l, 'fat_grams') ? (l.fat_grams ?? null) : null,
+        notes: Object.prototype.hasOwnProperty.call(l, 'notes') ? (l.notes ?? null) : null
+      });
+      created.push(row);
+    }
+
+    return res.status(201).json({ fromDate, toDate, copiedCount: created.length, logs: created });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to copy food logs', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * POST /api/food-logs/template
+ * Save a reusable food log template (meal)
+ */
+app.post('/api/food-logs/template', auth.authMiddleware, async (req, res) => {
+  try {
+    const emptyStringToNull = (v) => {
+      if (v == null) return null;
+      if (typeof v !== 'string') return v;
+      const t = v.trim();
+      return t === '' ? null : t;
+    };
+
+    const schema = z.object({
+      name: z.string().min(1),
+      mealType: z.preprocess(emptyStringToNull, z.enum(FOOD_LOG_MEAL_TYPES).nullable()).optional(),
+      calories: z.number().nonnegative(),
+      proteinGrams: z.number().nonnegative().optional(),
+      carbsGrams: z.number().nonnegative().optional(),
+      fatGrams: z.number().nonnegative().optional(),
+      notes: z.preprocess(emptyStringToNull, z.string().max(500).nullable()).optional()
+    });
+
+    const data = schema.parse(req.body);
+    const row = await db.createFoodLogTemplate(req.user.userId, {
+      name: data.name,
+      meal_type: Object.prototype.hasOwnProperty.call(data, 'mealType') ? (data.mealType ?? null) : null,
+      calories: data.calories,
+      protein_grams: data.proteinGrams ?? null,
+      carbs_grams: data.carbsGrams ?? null,
+      fat_grams: data.fatGrams ?? null,
+      notes: Object.prototype.hasOwnProperty.call(data, 'notes') ? (data.notes ?? null) : null
+    });
+
+    return res.status(201).json(row);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to create food log template', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * GET /api/food-logs/templates
+ * List reusable food log templates
+ */
+app.get('/api/food-logs/templates', auth.authMiddleware, async (req, res) => {
+  try {
+    const querySchema = z
+      .object({
+        limit: z.coerce.number().int().positive().max(200).optional(),
+        offset: z.coerce.number().int().nonnegative().max(100000).optional()
+      })
+      .refine(v => (v.offset == null ? true : v.limit != null), {
+        message: 'offset requires limit'
+      });
+
+    const { limit, offset } = querySchema.parse(req.query);
+    const templates = await db.getFoodLogTemplates(req.user.userId, {
+      limit: limit ?? null,
+      offset: offset ?? null
+    });
+    return res.json(templates || []);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to get food log templates', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * DELETE /api/food-logs/templates/:id
+ * Delete a reusable food log template
+ */
+app.delete('/api/food-logs/templates/:id', auth.authMiddleware, async (req, res) => {
+  try {
+    const paramsSchema = z.object({
+      id: z.string().min(1)
+    });
+
+    const { id } = paramsSchema.parse(req.params);
+    const deleted = await db.deleteFoodLogTemplate(req.user.userId, id);
+
+    if (!deleted) {
+      return res.status(404).json({ error: 'Template not found', requestId: req.id });
+    }
+
+    return res.json({ status: 'ok', deleted });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to delete food log template', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * GET /api/food-logs
+ * Query food logs by date or range
+ */
+app.get('/api/food-logs', auth.authMiddleware, async (req, res) => {
+  try {
+    const querySchema = z
+      .object({
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        limit: z.coerce.number().int().positive().max(200).optional(),
+        offset: z.coerce.number().int().nonnegative().max(100000).optional()
+      })
+      .refine(v => (v.offset == null ? true : v.limit != null), {
+        message: 'offset requires limit'
+      });
+
+    const { date, start, end, limit, offset } = querySchema.parse(req.query);
+    const logs = await db.getFoodLogs(req.user.userId, {
+      date: date || null,
+      start: start || null,
+      end: end || null,
+      limit: limit ?? null,
+      offset: offset ?? null
+    });
+    return res.json(logs || []);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to get food logs', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * GET /api/food-days
+ * List dates that have at least one food log in the given range
+ */
+app.get('/api/food-days', auth.authMiddleware, async (req, res) => {
+  try {
+    const querySchema = z
+      .object({
+        start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+      })
+      .refine(v => String(v.start) <= String(v.end), { message: 'start must be <= end' });
+
+    const { start, end } = querySchema.parse(req.query);
+    const days = await db.getFoodDays(req.user.userId, { start, end });
+    return res.json({ start, end, daysCount: (days || []).length, days: days || [] });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to get food days', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * GET /api/food-logs/:id
+ * Get a single food log entry by id
+ */
+app.get('/api/food-logs/:id', auth.authMiddleware, async (req, res) => {
+  try {
+    const paramsSchema = z.object({
+      id: z.string().min(1)
+    });
+    const { id } = paramsSchema.parse(req.params);
+
+    const row = await db.getFoodLogById(req.user.userId, id);
+    if (!row) {
+      return res.status(404).json({ error: 'Food log not found', requestId: req.id });
+    }
+
+    return res.json(row);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to get food log', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * DELETE /api/food-logs/:id
+ * Delete a single food log entry
+ */
+app.delete('/api/food-logs/:id', auth.authMiddleware, async (req, res) => {
+  try {
+    const paramsSchema = z.object({
+      id: z.string().min(1)
+    });
+    const { id } = paramsSchema.parse(req.params);
+
+    const deleted = await db.deleteFoodLog(req.user.userId, id);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Food log not found', requestId: req.id });
+    }
+
+    return res.json({ status: 'ok', deleted });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to delete food log', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * PUT /api/food-logs/:id
+ * Update fields on a single food log entry
+ */
+app.put('/api/food-logs/:id', auth.authMiddleware, async (req, res) => {
+  try {
+    const paramsSchema = z.object({
+      id: z.string().min(1)
+    });
+    const { id } = paramsSchema.parse(req.params);
+
+    const bodySchema = z
+      .object({
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        name: z.string().min(1).optional(),
+        mealType: z.enum(FOOD_LOG_MEAL_TYPES).nullable().optional(),
+        calories: z.number().nonnegative().optional(),
+        proteinGrams: z.number().nonnegative().nullable().optional(),
+        carbsGrams: z.number().nonnegative().nullable().optional(),
+        fatGrams: z.number().nonnegative().nullable().optional(),
+        notes: z.string().max(500).nullable().optional()
+      })
+      .refine(
+        v =>
+          Object.prototype.hasOwnProperty.call(v, 'date') ||
+          Object.prototype.hasOwnProperty.call(v, 'name') ||
+          Object.prototype.hasOwnProperty.call(v, 'mealType') ||
+          Object.prototype.hasOwnProperty.call(v, 'calories') ||
+          Object.prototype.hasOwnProperty.call(v, 'proteinGrams') ||
+          Object.prototype.hasOwnProperty.call(v, 'carbsGrams') ||
+          Object.prototype.hasOwnProperty.call(v, 'fatGrams') ||
+          Object.prototype.hasOwnProperty.call(v, 'notes'),
+        { message: 'At least one field must be provided' }
+      );
+
+    const data = bodySchema.parse(req.body);
+    const patch = {
+      ...(Object.prototype.hasOwnProperty.call(data, 'date') ? { date: data.date } : {}),
+      ...(Object.prototype.hasOwnProperty.call(data, 'name') ? { name: data.name } : {}),
+      ...(Object.prototype.hasOwnProperty.call(data, 'mealType') ? { meal_type: data.mealType ?? null } : {}),
+      ...(Object.prototype.hasOwnProperty.call(data, 'calories') ? { calories: data.calories } : {}),
+      ...(Object.prototype.hasOwnProperty.call(data, 'proteinGrams') ? { protein_grams: data.proteinGrams ?? null } : {}),
+      ...(Object.prototype.hasOwnProperty.call(data, 'carbsGrams') ? { carbs_grams: data.carbsGrams ?? null } : {}),
+      ...(Object.prototype.hasOwnProperty.call(data, 'fatGrams') ? { fat_grams: data.fatGrams ?? null } : {}),
+      ...(Object.prototype.hasOwnProperty.call(data, 'notes') ? { notes: data.notes ?? null } : {})
+    };
+
+    const updated = await db.updateFoodLog(req.user.userId, id, patch);
+    if (!updated) {
+      return res.status(404).json({ error: 'Food log not found', requestId: req.id });
+    }
+
+    return res.json(updated);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to update food log', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * PATCH /api/food-logs/:id
+ * Partially update fields on a single food log entry
+ */
+app.patch('/api/food-logs/:id', auth.authMiddleware, async (req, res) => {
+  try {
+    const paramsSchema = z.object({
+      id: z.string().min(1)
+    });
+    const { id } = paramsSchema.parse(req.params);
+
+    const bodySchema = z
+      .object({
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        name: z.string().min(1).optional(),
+        mealType: z.enum(FOOD_LOG_MEAL_TYPES).nullable().optional(),
+        calories: z.number().nonnegative().optional(),
+        proteinGrams: z.number().nonnegative().nullable().optional(),
+        carbsGrams: z.number().nonnegative().nullable().optional(),
+        fatGrams: z.number().nonnegative().nullable().optional(),
+        notes: z.string().max(500).nullable().optional()
+      })
+      .refine(
+        v =>
+          Object.prototype.hasOwnProperty.call(v, 'date') ||
+          Object.prototype.hasOwnProperty.call(v, 'name') ||
+          Object.prototype.hasOwnProperty.call(v, 'mealType') ||
+          Object.prototype.hasOwnProperty.call(v, 'calories') ||
+          Object.prototype.hasOwnProperty.call(v, 'proteinGrams') ||
+          Object.prototype.hasOwnProperty.call(v, 'carbsGrams') ||
+          Object.prototype.hasOwnProperty.call(v, 'fatGrams') ||
+          Object.prototype.hasOwnProperty.call(v, 'notes'),
+        { message: 'At least one field must be provided' }
+      );
+
+    const data = bodySchema.parse(req.body);
+    const patch = {
+      ...(Object.prototype.hasOwnProperty.call(data, 'date') ? { date: data.date } : {}),
+      ...(Object.prototype.hasOwnProperty.call(data, 'name') ? { name: data.name } : {}),
+      ...(Object.prototype.hasOwnProperty.call(data, 'mealType') ? { meal_type: data.mealType ?? null } : {}),
+      ...(Object.prototype.hasOwnProperty.call(data, 'calories') ? { calories: data.calories } : {}),
+      ...(Object.prototype.hasOwnProperty.call(data, 'proteinGrams') ? { protein_grams: data.proteinGrams ?? null } : {}),
+      ...(Object.prototype.hasOwnProperty.call(data, 'carbsGrams') ? { carbs_grams: data.carbsGrams ?? null } : {}),
+      ...(Object.prototype.hasOwnProperty.call(data, 'fatGrams') ? { fat_grams: data.fatGrams ?? null } : {}),
+      ...(Object.prototype.hasOwnProperty.call(data, 'notes') ? { notes: data.notes ?? null } : {})
+    };
+
+    const updated = await db.updateFoodLog(req.user.userId, id, patch);
+    if (!updated) {
+      return res.status(404).json({ error: 'Food log not found', requestId: req.id });
+    }
+
+    return res.json(updated);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to update food log', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * GET /api/food-summary
+ * Summarize daily totals
+ */
+app.get('/api/food-summary', auth.authMiddleware, async (req, res) => {
+  try {
+    const querySchema = z.object({
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+    });
+
+    const { date } = querySchema.parse(req.query);
+    const logs = await db.getFoodLogs(req.user.userId, { date });
+
+    const totals = {
+      calories: 0,
+      protein_grams: 0,
+      carbs_grams: 0,
+      fat_grams: 0
+    };
+
+    for (const l of logs || []) {
+      totals.calories += Number(l.calories || 0);
+      totals.protein_grams += Number(l.protein_grams || 0);
+      totals.carbs_grams += Number(l.carbs_grams || 0);
+      totals.fat_grams += Number(l.fat_grams || 0);
+    }
+
+    return res.json({
+      date,
+      count: (logs || []).length,
+      totals
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to get food summary', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * GET /api/food-summary/range
+ * Summarize per-day totals across a date range (inclusive)
+ */
+app.get('/api/food-summary/range', auth.authMiddleware, async (req, res) => {
+  try {
+    const querySchema = z.object({
+      start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+    });
+
+    const { start, end } = querySchema.parse(req.query);
+    if (start > end) {
+      return res.status(400).json({ error: 'Invalid query', details: [{ message: 'start must be <= end' }], requestId: req.id });
+    }
+
+    const logs = await db.getFoodLogs(req.user.userId, { start, end });
+
+    const logsByDate = new Map();
+    for (const l of logs || []) {
+      const d = String(l.date || '');
+      if (!d) continue;
+      if (!logsByDate.has(d)) logsByDate.set(d, []);
+      logsByDate.get(d).push(l);
+    }
+
+    const parseDateUTC = (s) => {
+      const [y, m, d] = String(s).split('-').map((v) => Number(v));
+      return new Date(Date.UTC(y, (m || 1) - 1, d || 1));
+    };
+
+    const startDt = parseDateUTC(start);
+    const endDt = parseDateUTC(end);
+    const rangeDays = daysBetweenUTC(startDt, endDt);
+
+    const totals = {
+      calories: 0,
+      protein_grams: 0,
+      carbs_grams: 0,
+      fat_grams: 0
+    };
+
+    const days = [];
+    for (let dayOffset = 0; dayOffset <= rangeDays; dayOffset += 1) {
+      const date = formatDateYYYYMMDD(addDaysUTC(startDt, dayOffset));
+      const dayLogs = logsByDate.get(date) || [];
+
+      const dayTotals = {
+        calories: 0,
+        protein_grams: 0,
+        carbs_grams: 0,
+        fat_grams: 0
+      };
+
+      for (const l of dayLogs) {
+        dayTotals.calories += Number(l.calories || 0);
+        dayTotals.protein_grams += Number(l.protein_grams || 0);
+        dayTotals.carbs_grams += Number(l.carbs_grams || 0);
+        dayTotals.fat_grams += Number(l.fat_grams || 0);
+      }
+
+      totals.calories += dayTotals.calories;
+      totals.protein_grams += dayTotals.protein_grams;
+      totals.carbs_grams += dayTotals.carbs_grams;
+      totals.fat_grams += dayTotals.fat_grams;
+
+      days.push({
+        date,
+        count: (dayLogs || []).length,
+        totals: dayTotals
+      });
+    }
+
+    return res.json({
+      start,
+      end,
+      daysCount: days.length,
+      totals,
+      days
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to get food summary range', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * GET /api/food-summary/week
+ * Summarize per-day totals for a 7-day week window starting at weekStart (inclusive)
+ */
+app.get('/api/food-summary/week', auth.authMiddleware, async (req, res) => {
+  try {
+    const querySchema = z.object({
+      weekStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+    });
+
+    const { weekStart } = querySchema.parse(req.query);
+
+    const parseDateUTC = (s) => {
+      const [y, m, d] = String(s).split('-').map((v) => Number(v));
+      return new Date(Date.UTC(y, (m || 1) - 1, d || 1));
+    };
+
+    const startDt = parseDateUTC(weekStart);
+    const endDt = addDaysUTC(startDt, 6);
+    const start = formatDateYYYYMMDD(startDt);
+    const end = formatDateYYYYMMDD(endDt);
+
+    const logs = await db.getFoodLogs(req.user.userId, { start, end });
+
+    const logsByDate = new Map();
+    for (const l of logs || []) {
+      const d = String(l.date || '');
+      if (!d) continue;
+      if (!logsByDate.has(d)) logsByDate.set(d, []);
+      logsByDate.get(d).push(l);
+    }
+
+    const totals = {
+      calories: 0,
+      protein_grams: 0,
+      carbs_grams: 0,
+      fat_grams: 0
+    };
+
+    const days = [];
+    for (let dayOffset = 0; dayOffset < 7; dayOffset += 1) {
+      const date = formatDateYYYYMMDD(addDaysUTC(startDt, dayOffset));
+      const dayLogs = logsByDate.get(date) || [];
+
+      const dayTotals = {
+        calories: 0,
+        protein_grams: 0,
+        carbs_grams: 0,
+        fat_grams: 0
+      };
+
+      for (const l of dayLogs) {
+        dayTotals.calories += Number(l.calories || 0);
+        dayTotals.protein_grams += Number(l.protein_grams || 0);
+        dayTotals.carbs_grams += Number(l.carbs_grams || 0);
+        dayTotals.fat_grams += Number(l.fat_grams || 0);
+      }
+
+      totals.calories += dayTotals.calories;
+      totals.protein_grams += dayTotals.protein_grams;
+      totals.carbs_grams += dayTotals.carbs_grams;
+      totals.fat_grams += dayTotals.fat_grams;
+
+      days.push({
+        date,
+        count: (dayLogs || []).length,
+        totals: dayTotals
+      });
+    }
+
+    return res.json({
+      weekStart,
+      start,
+      end,
+      daysCount: days.length,
+      totals,
+      days
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to get food summary week', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * GET /api/food-summary/month
+ * Summarize per-day totals for a month window
+ */
+app.get('/api/food-summary/month', auth.authMiddleware, async (req, res) => {
+  try {
+    const querySchema = z.object({
+      month: z.string().regex(/^\d{4}-\d{2}$/)
+    });
+
+    const { month } = querySchema.parse(req.query);
+
+    const [yStr, mStr] = String(month).split('-');
+    const year = Number(yStr);
+    const monthNum = Number(mStr);
+    if (!Number.isFinite(year) || !Number.isFinite(monthNum) || monthNum < 1 || monthNum > 12) {
+      return res.status(400).json({ error: 'Invalid query', details: [{ message: 'month must be YYYY-MM' }], requestId: req.id });
+    }
+
+    const startDt = new Date(Date.UTC(year, monthNum - 1, 1));
+    const endDt = new Date(Date.UTC(year, monthNum, 0));
+    const start = formatDateYYYYMMDD(startDt);
+    const end = formatDateYYYYMMDD(endDt);
+    const rangeDays = daysBetweenUTC(startDt, endDt);
+
+    const logs = await db.getFoodLogs(req.user.userId, { start, end });
+
+    const logsByDate = new Map();
+    for (const l of logs || []) {
+      const d = String(l.date || '');
+      if (!d) continue;
+      if (!logsByDate.has(d)) logsByDate.set(d, []);
+      logsByDate.get(d).push(l);
+    }
+
+    const totals = {
+      calories: 0,
+      protein_grams: 0,
+      carbs_grams: 0,
+      fat_grams: 0
+    };
+
+    const days = [];
+    for (let dayOffset = 0; dayOffset <= rangeDays; dayOffset += 1) {
+      const date = formatDateYYYYMMDD(addDaysUTC(startDt, dayOffset));
+      const dayLogs = logsByDate.get(date) || [];
+
+      const dayTotals = {
+        calories: 0,
+        protein_grams: 0,
+        carbs_grams: 0,
+        fat_grams: 0
+      };
+
+      for (const l of dayLogs) {
+        dayTotals.calories += Number(l.calories || 0);
+        dayTotals.protein_grams += Number(l.protein_grams || 0);
+        dayTotals.carbs_grams += Number(l.carbs_grams || 0);
+        dayTotals.fat_grams += Number(l.fat_grams || 0);
+      }
+
+      totals.calories += dayTotals.calories;
+      totals.protein_grams += dayTotals.protein_grams;
+      totals.carbs_grams += dayTotals.carbs_grams;
+      totals.fat_grams += dayTotals.fat_grams;
+
+      days.push({
+        date,
+        count: (dayLogs || []).length,
+        totals: dayTotals
+      });
+    }
+
+    return res.json({
+      month,
+      start,
+      end,
+      daysCount: days.length,
+      totals,
+      days
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to get food summary month', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * GET /api/calorie-balance
+ * Compare target calories (from latest survey) vs consumed calories (from food logs)
+ */
+app.get('/api/calorie-balance', auth.authMiddleware, async (req, res) => {
+  try {
+    const querySchema = z.object({
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+    });
+    const { date } = querySchema.parse(req.query);
+
+    const surveys = await db.getSurveys(req.user.userId);
+    const latestSurvey = Array.isArray(surveys) && surveys.length > 0 ? surveys[0] : null;
+
+    const dailyCalories = latestSurvey?.daily_calories;
+    const targetCalories =
+      (dailyCalories && typeof dailyCalories === 'object' && dailyCalories !== null)
+        ? (Number(dailyCalories.targetDailyCalories) || null)
+        : null;
+
+    const logs = await db.getFoodLogs(req.user.userId, { date });
+    const consumedCalories = (logs || []).reduce((sum, l) => sum + Number(l.calories || 0), 0);
+
+    return res.json({
+      date,
+      targetCalories,
+      consumedCalories,
+      remainingCalories: targetCalories === null ? null : Math.round((targetCalories - consumedCalories) * 10) / 10,
+      overByCalories: targetCalories === null ? null : Math.round(Math.max(0, consumedCalories - targetCalories) * 10) / 10,
+      hasTarget: targetCalories !== null,
+      surveyId: latestSurvey?.id || null
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to get calorie balance', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * GET /api/weekly-calorie-balance
+ * Aggregate calorie target vs consumed for a date range.
+ */
+app.get('/api/weekly-calorie-balance', auth.authMiddleware, async (req, res) => {
+  try {
+    const querySchema = z.object({
+      start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+    });
+    const { start, end } = querySchema.parse(req.query);
+
+    if (start > end) {
+      return res.status(400).json({ error: 'Invalid query', details: [{ message: 'start must be <= end' }], requestId: req.id });
+    }
+
+    const [surveys, logs] = await Promise.all([
+      db.getSurveys(req.user.userId),
+      db.getFoodLogs(req.user.userId, { start, end })
+    ]);
+
+    const latestSurvey = Array.isArray(surveys) && surveys.length > 0 ? surveys[0] : null;
+
+    const dailyCalories = latestSurvey?.daily_calories;
+    const targetCalories =
+      (dailyCalories && typeof dailyCalories === 'object' && dailyCalories !== null)
+        ? (Number(dailyCalories.targetDailyCalories) || null)
+        : null;
+
+    const logsByDate = new Map();
+    for (const l of logs || []) {
+      const d = String(l.date || '');
+      if (!d) continue;
+      if (!logsByDate.has(d)) logsByDate.set(d, []);
+      logsByDate.get(d).push(l);
+    }
+
+    const parseDate = (s) => {
+      const [y, m, d] = s.split('-').map((v) => Number(v));
+      return new Date(Date.UTC(y, (m || 1) - 1, d || 1));
+    };
+    const formatDate = (dt) => {
+      const y = dt.getUTCFullYear();
+      const m = String(dt.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(dt.getUTCDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    };
+
+    const startDt = parseDate(start);
+    const endDt = parseDate(end);
+
+    const days = [];
+    let totalConsumedCalories = 0;
+
+    for (let dt = startDt; dt <= endDt; dt = new Date(dt.getTime() + 24 * 60 * 60 * 1000)) {
+      const date = formatDate(dt);
+      const dayLogs = logsByDate.get(date) || [];
+      const consumedCalories = (dayLogs || []).reduce((sum, l) => sum + Number(l.calories || 0), 0);
+      totalConsumedCalories += consumedCalories;
+
+      days.push({
+        date,
+        targetCalories,
+        consumedCalories,
+        remainingCalories: targetCalories === null ? null : Math.round((targetCalories - consumedCalories) * 10) / 10,
+        overByCalories: targetCalories === null ? null : Math.round(Math.max(0, consumedCalories - targetCalories) * 10) / 10,
+        hasTarget: targetCalories !== null,
+        count: (dayLogs || []).length
+      });
+    }
+
+    const totalTargetCalories = targetCalories === null ? null : Math.round((targetCalories * days.length) * 10) / 10;
+
+    return res.json({
+      start,
+      end,
+      daysCount: days.length,
+      targetCalories,
+      totals: {
+        targetCalories: totalTargetCalories,
+        consumedCalories: totalConsumedCalories,
+        remainingCalories: totalTargetCalories === null ? null : Math.round((totalTargetCalories - totalConsumedCalories) * 10) / 10,
+        overByCalories: totalTargetCalories === null ? null : Math.round(Math.max(0, totalConsumedCalories - totalTargetCalories) * 10) / 10
+      },
+      days,
+      hasTarget: targetCalories !== null,
+      surveyId: latestSurvey?.id || null
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to get weekly calorie balance', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * GET /api/streaks
+ * Compute streaks based on days with at least one food log.
+ */
+app.get('/api/streaks', auth.authMiddleware, async (req, res) => {
+  try {
+    const querySchema = z.object({
+      asOf: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
+    });
+    const { asOf } = querySchema.parse(req.query);
+
+    const parseDateUTC = (s) => {
+      const [y, m, d] = String(s).split('-').map((v) => Number(v));
+      return new Date(Date.UTC(y, (m || 1) - 1, d || 1));
+    };
+
+    const asOfDtRaw = asOf ? parseDateUTC(asOf) : new Date();
+    const asOfDt = new Date(Date.UTC(asOfDtRaw.getUTCFullYear(), asOfDtRaw.getUTCMonth(), asOfDtRaw.getUTCDate()));
+    const asOfStr = formatDateYYYYMMDD(asOfDt);
+    const startStr = formatDateYYYYMMDD(addDaysUTC(asOfDt, -365));
+
+    const logs = await db.getFoodLogs(req.user.userId, { start: startStr, end: asOfStr });
+
+    const activeDates = new Set(
+      (logs || [])
+        .map((l) => String(l.date || ''))
+        .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d) && d <= asOfStr)
+    );
+
+    const activeDatesSorted = Array.from(activeDates).sort();
+    const lastActiveDate = activeDatesSorted.length > 0 ? activeDatesSorted[activeDatesSorted.length - 1] : null;
+
+    // Longest streak across available active dates
+    let longestStreak = 0;
+    let currentRun = 0;
+    let prevDt = null;
+    for (const d of activeDatesSorted) {
+      const dt = parseDateUTC(d);
+      if (!prevDt) {
+        currentRun = 1;
+      } else {
+        const gap = daysBetweenUTC(prevDt, dt);
+        currentRun = gap === 1 ? currentRun + 1 : 1;
+      }
+      if (currentRun > longestStreak) longestStreak = currentRun;
+      prevDt = dt;
+    }
+
+    // Current streak ending at asOf date
+    let currentStreak = 0;
+    for (let i = 0; i < 366; i++) {
+      const d = formatDateYYYYMMDD(addDaysUTC(asOfDt, -i));
+      if (!activeDates.has(d)) break;
+      currentStreak++;
+    }
+
+    return res.json({
+      asOf: asOfStr,
+      streakType: 'food-logs',
+      activeOnAsOfDate: activeDates.has(asOfStr),
+      lastActiveDate,
+      activeDatesCount: activeDates.size,
+      currentStreak,
+      longestStreak
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to get streaks', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * GET /api/macro-balance
+ * Compare macro targets (from user preferences or latest survey) vs consumed macros (from food logs)
+ */
+app.get('/api/macro-balance', auth.authMiddleware, async (req, res) => {
+  try {
+    const querySchema = z.object({
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+    });
+    const { date } = querySchema.parse(req.query);
+
+    const [user, surveys, logs] = await Promise.all([
+      db.getUser(req.user.userId),
+      db.getSurveys(req.user.userId),
+      db.getFoodLogs(req.user.userId, { date })
+    ]);
+
+    const latestSurvey = Array.isArray(surveys) && surveys.length > 0 ? surveys[0] : null;
+    const preferences = user?.preferences;
+
+    const macroTargets =
+      (preferences && typeof preferences === 'object' && preferences !== null)
+        ? (preferences.macroTargets || preferences.macro_targets || null)
+        : null;
+
+    const readTargetNumber = (obj, keys) => {
+      if (!obj || typeof obj !== 'object') return null;
+      for (const k of keys) {
+        if (Object.prototype.hasOwnProperty.call(obj, k)) {
+          const v = Number(obj[k]);
+          if (Number.isFinite(v)) return v;
+        }
+      }
+      return null;
+    };
+
+    let proteinTarget = readTargetNumber(macroTargets, ['protein_grams', 'proteinGrams', 'protein']);
+    let carbsTarget = readTargetNumber(macroTargets, ['carbs_grams', 'carbsGrams', 'carbs']);
+    let fatTarget = readTargetNumber(macroTargets, ['fat_grams', 'fatGrams', 'fat']);
+
+    if (proteinTarget === null && latestSurvey && Number.isFinite(Number(latestSurvey.protein_target_g))) {
+      proteinTarget = Number(latestSurvey.protein_target_g);
+    }
+
+    const consumed = {
+      protein_grams: 0,
+      carbs_grams: 0,
+      fat_grams: 0
+    };
+
+    for (const l of logs || []) {
+      consumed.protein_grams += Number(l.protein_grams || 0);
+      consumed.carbs_grams += Number(l.carbs_grams || 0);
+      consumed.fat_grams += Number(l.fat_grams || 0);
+    }
+
+    const balance = (target, consumedValue) => {
+      if (target === null) return { target: null, consumed: consumedValue, remaining: null, overBy: null };
+      const remaining = Math.round((target - consumedValue) * 10) / 10;
+      const overBy = Math.round(Math.max(0, consumedValue - target) * 10) / 10;
+      return { target: Math.round(target * 10) / 10, consumed: consumedValue, remaining, overBy };
+    };
+
+    const protein = balance(proteinTarget, consumed.protein_grams);
+    const carbs = balance(carbsTarget, consumed.carbs_grams);
+    const fat = balance(fatTarget, consumed.fat_grams);
+
+    const hasTargets = proteinTarget !== null || carbsTarget !== null || fatTarget !== null;
+
+    return res.json({
+      date,
+      targets: {
+        protein_grams: protein.target,
+        carbs_grams: carbs.target,
+        fat_grams: fat.target
+      },
+      consumed,
+      remaining: {
+        protein_grams: protein.remaining,
+        carbs_grams: carbs.remaining,
+        fat_grams: fat.remaining
+      },
+      overBy: {
+        protein_grams: protein.overBy,
+        carbs_grams: carbs.overBy,
+        fat_grams: fat.overBy
+      },
+      hasTargets,
+      surveyId: latestSurvey?.id || null
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to get macro balance', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * GET /api/macro-balance/range
+ * Compare macro targets vs consumed macros across a date range.
+ */
+app.get('/api/macro-balance/range', auth.authMiddleware, async (req, res) => {
+  try {
+    const querySchema = z.object({
+      start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+    });
+    const { start, end } = querySchema.parse(req.query);
+
+    if (start > end) {
+      return res.status(400).json({ error: 'Invalid query', details: [{ message: 'start must be <= end' }], requestId: req.id });
+    }
+
+    const [user, surveys, logs] = await Promise.all([
+      db.getUser(req.user.userId),
+      db.getSurveys(req.user.userId),
+      db.getFoodLogs(req.user.userId, { start, end })
+    ]);
+
+    const latestSurvey = Array.isArray(surveys) && surveys.length > 0 ? surveys[0] : null;
+    const preferences = user?.preferences;
+
+    const macroTargets =
+      (preferences && typeof preferences === 'object' && preferences !== null)
+        ? (preferences.macroTargets || preferences.macro_targets || null)
+        : null;
+
+    const readTargetNumber = (obj, keys) => {
+      if (!obj || typeof obj !== 'object') return null;
+      for (const k of keys) {
+        if (Object.prototype.hasOwnProperty.call(obj, k)) {
+          const v = Number(obj[k]);
+          if (Number.isFinite(v)) return v;
+        }
+      }
+      return null;
+    };
+
+    let proteinTarget = readTargetNumber(macroTargets, ['protein_grams', 'proteinGrams', 'protein']);
+    let carbsTarget = readTargetNumber(macroTargets, ['carbs_grams', 'carbsGrams', 'carbs']);
+    let fatTarget = readTargetNumber(macroTargets, ['fat_grams', 'fatGrams', 'fat']);
+
+    if (proteinTarget === null && latestSurvey && Number.isFinite(Number(latestSurvey.protein_target_g))) {
+      proteinTarget = Number(latestSurvey.protein_target_g);
+    }
+
+    const round1 = (n) => Math.round(Number(n || 0) * 10) / 10;
+
+    const parseDate = (s) => {
+      const [y, m, d] = String(s).split('-').map((v) => Number(v));
+      return new Date(Date.UTC(y, (m || 1) - 1, d || 1));
+    };
+    const formatDate = (dt) => {
+      const y = dt.getUTCFullYear();
+      const m = String(dt.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(dt.getUTCDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    };
+
+    const logsByDate = new Map();
+    for (const l of logs || []) {
+      const d = String(l.date || '');
+      if (!d) continue;
+      if (!logsByDate.has(d)) logsByDate.set(d, []);
+      logsByDate.get(d).push(l);
+    }
+
+    const balance = (target, consumedValue) => {
+      if (target === null) return { target: null, consumed: round1(consumedValue), remaining: null, overBy: null };
+      const remaining = round1(target - consumedValue);
+      const overBy = round1(Math.max(0, consumedValue - target));
+      return { target: round1(target), consumed: round1(consumedValue), remaining, overBy };
+    };
+
+    const days = [];
+    const totalsConsumed = { protein_grams: 0, carbs_grams: 0, fat_grams: 0 };
+
+    const startDt = parseDate(start);
+    const endDt = parseDate(end);
+    let daysCount = 0;
+
+    for (let dt = startDt; dt <= endDt; dt = new Date(dt.getTime() + 24 * 60 * 60 * 1000)) {
+      const date = formatDate(dt);
+      daysCount++;
+      const dayLogs = logsByDate.get(date) || [];
+
+      const consumed = { protein_grams: 0, carbs_grams: 0, fat_grams: 0 };
+      for (const l of dayLogs) {
+        consumed.protein_grams += Number(l.protein_grams || 0);
+        consumed.carbs_grams += Number(l.carbs_grams || 0);
+        consumed.fat_grams += Number(l.fat_grams || 0);
+      }
+
+      totalsConsumed.protein_grams += consumed.protein_grams;
+      totalsConsumed.carbs_grams += consumed.carbs_grams;
+      totalsConsumed.fat_grams += consumed.fat_grams;
+
+      const protein = balance(proteinTarget, consumed.protein_grams);
+      const carbs = balance(carbsTarget, consumed.carbs_grams);
+      const fat = balance(fatTarget, consumed.fat_grams);
+
+      days.push({
+        date,
+        count: dayLogs.length,
+        targets: {
+          protein_grams: protein.target,
+          carbs_grams: carbs.target,
+          fat_grams: fat.target
+        },
+        consumed: {
+          protein_grams: protein.consumed,
+          carbs_grams: carbs.consumed,
+          fat_grams: fat.consumed
+        },
+        remaining: {
+          protein_grams: protein.remaining,
+          carbs_grams: carbs.remaining,
+          fat_grams: fat.remaining
+        },
+        overBy: {
+          protein_grams: protein.overBy,
+          carbs_grams: carbs.overBy,
+          fat_grams: fat.overBy
+        }
+      });
+    }
+
+    const totalTargets = {
+      protein_grams: proteinTarget === null ? null : round1(proteinTarget * daysCount),
+      carbs_grams: carbsTarget === null ? null : round1(carbsTarget * daysCount),
+      fat_grams: fatTarget === null ? null : round1(fatTarget * daysCount)
+    };
+
+    const totals = {
+      targets: totalTargets,
+      consumed: {
+        protein_grams: round1(totalsConsumed.protein_grams),
+        carbs_grams: round1(totalsConsumed.carbs_grams),
+        fat_grams: round1(totalsConsumed.fat_grams)
+      },
+      remaining: {
+        protein_grams: totalTargets.protein_grams === null ? null : round1(totalTargets.protein_grams - totalsConsumed.protein_grams),
+        carbs_grams: totalTargets.carbs_grams === null ? null : round1(totalTargets.carbs_grams - totalsConsumed.carbs_grams),
+        fat_grams: totalTargets.fat_grams === null ? null : round1(totalTargets.fat_grams - totalsConsumed.fat_grams)
+      },
+      overBy: {
+        protein_grams: totalTargets.protein_grams === null ? null : round1(Math.max(0, totalsConsumed.protein_grams - totalTargets.protein_grams)),
+        carbs_grams: totalTargets.carbs_grams === null ? null : round1(Math.max(0, totalsConsumed.carbs_grams - totalTargets.carbs_grams)),
+        fat_grams: totalTargets.fat_grams === null ? null : round1(Math.max(0, totalsConsumed.fat_grams - totalTargets.fat_grams))
+      }
+    };
+
+    const hasTargets = proteinTarget !== null || carbsTarget !== null || fatTarget !== null;
+
+    return res.json({
+      start,
+      end,
+      daysCount,
+      targets: {
+        protein_grams: proteinTarget === null ? null : round1(proteinTarget),
+        carbs_grams: carbsTarget === null ? null : round1(carbsTarget),
+        fat_grams: fatTarget === null ? null : round1(fatTarget)
+      },
+      totals,
+      days,
+      hasTargets,
+      surveyId: latestSurvey?.id || null
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to get macro balance range', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * GET /api/nutrition-score
+ * Simple daily score (0-100) based on staying within calorie + macro targets.
+ */
+app.get('/api/nutrition-score', auth.authMiddleware, async (req, res) => {
+  try {
+    const querySchema = z.object({
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+    });
+    const { date } = querySchema.parse(req.query);
+
+    const [user, surveys, logs] = await Promise.all([
+      db.getUser(req.user.userId),
+      db.getSurveys(req.user.userId),
+      db.getFoodLogs(req.user.userId, { date })
+    ]);
+
+    const latestSurvey = Array.isArray(surveys) && surveys.length > 0 ? surveys[0] : null;
+    const preferences = user?.preferences;
+
+    const dailyCalories = latestSurvey?.daily_calories;
+    const targetCalories =
+      (dailyCalories && typeof dailyCalories === 'object' && dailyCalories !== null)
+        ? (Number(dailyCalories.targetDailyCalories) || null)
+        : null;
+
+    const macroTargetsRaw =
+      (preferences && typeof preferences === 'object' && preferences !== null)
+        ? (preferences.macroTargets || preferences.macro_targets || null)
+        : null;
+
+    const readTargetNumber = (obj, keys) => {
+      if (!obj || typeof obj !== 'object') return null;
+      for (const k of keys) {
+        if (Object.prototype.hasOwnProperty.call(obj, k)) {
+          const v = Number(obj[k]);
+          if (Number.isFinite(v)) return v;
+        }
+      }
+      return null;
+    };
+
+    const macroTargets = {
+      protein_grams: readTargetNumber(macroTargetsRaw, ['protein_grams', 'proteinGrams', 'protein']),
+      carbs_grams: readTargetNumber(macroTargetsRaw, ['carbs_grams', 'carbsGrams', 'carbs']),
+      fat_grams: readTargetNumber(macroTargetsRaw, ['fat_grams', 'fatGrams', 'fat'])
+    };
+
+    if (macroTargets.protein_grams === null && latestSurvey && Number.isFinite(Number(latestSurvey.protein_target_g))) {
+      macroTargets.protein_grams = Number(latestSurvey.protein_target_g);
+    }
+
+    const consumed = {
+      calories: 0,
+      protein_grams: 0,
+      carbs_grams: 0,
+      fat_grams: 0
+    };
+
+    for (const l of logs || []) {
+      consumed.calories += Number(l.calories || 0);
+      consumed.protein_grams += Number(l.protein_grams || 0);
+      consumed.carbs_grams += Number(l.carbs_grams || 0);
+      consumed.fat_grams += Number(l.fat_grams || 0);
+    }
+
+    const overBy = {
+      calories: targetCalories === null ? null : Math.max(0, consumed.calories - targetCalories),
+      protein_grams: macroTargets.protein_grams === null ? null : Math.max(0, consumed.protein_grams - macroTargets.protein_grams),
+      carbs_grams: macroTargets.carbs_grams === null ? null : Math.max(0, consumed.carbs_grams - macroTargets.carbs_grams),
+      fat_grams: macroTargets.fat_grams === null ? null : Math.max(0, consumed.fat_grams - macroTargets.fat_grams)
+    };
+
+    const clamp01 = (x) => Math.max(0, Math.min(1, x));
+    const safeRatio = (numerator, denominator) => {
+      if (denominator === null) return null;
+      const d = Number(denominator);
+      if (!Number.isFinite(d) || d <= 0) return null;
+      return clamp01(Number(numerator || 0) / d);
+    };
+
+    const calorieOverRatio = safeRatio(overBy.calories, targetCalories);
+
+    const macroKeys = ['protein_grams', 'carbs_grams', 'fat_grams'];
+    const macroRatios = macroKeys
+      .map((k) => safeRatio(overBy[k], macroTargets[k]))
+      .filter((v) => v !== null);
+
+    const hasCalorieTarget = targetCalories !== null;
+    const hasAnyMacroTarget = macroRatios.length > 0;
+
+    const calorieWeight = hasCalorieTarget && hasAnyMacroTarget ? 0.5 : (hasCalorieTarget ? 1 : 0);
+    const macroWeight = hasCalorieTarget && hasAnyMacroTarget ? 0.5 : (hasAnyMacroTarget ? 1 : 0);
+
+    const macroOverRatioAvg = macroRatios.length > 0
+      ? (macroRatios.reduce((sum, r) => sum + r, 0) / macroRatios.length)
+      : null;
+
+    const penalty01 =
+      (calorieOverRatio !== null ? calorieWeight * calorieOverRatio : 0) +
+      (macroOverRatioAvg !== null ? macroWeight * macroOverRatioAvg : 0);
+
+    const score = Math.round((1 - clamp01(penalty01)) * 100);
+
+    return res.json({
+      date,
+      score,
+      targets: {
+        calories: targetCalories,
+        ...macroTargets
+      },
+      consumed,
+      overBy,
+      surveyId: latestSurvey?.id || null,
+      hasTargets: hasCalorieTarget || hasAnyMacroTarget
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to get nutrition score', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * GET /api/nutrition-score/range
+ * Nutrition score per day for a date range.
+ */
+app.get('/api/nutrition-score/range', auth.authMiddleware, async (req, res) => {
+  try {
+    const querySchema = z.object({
+      start: z.string().regex(/^(\d{4})-(\d{2})-(\d{2})$/),
+      end: z.string().regex(/^(\d{4})-(\d{2})-(\d{2})$/)
+    });
+    const { start, end } = querySchema.parse(req.query);
+
+    if (start > end) {
+      return res.status(400).json({ error: 'Invalid query', details: [{ message: 'start must be <= end' }], requestId: req.id });
+    }
+
+    const [user, surveys, logs] = await Promise.all([
+      db.getUser(req.user.userId),
+      db.getSurveys(req.user.userId),
+      db.getFoodLogs(req.user.userId, { start, end })
+    ]);
+
+    const latestSurvey = Array.isArray(surveys) && surveys.length > 0 ? surveys[0] : null;
+    const preferences = user?.preferences;
+
+    const dailyCalories = latestSurvey?.daily_calories;
+    const targetCalories =
+      (dailyCalories && typeof dailyCalories === 'object' && dailyCalories !== null)
+        ? (Number(dailyCalories.targetDailyCalories) || null)
+        : null;
+
+    const macroTargetsRaw =
+      (preferences && typeof preferences === 'object' && preferences !== null)
+        ? (preferences.macroTargets || preferences.macro_targets || null)
+        : null;
+
+    const readTargetNumber = (obj, keys) => {
+      if (!obj || typeof obj !== 'object') return null;
+      for (const k of keys) {
+        if (Object.prototype.hasOwnProperty.call(obj, k)) {
+          const v = Number(obj[k]);
+          if (Number.isFinite(v)) return v;
+        }
+      }
+      return null;
+    };
+
+    const macroTargets = {
+      protein_grams: readTargetNumber(macroTargetsRaw, ['protein_grams', 'proteinGrams', 'protein']),
+      carbs_grams: readTargetNumber(macroTargetsRaw, ['carbs_grams', 'carbsGrams', 'carbs']),
+      fat_grams: readTargetNumber(macroTargetsRaw, ['fat_grams', 'fatGrams', 'fat'])
+    };
+
+    if (macroTargets.protein_grams === null && latestSurvey && Number.isFinite(Number(latestSurvey.protein_target_g))) {
+      macroTargets.protein_grams = Number(latestSurvey.protein_target_g);
+    }
+
+    const clamp01 = (x) => Math.max(0, Math.min(1, x));
+    const safeRatio = (numerator, denominator) => {
+      if (denominator === null) return null;
+      const d = Number(denominator);
+      if (!Number.isFinite(d) || d <= 0) return null;
+      return clamp01(Number(numerator || 0) / d);
+    };
+
+    const logsByDate = new Map();
+    for (const l of logs || []) {
+      const d = String(l.date || '');
+      if (!d) continue;
+      if (!logsByDate.has(d)) logsByDate.set(d, []);
+      logsByDate.get(d).push(l);
+    }
+
+    const parseDate = (s) => {
+      const [y, m, d] = s.split('-').map((v) => Number(v));
+      return new Date(Date.UTC(y, (m || 1) - 1, d || 1));
+    };
+    const formatDate = (dt) => {
+      const y = dt.getUTCFullYear();
+      const m = String(dt.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(dt.getUTCDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    };
+
+    const startDt = parseDate(start);
+    const endDt = parseDate(end);
+
+    const days = [];
+    const totals = {
+      calories: 0,
+      protein_grams: 0,
+      carbs_grams: 0,
+      fat_grams: 0
+    };
+
+    const scores = [];
+
+    for (let dt = startDt; dt <= endDt; dt = new Date(dt.getTime() + 24 * 60 * 60 * 1000)) {
+      const date = formatDate(dt);
+      const dayLogs = logsByDate.get(date) || [];
+
+      const consumed = {
+        calories: 0,
+        protein_grams: 0,
+        carbs_grams: 0,
+        fat_grams: 0
+      };
+
+      for (const l of dayLogs) {
+        consumed.calories += Number(l.calories || 0);
+        consumed.protein_grams += Number(l.protein_grams || 0);
+        consumed.carbs_grams += Number(l.carbs_grams || 0);
+        consumed.fat_grams += Number(l.fat_grams || 0);
+      }
+
+      totals.calories += consumed.calories;
+      totals.protein_grams += consumed.protein_grams;
+      totals.carbs_grams += consumed.carbs_grams;
+      totals.fat_grams += consumed.fat_grams;
+
+      const overBy = {
+        calories: targetCalories === null ? null : Math.max(0, consumed.calories - targetCalories),
+        protein_grams: macroTargets.protein_grams === null ? null : Math.max(0, consumed.protein_grams - macroTargets.protein_grams),
+        carbs_grams: macroTargets.carbs_grams === null ? null : Math.max(0, consumed.carbs_grams - macroTargets.carbs_grams),
+        fat_grams: macroTargets.fat_grams === null ? null : Math.max(0, consumed.fat_grams - macroTargets.fat_grams)
+      };
+
+      const calorieOverRatio = safeRatio(overBy.calories, targetCalories);
+      const macroKeys = ['protein_grams', 'carbs_grams', 'fat_grams'];
+      const macroRatios = macroKeys
+        .map((k) => safeRatio(overBy[k], macroTargets[k]))
+        .filter((v) => v !== null);
+
+      const hasCalorieTarget = targetCalories !== null;
+      const hasAnyMacroTarget = macroRatios.length > 0;
+
+      const calorieWeight = hasCalorieTarget && hasAnyMacroTarget ? 0.5 : (hasCalorieTarget ? 1 : 0);
+      const macroWeight = hasCalorieTarget && hasAnyMacroTarget ? 0.5 : (hasAnyMacroTarget ? 1 : 0);
+
+      const macroOverRatioAvg = macroRatios.length > 0
+        ? (macroRatios.reduce((sum, r) => sum + r, 0) / macroRatios.length)
+        : null;
+
+      const penalty01 =
+        (calorieOverRatio !== null ? calorieWeight * calorieOverRatio : 0) +
+        (macroOverRatioAvg !== null ? macroWeight * macroOverRatioAvg : 0);
+
+      const score = Math.round((1 - clamp01(penalty01)) * 100);
+      scores.push(score);
+
+      days.push({
+        date,
+        score,
+        consumed,
+        overBy,
+        count: dayLogs.length
+      });
+    }
+
+    const averageScore = scores.length > 0
+      ? Math.round((scores.reduce((sum, s) => sum + s, 0) / scores.length) * 10) / 10
+      : null;
+
+    const hasTargets = targetCalories !== null || macroTargets.protein_grams !== null || macroTargets.carbs_grams !== null || macroTargets.fat_grams !== null;
+
+    return res.json({
+      start,
+      end,
+      daysCount: days.length,
+      averageScore,
+      targets: {
+        calories: targetCalories,
+        ...macroTargets
+      },
+      totals,
+      days,
+      surveyId: latestSurvey?.id || null,
+      hasTargets
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to get nutrition score range', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * GET /api/weekly-nutrition
+ * Aggregate daily nutrition scores and totals for a date range.
+ */
+app.get('/api/weekly-nutrition', auth.authMiddleware, async (req, res) => {
+  try {
+    const querySchema = z.object({
+      start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+    });
+    const { start, end } = querySchema.parse(req.query);
+
+    if (start > end) {
+      return res.status(400).json({ error: 'Invalid query', details: [{ message: 'start must be <= end' }], requestId: req.id });
+    }
+
+    const [user, surveys, logs] = await Promise.all([
+      db.getUser(req.user.userId),
+      db.getSurveys(req.user.userId),
+      db.getFoodLogs(req.user.userId, { start, end })
+    ]);
+
+    const latestSurvey = Array.isArray(surveys) && surveys.length > 0 ? surveys[0] : null;
+    const preferences = user?.preferences;
+
+    const dailyCalories = latestSurvey?.daily_calories;
+    const targetCalories =
+      (dailyCalories && typeof dailyCalories === 'object' && dailyCalories !== null)
+        ? (Number(dailyCalories.targetDailyCalories) || null)
+        : null;
+
+    const macroTargetsRaw =
+      (preferences && typeof preferences === 'object' && preferences !== null)
+        ? (preferences.macroTargets || preferences.macro_targets || null)
+        : null;
+
+    const readTargetNumber = (obj, keys) => {
+      if (!obj || typeof obj !== 'object') return null;
+      for (const k of keys) {
+        if (Object.prototype.hasOwnProperty.call(obj, k)) {
+          const v = Number(obj[k]);
+          if (Number.isFinite(v)) return v;
+        }
+      }
+      return null;
+    };
+
+    const macroTargets = {
+      protein_grams: readTargetNumber(macroTargetsRaw, ['protein_grams', 'proteinGrams', 'protein']),
+      carbs_grams: readTargetNumber(macroTargetsRaw, ['carbs_grams', 'carbsGrams', 'carbs']),
+      fat_grams: readTargetNumber(macroTargetsRaw, ['fat_grams', 'fatGrams', 'fat'])
+    };
+
+    if (macroTargets.protein_grams === null && latestSurvey && Number.isFinite(Number(latestSurvey.protein_target_g))) {
+      macroTargets.protein_grams = Number(latestSurvey.protein_target_g);
+    }
+
+    const clamp01 = (x) => Math.max(0, Math.min(1, x));
+    const safeRatio = (numerator, denominator) => {
+      if (denominator === null) return null;
+      const d = Number(denominator);
+      if (!Number.isFinite(d) || d <= 0) return null;
+      return clamp01(Number(numerator || 0) / d);
+    };
+
+    const logsByDate = new Map();
+    for (const l of logs || []) {
+      const d = String(l.date || '');
+      if (!d) continue;
+      if (!logsByDate.has(d)) logsByDate.set(d, []);
+      logsByDate.get(d).push(l);
+    }
+
+    const parseDate = (s) => {
+      const [y, m, d] = s.split('-').map((v) => Number(v));
+      return new Date(Date.UTC(y, (m || 1) - 1, d || 1));
+    };
+    const formatDate = (dt) => {
+      const y = dt.getUTCFullYear();
+      const m = String(dt.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(dt.getUTCDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    };
+
+    const startDt = parseDate(start);
+    const endDt = parseDate(end);
+
+    const days = [];
+    const totals = {
+      calories: 0,
+      protein_grams: 0,
+      carbs_grams: 0,
+      fat_grams: 0
+    };
+
+    const scores = [];
+
+    for (let dt = startDt; dt <= endDt; dt = new Date(dt.getTime() + 24 * 60 * 60 * 1000)) {
+      const date = formatDate(dt);
+      const dayLogs = logsByDate.get(date) || [];
+
+      const consumed = {
+        calories: 0,
+        protein_grams: 0,
+        carbs_grams: 0,
+        fat_grams: 0
+      };
+
+      for (const l of dayLogs) {
+        consumed.calories += Number(l.calories || 0);
+        consumed.protein_grams += Number(l.protein_grams || 0);
+        consumed.carbs_grams += Number(l.carbs_grams || 0);
+        consumed.fat_grams += Number(l.fat_grams || 0);
+      }
+
+      totals.calories += consumed.calories;
+      totals.protein_grams += consumed.protein_grams;
+      totals.carbs_grams += consumed.carbs_grams;
+      totals.fat_grams += consumed.fat_grams;
+
+      const overBy = {
+        calories: targetCalories === null ? null : Math.max(0, consumed.calories - targetCalories),
+        protein_grams: macroTargets.protein_grams === null ? null : Math.max(0, consumed.protein_grams - macroTargets.protein_grams),
+        carbs_grams: macroTargets.carbs_grams === null ? null : Math.max(0, consumed.carbs_grams - macroTargets.carbs_grams),
+        fat_grams: macroTargets.fat_grams === null ? null : Math.max(0, consumed.fat_grams - macroTargets.fat_grams)
+      };
+
+      const calorieOverRatio = safeRatio(overBy.calories, targetCalories);
+      const macroKeys = ['protein_grams', 'carbs_grams', 'fat_grams'];
+      const macroRatios = macroKeys
+        .map((k) => safeRatio(overBy[k], macroTargets[k]))
+        .filter((v) => v !== null);
+
+      const hasCalorieTarget = targetCalories !== null;
+      const hasAnyMacroTarget = macroRatios.length > 0;
+
+      const calorieWeight = hasCalorieTarget && hasAnyMacroTarget ? 0.5 : (hasCalorieTarget ? 1 : 0);
+      const macroWeight = hasCalorieTarget && hasAnyMacroTarget ? 0.5 : (hasAnyMacroTarget ? 1 : 0);
+
+      const macroOverRatioAvg = macroRatios.length > 0
+        ? (macroRatios.reduce((sum, r) => sum + r, 0) / macroRatios.length)
+        : null;
+
+      const penalty01 =
+        (calorieOverRatio !== null ? calorieWeight * calorieOverRatio : 0) +
+        (macroOverRatioAvg !== null ? macroWeight * macroOverRatioAvg : 0);
+
+      const score = Math.round((1 - clamp01(penalty01)) * 100);
+      scores.push(score);
+
+      days.push({
+        date,
+        score,
+        consumed,
+        overBy,
+        count: dayLogs.length
+      });
+    }
+
+    const averageScore = scores.length > 0
+      ? Math.round((scores.reduce((sum, s) => sum + s, 0) / scores.length) * 10) / 10
+      : null;
+
+    const hasTargets = targetCalories !== null || macroTargets.protein_grams !== null || macroTargets.carbs_grams !== null || macroTargets.fat_grams !== null;
+
+    return res.json({
+      start,
+      end,
+      daysCount: days.length,
+      averageScore,
+      targets: {
+        calories: targetCalories,
+        ...macroTargets
+      },
+      totals,
+      days,
+      surveyId: latestSurvey?.id || null,
+      hasTargets
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to get weekly nutrition', details: error.message, requestId: req.id });
+  }
+});
+
+// ========== FOOD LOG SEARCH & ANALYTICS ==========
+
+/**
+ * GET /api/food-logs/search?q=
+ * Search food logs by name
+ */
+app.get('/api/food-logs/search', auth.authMiddleware, async (req, res) => {
+  try {
+    const { q = '', limit = 50, offset = 0 } = req.query;
+    const userId = req.user.id;
+
+    const foodLogs = db.getFoodLogs(userId) || [];
+    const queryLower = (q || '').toLowerCase();
+
+    const filtered = foodLogs.filter(log => 
+      log.name.toLowerCase().includes(queryLower)
+    ).slice(parseInt(offset), parseInt(offset) + parseInt(limit));
+
+    return res.json({
+      query: q,
+      count: filtered.length,
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      logs: filtered
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to search food logs', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * GET /api/food-logs/stats
+ * Get top foods and meal statistics
+ */
+app.get('/api/food-logs/stats', auth.authMiddleware, async (req, res) => {
+  try {
+    const { start, end } = req.query;
+    const userId = req.user.id;
+
+    const foodLogs = db.getFoodLogs(userId) || [];
+
+    // Filter by date range
+    let filtered = foodLogs;
+    if (start || end) {
+      const startDate = start ? new Date(start) : new Date('1900-01-01');
+      const endDate = end ? new Date(end) : new Date('2100-12-31');
+      filtered = foodLogs.filter(log => {
+        const logDate = new Date(log.date);
+        return logDate >= startDate && logDate <= endDate;
+      });
+    }
+
+    // Top foods by frequency
+    const foodFrequency = {};
+    const mealTypeStats = { breakfast: 0, lunch: 0, dinner: 0, snack: 0 };
+    let totalCalories = 0;
+    let totalLogs = filtered.length;
+
+    filtered.forEach(log => {
+      totalCalories += log.calories || 0;
+      mealTypeStats[log.meal_type] = (mealTypeStats[log.meal_type] || 0) + 1;
+      
+      const name = log.name;
+      foodFrequency[name] = (foodFrequency[name] || 0) + 1;
+    });
+
+    const topFoods = Object.entries(foodFrequency)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    const averageCaloriesPerLog = totalLogs > 0 ? Math.round(totalCalories / totalLogs * 10) / 10 : 0;
+
+    return res.json({
+      totalLogs,
+      averageCaloriesPerLog,
+      totalCalories,
+      mealTypeStats,
+      topFoods,
+      dateRange: { start: start || 'all', end: end || 'all' }
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to get food statistics', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * GET /api/food-logs/macros-distribution?date=
+ * Get macro distribution for a specific date
+ */
+app.get('/api/food-logs/macros-distribution', auth.authMiddleware, async (req, res) => {
+  try {
+    const { date } = req.query;
+    const userId = req.user.id;
+
+    if (!date) {
+      return res.status(400).json({ error: 'date parameter is required' });
+    }
+
+    const foodLogs = db.getFoodLogs(userId) || [];
+    const dayLogs = foodLogs.filter(log => log.date === date);
+
+    let totalCalories = 0;
+    let protein = 0, carbs = 0, fats = 0;
+
+    dayLogs.forEach(log => {
+      totalCalories += log.calories || 0;
+      protein += log.protein_grams || 0;
+      carbs += log.carbs_grams || 0;
+      fats += log.fat_grams || 0;
+    });
+
+    // Calculate calorie distribution from macros
+    const proteinCalories = protein * 4;
+    const carbsCalories = carbs * 4;
+    const fatsCalories = fats * 9;
+    const totalMacroCalories = proteinCalories + carbsCalories + fatsCalories;
+
+    const distribution = {
+      date,
+      totals: {
+        calories: totalCalories,
+        protein_grams: protein,
+        carbs_grams: carbs,
+        fat_grams: fats
+      },
+      byCalories: totalMacroCalories > 0 ? {
+        protein: Math.round((proteinCalories / totalMacroCalories) * 100 * 10) / 10,
+        carbs: Math.round((carbsCalories / totalMacroCalories) * 100 * 10) / 10,
+        fats: Math.round((fatsCalories / totalMacroCalories) * 100 * 10) / 10
+      } : { protein: 0, carbs: 0, fats: 0 },
+      byGrams: protein + carbs + fats > 0 ? {
+        protein: Math.round((protein / (protein + carbs + fats)) * 100 * 10) / 10,
+        carbs: Math.round((carbs / (protein + carbs + fats)) * 100 * 10) / 10,
+        fats: Math.round((fats / (protein + carbs + fats)) * 100 * 10) / 10
+      } : { protein: 0, carbs: 0, fats: 0 }
+    };
+
+    return res.json(distribution);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to get macros distribution', details: error.message, requestId: req.id });
+  }
+});
+
+// ========== INSIGHTS & BADGES ==========
+
+/**
+ * GET /api/insights/daily?date=
+ * Get daily insights
+ */
+app.get('/api/insights/daily', auth.authMiddleware, async (req, res) => {
+  try {
+    const { date = new Date().toISOString().split('T')[0] } = req.query;
+    const userId = req.user.id;
+
+    const foodLogs = db.getFoodLogs(userId) || [];
+    const dayLogs = foodLogs.filter(log => log.date === date);
+
+    const survey = db.getLatestSurvey(userId);
+    const targetCalories = survey?.daily_calories?.targetDailyCalories || null;
+    const macroTargets = survey ? {
+      protein_grams: survey.protein_target_g,
+      carbs_grams: null,
+      fat_grams: null
+    } : { protein_grams: null, carbs_grams: null, fat_grams: null };
+
+    let totalCalories = 0, totalProtein = 0;
+    const mealCounts = { breakfast: 0, lunch: 0, dinner: 0, snack: 0 };
+
+    dayLogs.forEach(log => {
+      totalCalories += log.calories || 0;
+      totalProtein += log.protein_grams || 0;
+      mealCounts[log.meal_type] = (mealCounts[log.meal_type] || 0) + 1;
+    });
+
+    const insights = {
+      date,
+      logCount: dayLogs.length,
+      totalCalories,
+      totalProtein,
+      mealCounts,
+      meetsProteinTarget: macroTargets.protein_grams ? totalProtein >= macroTargets.protein_grams : null,
+      calorieStatus: targetCalories ? (
+        totalCalories < targetCalories ? 'under' :
+        totalCalories > targetCalories ? 'over' : 'perfect'
+      ) : null
+    };
+
+    return res.json(insights);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to get daily insights', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * GET /api/badges
+ * Get earned badges
+ */
+app.get('/api/badges', auth.authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const foodLogs = db.getFoodLogs(userId) || [];
+    
+    const badges = [];
+    const dates = new Set(foodLogs.map(log => log.date));
+
+    // Badge: First food log
+    if (foodLogs.length >= 1) {
+      badges.push({
+        id: 'first-log',
+        name: 'First Step',
+        description: 'Logged your first food',
+        earnedAt: foodLogs[0].created_at || new Date().toISOString(),
+        icon: '🥗'
+      });
+    }
+
+    // Badge: 7-day streak
+    const streak = calculateStreak(foodLogs, null);
+    if (streak >= 7) {
+      badges.push({
+        id: 'week-streak',
+        name: 'Week Warrior',
+        description: '7-day logging streak',
+        earnedAt: new Date().toISOString(),
+        icon: '🔥'
+      });
+    }
+
+    // Badge: 30-day streak
+    if (streak >= 30) {
+      badges.push({
+        id: 'month-streak',
+        name: 'Month Master',
+        description: '30-day logging streak',
+        earnedAt: new Date().toISOString(),
+        icon: '🏆'
+      });
+    }
+
+    // Badge: 100+ logs
+    if (foodLogs.length >= 100) {
+      badges.push({
+        id: 'century',
+        name: 'Century Club',
+        description: '100+ food logs',
+        earnedAt: new Date().toISOString(),
+        icon: '💯'
+      });
+    }
+
+    return res.json({ badges, totalEarned: badges.length });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to get badges', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * GET /api/targets
+ * Get resolved calorie and macro targets
+ */
+app.get('/api/targets', auth.authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const survey = db.getLatestSurvey(userId);
+    const prefs = db.getUserPreferences(userId);
+
+    let targets = {
+      calories: survey?.daily_calories?.targetDailyCalories || null,
+      protein_grams: survey?.protein_target_g || null,
+      carbs_grams: prefs?.macroTargets?.carbs_grams || null,
+      fat_grams: prefs?.macroTargets?.fat_grams || null
+    };
+
+    return res.json({
+      targets,
+      source: survey ? 'survey' : 'preferences',
+      surveyId: survey?.id || null,
+      lastUpdated: survey?.created_at || null
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to get targets', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * PUT /api/targets
+ * Set custom calorie and macro targets
+ */
+app.put('/api/targets', auth.authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { calories, protein_grams, carbs_grams, fat_grams } = req.body;
+
+    // Validate
+    if (calories && (calories < 1000 || calories > 5000)) {
+      return res.status(400).json({ error: 'Invalid input', details: 'Calories must be between 1000 and 5000' });
+    }
+
+    // Store in preferences
+    const updated = db.setUserPreferences(userId, {
+      macroTargets: {
+        calorieOverride: calories,
+        protein_grams: protein_grams || null,
+        carbs_grams: carbs_grams || null,
+        fat_grams: fat_grams || null
+      }
+    });
+
+    return res.json({
+      targets: {
+        calories,
+        protein_grams,
+        carbs_grams,
+        fat_grams
+      },
+      message: 'Targets updated'
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to set targets', details: error.message, requestId: req.id });
+  }
+});
+
+// ========== PROGRESS ENDPOINTS ==========
+
+/**
+ * GET /api/progress/overview
+ * High-level dashboard data
+ */
+app.get('/api/progress/overview', auth.authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const foodLogs = db.getFoodLogs(userId) || [];
+    const weightLogs = db.getWeightLogs(userId) || [];
+
+    const today = new Date().toISOString().split('T')[0];
+    const todayLogs = foodLogs.filter(log => log.date === today);
+    const totalDaysLogged = new Set(foodLogs.map(log => log.date)).size;
+
+    let totalCalories = 0, totalProtein = 0;
+    todayLogs.forEach(log => {
+      totalCalories += log.calories || 0;
+      totalProtein += log.protein_grams || 0;
+    });
+
+    const latestWeight = weightLogs.length > 0 ? weightLogs[weightLogs.length - 1].weight_kg : null;
+
+    return res.json({
+      today: {
+        date: today,
+        caloriesLogged: totalCalories,
+        proteinLogged: totalProtein,
+        logsCount: todayLogs.length
+      },
+      stats: {
+        totalDaysLogged,
+        totalLogsCount: foodLogs.length,
+        averageLogsPerDay: totalDaysLogged > 0 ? Math.round(foodLogs.length / totalDaysLogged * 10) / 10 : 0,
+        latestWeight
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to get progress overview', details: error.message, requestId: req.id });
+  }
+});
+
+// ========== ERROR HANDLING ==========
+
+app.use(notFoundHandler);
+app.use(errorHandler);
+
+// ========== SERVER START ==========
 
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`🚀 YAHEALTHY server running on port ${PORT}`);
+  console.log(`📚 API docs: http://localhost:${PORT}/api/docs`);
+  console.log(`🔐 Authentication enabled with JWT`);
+  console.log(`💾 Database: ${process.env.SUPABASE_URL ? 'Supabase' : 'In-memory (development)'}`);
 });

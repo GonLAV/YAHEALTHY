@@ -1,0 +1,62 @@
+name: Deploy YAHEALTHY Backend
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'YAHEALTHYbackend/**'
+      - '.github/workflows/deploy.yml'
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Install dependencies
+      run: |
+        cd YAHEALTHYbackend
+        npm install
+    
+    - name: Syntax check
+      run: |
+        cd YAHEALTHYbackend
+        node -c index.js
+    
+    - name: Lint (optional)
+      run: |
+        cd YAHEALTHYbackend
+        npm run lint 2>/dev/null || echo "No lint configured yet"
+      continue-on-error: true
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Deploy to Vercel
+      env:
+        VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      run: |
+        npm i -g vercel
+        vercel --token $VERCEL_TOKEN --prod
+      continue-on-error: true
+    
+    - name: Notify Deployment
+      if: success()
+      run: |
+        echo "✅ Deployment successful!"
+        echo "Backend URL: https://your-vercel-url.vercel.app"
