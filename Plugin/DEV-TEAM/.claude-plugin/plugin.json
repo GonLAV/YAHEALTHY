@@ -1,0 +1,19 @@
+{
+  "name": "dev-team",
+  "version": "1.0.0",
+  "description": "צוות פיתוח המוצר של YAHEALTHY — 6 סוכנים בתחומים נבדלים: VLAD (ארכיטקט, /vlad) · נחמיה (ראש R&D, /rnd) · פתחיה (backend API ו-auth, /be-api) · עזרא (backend דאטה וסכימה, /be-data) · יואב (backend סקייל וביצועים, /be-scale) · אהליאב (frontend, /fe). כולם נבנו על מפה מדודה של הקוד האמיתי, לא על התיעוד.",
+  "author": {
+    "name": "YAHEALTHY"
+  },
+  "keywords": [
+    "dev-team",
+    "partner-agent",
+    "architecture",
+    "backend",
+    "frontend",
+    "scale",
+    "code-review",
+    "yahealthy",
+    "hebrew"
+  ]
+}

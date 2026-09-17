@@ -1,0 +1,18 @@
+{
+  "name": "malachi-gen",
+  "version": "2.0.0",
+  "description": "מלאכי — מנהל את ההודעות והתגובות של YAHEALTHY באינסטגרם ובפייסבוק (Messenger/DM/תגובות), עם גישה חיה ל-API בפיקוח מלא: מנסח, מציג בדיוק מה יישלח, ושולח רק אחרי אישור מפורש לכל הודעה. לא נוקב במחיר ולא נותן ייעוץ תזונתי אישי. טיקטוק בבדיקת-היתכנות בלבד. מופעל עם /malachi.",
+  "author": {
+    "name": "YAHEALTHY"
+  },
+  "keywords": [
+    "malachi",
+    "partner-agent",
+    "instagram",
+    "facebook-messenger",
+    "tiktok",
+    "social-dm",
+    "yahealthy",
+    "hebrew"
+  ]
+}
