@@ -1,9 +1,7 @@
 {
   "name": "dev-team",
-  "version": "2.0.0",
-  "description": "צוות פיתוח המוצר של YAHEALTHY — 9 סוכנים בתחומים נבדלים: VLAD (ארכיטקט, /vlad) · נחמיה (ראש R&D, /rnd) · פתחיה (backend API ו-auth, /be-api) · עזרא (backend דאטה וסכימה, /be-data) · יואב (backend סקייל וביצועים, /be-scale) · אהליאב (frontend, /fe) · כלב (QA ובדיקות, /qa) · חירם (DevOps ושחרור, /devops) · בניהו (אבטחה ופרטיות, /sec). כולם נשענים על אטלס מדוד של הפרויקט — 82 endpoints, 13 ישויות דאטה, 5 מסכים — ולא על התיעוד.",
-  "version": "1.1.0",
-  "description": "צוות פיתוח המוצר של YAHEALTHY — 6 סוכנים בתחומים נבדלים: VLAD (ארכיטקט, /vlad) · נחמיה (ראש R&D, /rnd) · פתחיה (backend API ו-auth, /be-api) · עזרא (backend דאטה וסכימה, /be-data) · יואב (backend סקייל וביצועים, /be-scale) · אהליאב (frontend, /fe). כולם נבנו על מפה מדודה של הקוד האמיתי, לא על התיעוד. /team מריץ את כל הרצף בפקודה אחת (נחמיה מפרק, כל בעלים עובד בתורו, VLAD מכריע חסמים) בלי לוותר על אישור מפורש לכל שינוי קובץ.",
+  "version": "2.2.0",
+  "description": "צוות פיתוח המוצר של YAHEALTHY — 9 סוכנים בתחומים נבדלים: VLAD (ארכיטקט, /vlad) · נחמיה (ראש R&D, /rnd) · פתחיה (backend API ו-auth, /be-api) · עזרא (backend דאטה וסכימה, /be-data) · יואב (backend סקייל וביצועים, /be-scale) · אהליאב (frontend, /fe) · כלב (QA ובדיקות, /qa) · חירם (DevOps ושחרור, /devops) · בניהו (אבטחה ופרטיות, /sec). /team מריץ את כל הרצף בפקודה אחת (נחמיה מפרק, כל בעלים עובד בתורו, VLAD מכריע חסמים) בלי לוותר על אישור מפורש לכל שינוי קובץ. כולל skill להוספת פיצ'ר לקוד הקיים (add-feature). כולם נשענים על אטלס מדוד של הפרויקט — 82 endpoints, 13 ישויות דאטה, 5 מסכים — ולא על התיעוד.",
   "author": {
     "name": "YAHEALTHY"
   },
@@ -20,9 +18,10 @@
     "ci-cd",
     "security",
     "code-review",
-    "yahealthy",
-    "hebrew",
+    "add-feature",
     "orchestrator",
-    "team-run"
+    "team-run",
+    "yahealthy",
+    "hebrew"
   ]
 }

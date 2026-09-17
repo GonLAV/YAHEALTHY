@@ -225,7 +225,43 @@ function calculateSleepDebt(sleepLogs, targetHours) {
   };
 }
 
+
+/**
+ * Consecutive days, ending today, on which the user logged at least one item.
+ * A gap breaks the streak. Nothing logged today but something yesterday still
+ * counts, so opening the app before midnight is not required to keep a streak.
+ * @param {Array<{date?: string, created_at?: string}>} foodLogs
+ * @returns {number}
+ */
+function calculateStreak(foodLogs) {
+  if (!Array.isArray(foodLogs) || foodLogs.length === 0) return 0;
+
+  const days = new Set(
+    foodLogs
+      .map(log => (log.date || log.created_at || '').slice(0, 10))
+      .filter(Boolean)
+  );
+  if (days.size === 0) return 0;
+
+  const dayString = d => d.toISOString().slice(0, 10);
+  const cursor = new Date();
+
+  // Allow the streak to end yesterday as well as today.
+  if (!days.has(dayString(cursor))) {
+    cursor.setDate(cursor.getDate() - 1);
+    if (!days.has(dayString(cursor))) return 0;
+  }
+
+  let streak = 0;
+  while (days.has(dayString(cursor))) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
 module.exports = {
+  calculateStreak,
   calculateBMI,
   calculateBodyFat,
   calculateBMR,
