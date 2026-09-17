@@ -2,17 +2,23 @@ const { createClient } = require('@supabase/supabase-js');
 const { v4: uuidv4 } = require('uuid');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://your-supabase-url.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_KEY || 'your-supabase-anon-key';
+// secret key, not publishable: RLS on every table is deny-all (see
+// supabase/migrations/20260917100000_initial_schema.sql) because this
+// backend does its own auth with a custom JWT, not Supabase Auth. The
+// publishable key would get nothing back; only the secret key (which
+// bypasses RLS) can read/write through this client. Never send this key
+// to a browser or frontend.
+const SUPABASE_KEY = process.env.SUPABASE_SECRET_KEY || 'your-supabase-secret-key';
 
 const USE_MEMORY_DB =
   !process.env.SUPABASE_URL ||
-  !process.env.SUPABASE_KEY ||
+  !process.env.SUPABASE_SECRET_KEY ||
   SUPABASE_URL === 'https://your-supabase-url.supabase.co' ||
-  SUPABASE_KEY === 'your-supabase-anon-key';
+  SUPABASE_KEY === 'your-supabase-secret-key';
 
 if (USE_MEMORY_DB && process.env.ALLOW_MEMORY_DB !== 'true') {
   throw new Error(
-    'SUPABASE_URL/SUPABASE_KEY are missing or still placeholders. ' +
+    'SUPABASE_URL/SUPABASE_SECRET_KEY are missing or still placeholders. ' +
     'Refusing to fall back to the in-memory DB silently — all data would be lost on every restart. ' +
     'Set real Supabase credentials, or set ALLOW_MEMORY_DB=true to explicitly allow the in-memory DB (dev only).'
   );
