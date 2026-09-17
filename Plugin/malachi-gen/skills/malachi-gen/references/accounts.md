@@ -31,28 +31,32 @@
 אין טוקן ואין הרשאות → **אני לא קורא ולא שולח דרך API.** המשתמש/ת מדביק/ה הודעה, אני מנסח, המשתמש/ת מדביק/ה חזרה.
 **אל תציע אחרת ואל תתנהג כאילו יש גישה.**
 
-## ההכרעה: מסלול ב' — דרך שותף מאושר (Make)
+## ההכרעה: ישירות מול Meta Graph API
 
-לא מתחברים ישירות ל-Meta Graph API. **Make עבר App Review מול מטא**, ולכן החיבור לוקח ימים במקום שבועות ואינו תלוי באישור שעלול להידחות.
+בלי פלטפורמת ביניים. **Development Mode** נותן הרשאות מלאות לחשבונות שיש להם תפקיד באפליקציה — כלומר לחשבון שלך עצמך, **בלי App Review.**
 המדריך המלא: `references/connector-setup.md`.
 
 ## מסלול ההפעלה — 5 שלבים
 
 1. ✅ חשבון אינסטגרם עסקי
 2. ⬜ **קישור לדף פייסבוק** (Accounts Centre) — חינמי, מיידי, **חוסם את כל השאר**
-3. ⬜ חשבון Make + חיבור Instagram/Facebook ב-Connections
-4. ⬜ Data Store לקליטה + שני תרחישים (קליטה, שליחה)
-5. ⬜ מסירת `MAKE_API_TOKEN` / `MAKE_DATASTORE_ID` / `MAKE_SEND_WEBHOOK_URL` — עד אז: ניסוח-בלבד
+3. ⬜ Meta App (Business) + Products: Instagram, Messenger
+4. ⬜ הגדרת עצמך כ-Admin + הפקת Page Access Token ארוך-טווח
+5. ⬜ מילוי `.env.malachi` — עד אז: ניסוח-בלבד
 
-**וואטסאפ:** מסלול נפרד ואחרון — דורש BSP ואימות עסק. לא חוסם את שני הערוצים הראשונים.
+**וואטסאפ:** מסלול נפרד ואחרון — אימות עסק ותבניות מאושרות. Development Mode לא פותר אותו. לא חוסם את אינסטגרם ופייסבוק.
 
 ## משתני סביבה — כשיגיעו
 
 ```
-MAKE_API_TOKEN=
-MAKE_DATASTORE_ID=
-MAKE_SEND_WEBHOOK_URL=
+META_APP_ID=
+META_APP_SECRET=
+META_PAGE_ID=
+META_PAGE_ACCESS_TOKEN=
+IG_BUSINESS_ACCOUNT_ID=
 ```
+
+יושבים ב-`.env.malachi` בשורש הפרויקט (מוסתר מ-git). תבנית: `.env.malachi.example`.
 
 🔒 **לא נכנסים ל-`.env.example` עם ערך אמיתי, ולא לריפו.** GitHub Secrets או `.env` מקומי בלבד (`.env` ב-`.gitignore`).
 

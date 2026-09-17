@@ -1,112 +1,136 @@
-# חיבור הערוצים דרך שותף מאושר (מסלול ב')
+# חיבור הערוצים — ישירות מול Meta Graph API
 
-> **ההכרעה:** לא מתחברים ישירות ל-Meta Graph API. מתחברים דרך **שותף מאושר** שכבר עבר App Review מול מטא — כדי לא לחכות שבועות לאישור שעלול להידחות.
-> **הפלטפורמה:** Make (make.com).
-> **למה Make ולא ManyChat:** מלאכי צריך **לקרוא** שיחות, לא רק לשלוח. ה-API של ManyChat בנוי בעיקר לשליחה ולהפעלת זרימות; Make נותן **Data Store** שאפשר לקרוא ולכתוב אליו בחופשיות, וגם מכסה את שלושת הערוצים.
-
----
-
-## הארכיטקטורה — איפה כל חלק יושב
-
-```
-לקוח שולח DM
-      ↓
-  Instagram / Facebook / WhatsApp
-      ↓
-  Make  ─ תרחיש "קליטה" ─→  Data Store: pending_messages
-      ↓
-  מלאכי קורא את הממתינות
-      ↓
-  מנסח → מציג → ⏸ עוצר לאישור
-      ↓  (רק אחרי "כן" מפורש)
-  Make ─ Webhook "שליחה" ─→ הערוץ → הלקוח
-```
-
-**מה מלאכי לא עושה:** לא בונה את התרחישים ב-Make, לא נוגע בחיבורים, ולא מתקן תקלות תשתית. הוא **קורא ממתינות, מנסח, ושולח אחרי אישור.** תקלת Make → זה לא התחום שלו.
+> **ההכרעה:** בלי פלטפורמת ביניים. מלאכי מדבר ישירות עם Graph API של מטא.
+> **המפתח שמאפשר את זה:** **Development Mode.**
 
 ---
 
-## מה שהמשתמש/ת עושה — לפי הסדר
+## 🔑 העובדה שמשנה הכול
 
-### שלב 0 — חוסם הכול
-**לקשר את `@yahealthy1` לדף הפייסבוק** של YAHEALTHY: אפליקציית אינסטגרם → הגדרות → **Accounts Centre**.
-בלי זה Make לא יוכל להתחבר ל-DM של אינסטגרם — **גם כשהחשבון עסקי.** אין דף פייסבוק → צריך ליצור.
+App Review נדרש כדי שהאפליקציה תוכל לשרת **חשבונות של אנשים אחרים**.
+**לחשבון שלך עצמך — לא צריך.** אפליקציה ב-Development Mode מקבלת את ההרשאות המלאות עבור כל מי שיש לו **תפקיד באפליקציה** (Admin / Developer / Tester).
 
-### שלב 1 — חשבון Make
-להירשם ב-make.com. התוכנית החינמית מספיקה כדי לבדוק שהחיבור עובד.
+אתה הבעלים של `@yahealthy1` ושל הדף → אתה מגדיר את עצמך Admin → **ההרשאות עובדות מיד.**
 
-### שלב 2 — לחבר את הערוצים
-ב-Make → **Connections** → להוסיף:
-- **Instagram for Business** → התחברות עם חשבון הפייסבוק שמנהל את הדף
-- **Facebook Messenger** → אותו חשבון
-- **WhatsApp Business Cloud** → *אחר כך.* דורש מסלול BSP ואימות עסק — לא חוסם את השניים הראשונים
+**מתי כן תצטרך App Review:** רק אם תרצה שהכלי ינהל חשבונות של לקוחות אחרים. לניהול העסק שלך — לא רלוונטי.
 
-### שלב 3 — Data Store לקליטה
-Make → **Data stores** → New:
-| שדה | טיפוס |
+---
+
+## מה שהמשתמש/ת עושה
+
+### 1. ליצור Meta App
+developers.facebook.com → My Apps → **Create App** → סוג **Business**.
+
+### 2. להוסיף Products
+בלוח האפליקציה → Add Product:
+- **Instagram** → Instagram API setup with Facebook Login
+- **Messenger** (לפייסבוק Messenger)
+
+### 3. לקשר את הדף
+Messenger → Settings → **Add or Remove Pages** → לבחור את דף YAHEALTHY.
+(החשבון כבר מקושר לדף — צעד 0 הושלם.)
+
+### 4. לוודא שאתה Admin
+App Roles → Roles → לוודא שהמשתמש שלך מופיע כ-**Administrator**. **זה מה שמפעיל את ההרשאות ב-Development Mode.**
+
+### 5. להפיק טוקן
+Tools → **Graph API Explorer**:
+1. לבחור את האפליקציה
+2. **User or Page** → לבחור את הדף (**Page Access Token**, לא User)
+3. **Add permissions** — לסמן:
+   ```
+   instagram_basic
+   instagram_manage_messages
+   instagram_manage_comments
+   pages_messaging
+   pages_show_list
+   pages_read_engagement
+   ```
+4. **Generate Access Token** → לאשר בחלון
+
+### 6. להאריך את הטוקן — אל תדלג
+הטוקן מה-Explorer תקף **שעה אחת**. להחלפה בטוקן ארוך:
+
+```bash
+curl -s "https://graph.facebook.com/v19.0/oauth/access_token\
+?grant_type=fb_exchange_token\
+&client_id=<APP_ID>\
+&client_secret=<APP_SECRET>\
+&fb_exchange_token=<SHORT_TOKEN>"
+```
+
+מה שחוזר תקף **60 יום**. **Page Access Token שמופק מטוקן-משתמש ארוך אינו פג** — זה מה שכדאי לשמור:
+
+```bash
+curl -s "https://graph.facebook.com/v19.0/me/accounts?access_token=<LONG_USER_TOKEN>"
+```
+
+### 7. למצוא את מזהה חשבון האינסטגרם
+```bash
+curl -s "https://graph.facebook.com/v19.0/<PAGE_ID>?fields=instagram_business_account&access_token=<PAGE_TOKEN>"
+```
+מחזיר ריק → **הקישור בין החשבון לדף לא באמת קיים**, גם אם נראה מקושר באפליקציה. לתקן לפני שממשיכים.
+
+---
+
+## משתני הסביבה
+
+בקובץ `.env.malachi` בשורש הפרויקט (מוסתר מ-git):
+
+```
+META_APP_ID=
+META_APP_SECRET=
+META_PAGE_ID=
+META_PAGE_ACCESS_TOKEN=
+IG_BUSINESS_ACCOUNT_ID=
+```
+
+🔒 **לא בצ'אט, לא בריפו.** שדה חסר → מלאכי נשאר בניסוח-בלבד ואומר את זה במפורש.
+
+---
+
+## בדיקת הרשאות — לפני כל עבודה חיה
+
+```bash
+curl -s "https://graph.facebook.com/v19.0/me/permissions?access_token=$META_PAGE_ACCESS_TOKEN"
+```
+
+כל הרשאה חייבת `"status": "granted"` — לא רק להופיע ברשימה. יש גם `"declined"` ו-`"expired"`.
+
+---
+
+## ה-Endpoints שמלאכי משתמש בהם
+
+| פעולה | קריאה |
 |---|---|
-| `id` | Text (מפתח) |
-| `channel` | Text — `instagram` / `facebook` / `whatsapp` |
-| `sender_id` | Text |
-| `sender_name` | Text |
-| `text` | Text |
-| `received_at` | Date |
-| `status` | Text — `pending` / `answered` / `escalated` |
+| שיחות אינסטגרם | `GET /{IG_ID}/conversations?platform=instagram` |
+| הודעות בשיחה | `GET /{CONVERSATION_ID}?fields=messages{message,from,created_time}` |
+| שליחת DM | `POST /{IG_ID}/messages` — `recipient={id}`, `message={text}` |
+| תגובות לפוסט | `GET /{MEDIA_ID}/comments` |
+| מענה לתגובה | `POST /{COMMENT_ID}/replies` |
+| שיחות פייסבוק | `GET /{PAGE_ID}/conversations` |
 
-### שלב 4 — שני תרחישים
-**תרחיש א' — קליטה:** טריגר `Watch Messages` (אינסטגרם/פייסבוק) → `Add/Replace a record` ב-Data Store, עם `status = pending`.
-
-**תרחיש ב' — שליחה:** טריגר **Custom Webhook** → מודול `Send a Message` בערוץ המתאים → עדכון `status = answered`.
-**את כתובת ה-Webhook צריך לשמור** — זה מה שמלאכי קורא לו.
-
-### שלב 5 — מפתח API של Make
-Make → Profile → **API tokens** → ליצור טוקן עם הרשאת Data Store.
+**כל קריאת GET בטוחה תמיד.** כל POST — **רק אחרי אישור מפורש להודעה הזו.**
 
 ---
 
-## משתני הסביבה — מה שמלאכי צריך
+## וואטסאפ — מסלול נפרד, לא כאן
 
-```
-MAKE_API_TOKEN=          # טוקן ה-API של Make
-MAKE_DATASTORE_ID=       # מזהה ה-Data Store של ההודעות הנכנסות
-MAKE_SEND_WEBHOOK_URL=   # כתובת ה-Webhook של תרחיש השליחה
-```
-
-🔒 **לא נכנסים לריפו.** `.env` מקומי (כבר ב-`.gitignore`) או GitHub Secrets.
-**שדה שלא נמסר — מלאכי נשאר בניסוח-בלבד ואומר את זה.** אסור להמציא ערך או להניח שהוא קיים.
+WhatsApp Business Platform: אימות עסק מול מטא, מספר ייעודי, ותבניות מאושרות מראש לכל הודעה יזומה. **Development Mode לא פותר את זה.** לא חוסם את אינסטגרם ופייסבוק — לטפל בו בנפרד ואחרי.
 
 ---
 
-## איך מלאכי עובד מול זה
+## מגבלות שנשארות
 
-**קריאת ממתינות**
-```bash
-curl -s -H "Authorization: Token $MAKE_API_TOKEN" \
-  "https://eu1.make.com/api/v2/data-stores/$MAKE_DATASTORE_ID/data"
-```
-*(האזור בכתובת משתנה — `eu1`/`us1`. לקחת מהכתובת בדפדפן, לא לנחש.)*
-
-**שליחה — רק אחרי אישור מפורש**
-```bash
-curl -s -X POST "$MAKE_SEND_WEBHOOK_URL" \
-  -H 'Content-Type: application/json' \
-  -d '{"channel":"instagram","recipient_id":"...","text":"..."}'
-```
-
-**ואז לאמת:** לבדוק את קוד התשובה ואת עדכון ה-`status` בפועל. **שליחה ≠ הצלחה.**
-
----
-
-## מגבלות שלא נעלמות דרך Make
-
-- **חלון 24 שעות** — מגבלת מטא, לא של Make. הודעה חופשית רק תוך יממה מההודעה האחרונה של הלקוח. **פולואפ אגרסיבי לא אפשרי בערוץ הזה.**
-- **וואטסאפ** — הודעה יזומה חייבת **תבנית מאושרת מראש**.
-- **סטורי** — כמעט לא ניתן לפרסום דרך API. רילז כן, סטורי בעיקר ידני.
+- **חלון 24 שעות** — הודעה חופשית רק תוך יממה מההודעה האחרונה של הלקוח. מגבלת מטא, לא עוקפים אותה. **פולואפ אגרסיבי לא אפשרי.**
+- **Rate limits** לפי דרגת האפליקציה.
+- **סטורי** — כמעט לא ניתן לפרסום דרך API. רילז כן.
+- **Development Mode** — עובד רק לחשבונות עם תפקיד באפליקציה. מספיק לעסק שלך; לא מספיק כדי לשרת לקוחות.
 
 ---
 
 ## שני השערים שגוברים על כל ניסוח
 
-**🩺 שער בריאותי:** הודעה שנוגעת בהיריון, סוכרת, הפרעות אכילה, מחלה כרונית, תרופות או קטינים → **`status = escalated`, לא מנסחים תשובה תזונתית.** גובר על כל שיקול מכירתי.
+**🩺 שער בריאותי:** היריון · סוכרת · הפרעות אכילה · מחלה כרונית · תרופות · קטינים → **לא מנסחים תשובה תזונתית. מעבירים לאדם.** גובר על כל שיקול מכירתי.
 
-**📋 שער עובדתי:** אין ל-YAHEALTHY מחירון מאושר. טיוטה שנוגעת במחיר/תנאי/משך → `[חסר: ...]` ושואלים. **לא ממציאים.**
+**📋 שער עובדתי:** אין ל-YAHEALTHY מחירון מאושר. נגיעה במחיר/תנאי/משך → `[חסר: ...]` ושואלים. **לא ממציאים.**
