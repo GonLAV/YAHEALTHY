@@ -1002,7 +1002,9 @@ app.get('/api/recipes', auth.authMiddleware, (req, res) => {
  */
 app.get('/api/recipes/shuffle', auth.authMiddleware, (req, res) => {
   const count = parseInt(req.query.count) || 2;
-  const shuffled = recipes.sort(() => Math.random() - 0.5).slice(0, count);
+  // Copy before sorting: Array.prototype.sort mutates in place, so shuffling
+  // the shared recipes array reordered it permanently for every later request.
+  const shuffled = [...recipes].sort(() => Math.random() - 0.5).slice(0, count);
   res.json(shuffled);
 });
 
