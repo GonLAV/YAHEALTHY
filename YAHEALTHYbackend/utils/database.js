@@ -4,11 +4,34 @@ const { v4: uuidv4 } = require('uuid');
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://your-supabase-url.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || 'your-supabase-anon-key';
 
-const USE_MEMORY_DB =
-  !process.env.SUPABASE_URL ||
-  !process.env.SUPABASE_KEY ||
-  SUPABASE_URL === 'https://your-supabase-url.supabase.co' ||
-  SUPABASE_KEY === 'your-supabase-anon-key';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
+const SUPABASE_CONFIGURED =
+  Boolean(process.env.SUPABASE_URL) &&
+  Boolean(process.env.SUPABASE_KEY) &&
+  SUPABASE_URL !== 'https://your-supabase-url.supabase.co' &&
+  SUPABASE_KEY !== 'your-supabase-anon-key';
+
+// ADR-001 chose Supabase. Falling back to memory silently means every restart
+// discards user data — including weight, sleep and survey records — with no
+// error raised, so the fallback now has to be asked for explicitly.
+if (!SUPABASE_CONFIGURED) {
+  if (IS_PRODUCTION) {
+    throw new Error(
+      'SUPABASE_URL and SUPABASE_KEY are required in production. Refusing to start: ' +
+      'the in-memory store loses all user data on every restart.'
+    );
+  }
+  if (process.env.ALLOW_MEMORY_DB !== 'true') {
+    throw new Error(
+      'Supabase is not configured. Set SUPABASE_URL and SUPABASE_KEY, or set ' +
+      'ALLOW_MEMORY_DB=true to run against the in-memory store (data is lost on restart).'
+    );
+  }
+  console.warn('[db] Running on the in-memory store via ALLOW_MEMORY_DB. Data is lost on restart.');
+}
+
+const USE_MEMORY_DB = !SUPABASE_CONFIGURED;
 
 // Initialize Supabase client (only used when configured)
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
