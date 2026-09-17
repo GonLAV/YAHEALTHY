@@ -6,7 +6,7 @@
     { "name": "betzalel-gen", "version": "1.0.0", "source": "./betzalel-gen" },
     { "name": "yitro-gen",    "version": "2.0.0", "source": "./yitro-gen" },
     { "name": "malachi-gen",  "version": "2.0.0", "source": "./malachi-gen" },
-    { "name": "dev-team",     "version": "1.0.0", "source": "./DEV-TEAM" }
+    { "name": "dev-team",     "version": "1.1.0", "source": "./DEV-TEAM" }
   ],
   "name": "local-desktop-app-uploads",
   "version": "1.2.0",
