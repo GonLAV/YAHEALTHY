@@ -1677,6 +1677,154 @@ app.get('/api/food-days', auth.authMiddleware, async (req, res) => {
   }
 });
 
+// ========== FOOD LOG SEARCH & ANALYTICS ==========
+// Registered before /api/food-logs/:id on purpose: Express matches routes in
+// registration order, and :id matches any segment -- including "search",
+// "stats" and "macros-distribution" -- so these three were unreachable dead
+// code (always 404 "Food log not found") until moved above the :id route.
+
+/**
+ * GET /api/food-logs/search?q=
+ * Search food logs by name
+ */
+app.get('/api/food-logs/search', auth.authMiddleware, async (req, res) => {
+  try {
+    const { q = '', limit = 50, offset = 0 } = req.query;
+    const userId = req.user.userId;
+
+    const foodLogs = await db.getFoodLogs(userId);
+    const queryLower = (q || '').toLowerCase();
+
+    const filtered = foodLogs.filter(log =>
+      log.name.toLowerCase().includes(queryLower)
+    ).slice(parseInt(offset), parseInt(offset) + parseInt(limit));
+
+    return res.json({
+      query: q,
+      count: filtered.length,
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      logs: filtered
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to search food logs', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * GET /api/food-logs/stats
+ * Get top foods and meal statistics
+ */
+app.get('/api/food-logs/stats', auth.authMiddleware, async (req, res) => {
+  try {
+    const { start, end } = req.query;
+    const userId = req.user.userId;
+
+    const foodLogs = await db.getFoodLogs(userId);
+
+    // Filter by date range
+    let filtered = foodLogs;
+    if (start || end) {
+      const startDate = start ? new Date(start) : new Date('1900-01-01');
+      const endDate = end ? new Date(end) : new Date('2100-12-31');
+      filtered = foodLogs.filter(log => {
+        const logDate = new Date(log.date);
+        return logDate >= startDate && logDate <= endDate;
+      });
+    }
+
+    // Top foods by frequency
+    const foodFrequency = {};
+    const mealTypeStats = { breakfast: 0, lunch: 0, dinner: 0, snack: 0 };
+    let totalCalories = 0;
+    let totalLogs = filtered.length;
+
+    filtered.forEach(log => {
+      totalCalories += log.calories || 0;
+      mealTypeStats[log.meal_type] = (mealTypeStats[log.meal_type] || 0) + 1;
+
+      const name = log.name;
+      foodFrequency[name] = (foodFrequency[name] || 0) + 1;
+    });
+
+    const topFoods = Object.entries(foodFrequency)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    const averageCaloriesPerLog = totalLogs > 0 ? Math.round(totalCalories / totalLogs * 10) / 10 : 0;
+
+    return res.json({
+      totalLogs,
+      averageCaloriesPerLog,
+      totalCalories,
+      mealTypeStats,
+      topFoods,
+      dateRange: { start: start || 'all', end: end || 'all' }
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to get food statistics', details: error.message, requestId: req.id });
+  }
+});
+
+/**
+ * GET /api/food-logs/macros-distribution?date=
+ * Get macro distribution for a specific date
+ */
+app.get('/api/food-logs/macros-distribution', auth.authMiddleware, async (req, res) => {
+  try {
+    const { date } = req.query;
+    const userId = req.user.userId;
+
+    if (!date) {
+      return res.status(400).json({ error: 'date parameter is required' });
+    }
+
+    const foodLogs = await db.getFoodLogs(userId);
+    const dayLogs = foodLogs.filter(log => log.date === date);
+
+    let totalCalories = 0;
+    let protein = 0, carbs = 0, fats = 0;
+
+    dayLogs.forEach(log => {
+      totalCalories += log.calories || 0;
+      protein += log.protein_grams || 0;
+      carbs += log.carbs_grams || 0;
+      fats += log.fat_grams || 0;
+    });
+
+    // Calculate calorie distribution from macros
+    const proteinCalories = protein * 4;
+    const carbsCalories = carbs * 4;
+    const fatsCalories = fats * 9;
+    const totalMacroCalories = proteinCalories + carbsCalories + fatsCalories;
+
+    const distribution = {
+      date,
+      totals: {
+        calories: totalCalories,
+        protein_grams: protein,
+        carbs_grams: carbs,
+        fat_grams: fats
+      },
+      byCalories: totalMacroCalories > 0 ? {
+        protein: Math.round((proteinCalories / totalMacroCalories) * 100 * 10) / 10,
+        carbs: Math.round((carbsCalories / totalMacroCalories) * 100 * 10) / 10,
+        fats: Math.round((fatsCalories / totalMacroCalories) * 100 * 10) / 10
+      } : { protein: 0, carbs: 0, fats: 0 },
+      byGrams: protein + carbs + fats > 0 ? {
+        protein: Math.round((protein / (protein + carbs + fats)) * 100 * 10) / 10,
+        carbs: Math.round((carbs / (protein + carbs + fats)) * 100 * 10) / 10,
+        fats: Math.round((fats / (protein + carbs + fats)) * 100 * 10) / 10
+      } : { protein: 0, carbs: 0, fats: 0 }
+    };
+
+    return res.json(distribution);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to get macros distribution', details: error.message, requestId: req.id });
+  }
+});
+
 /**
  * GET /api/food-logs/:id
  * Get a single food log entry by id
@@ -2292,6 +2440,18 @@ app.get('/api/weekly-calorie-balance', auth.authMiddleware, async (req, res) => 
  * GET /api/streaks
  * Compute streaks based on days with at least one food log.
  */
+function computeCurrentStreak(activeDates, asOfStr) {
+  const [y, m, d] = asOfStr.split('-').map((v) => Number(v));
+  const asOfDt = new Date(Date.UTC(y, (m || 1) - 1, d || 1));
+  let streak = 0;
+  for (let i = 0; i < 366; i++) {
+    const day = formatDateYYYYMMDD(addDaysUTC(asOfDt, -i));
+    if (!activeDates.has(day)) break;
+    streak++;
+  }
+  return streak;
+}
+
 app.get('/api/streaks', auth.authMiddleware, async (req, res) => {
   try {
     const querySchema = z.object({
@@ -2337,12 +2497,7 @@ app.get('/api/streaks', auth.authMiddleware, async (req, res) => {
     }
 
     // Current streak ending at asOf date
-    let currentStreak = 0;
-    for (let i = 0; i < 366; i++) {
-      const d = formatDateYYYYMMDD(addDaysUTC(asOfDt, -i));
-      if (!activeDates.has(d)) break;
-      currentStreak++;
-    }
+    const currentStreak = computeCurrentStreak(activeDates, asOfStr);
 
     return res.json({
       asOf: asOfStr,
@@ -3136,150 +3291,6 @@ app.get('/api/weekly-nutrition', auth.authMiddleware, async (req, res) => {
   }
 });
 
-// ========== FOOD LOG SEARCH & ANALYTICS ==========
-
-/**
- * GET /api/food-logs/search?q=
- * Search food logs by name
- */
-app.get('/api/food-logs/search', auth.authMiddleware, async (req, res) => {
-  try {
-    const { q = '', limit = 50, offset = 0 } = req.query;
-    const userId = req.user.id;
-
-    const foodLogs = db.getFoodLogs(userId) || [];
-    const queryLower = (q || '').toLowerCase();
-
-    const filtered = foodLogs.filter(log => 
-      log.name.toLowerCase().includes(queryLower)
-    ).slice(parseInt(offset), parseInt(offset) + parseInt(limit));
-
-    return res.json({
-      query: q,
-      count: filtered.length,
-      limit: parseInt(limit),
-      offset: parseInt(offset),
-      logs: filtered
-    });
-  } catch (error) {
-    return res.status(500).json({ error: 'Failed to search food logs', details: error.message, requestId: req.id });
-  }
-});
-
-/**
- * GET /api/food-logs/stats
- * Get top foods and meal statistics
- */
-app.get('/api/food-logs/stats', auth.authMiddleware, async (req, res) => {
-  try {
-    const { start, end } = req.query;
-    const userId = req.user.id;
-
-    const foodLogs = db.getFoodLogs(userId) || [];
-
-    // Filter by date range
-    let filtered = foodLogs;
-    if (start || end) {
-      const startDate = start ? new Date(start) : new Date('1900-01-01');
-      const endDate = end ? new Date(end) : new Date('2100-12-31');
-      filtered = foodLogs.filter(log => {
-        const logDate = new Date(log.date);
-        return logDate >= startDate && logDate <= endDate;
-      });
-    }
-
-    // Top foods by frequency
-    const foodFrequency = {};
-    const mealTypeStats = { breakfast: 0, lunch: 0, dinner: 0, snack: 0 };
-    let totalCalories = 0;
-    let totalLogs = filtered.length;
-
-    filtered.forEach(log => {
-      totalCalories += log.calories || 0;
-      mealTypeStats[log.meal_type] = (mealTypeStats[log.meal_type] || 0) + 1;
-      
-      const name = log.name;
-      foodFrequency[name] = (foodFrequency[name] || 0) + 1;
-    });
-
-    const topFoods = Object.entries(foodFrequency)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
-
-    const averageCaloriesPerLog = totalLogs > 0 ? Math.round(totalCalories / totalLogs * 10) / 10 : 0;
-
-    return res.json({
-      totalLogs,
-      averageCaloriesPerLog,
-      totalCalories,
-      mealTypeStats,
-      topFoods,
-      dateRange: { start: start || 'all', end: end || 'all' }
-    });
-  } catch (error) {
-    return res.status(500).json({ error: 'Failed to get food statistics', details: error.message, requestId: req.id });
-  }
-});
-
-/**
- * GET /api/food-logs/macros-distribution?date=
- * Get macro distribution for a specific date
- */
-app.get('/api/food-logs/macros-distribution', auth.authMiddleware, async (req, res) => {
-  try {
-    const { date } = req.query;
-    const userId = req.user.id;
-
-    if (!date) {
-      return res.status(400).json({ error: 'date parameter is required' });
-    }
-
-    const foodLogs = db.getFoodLogs(userId) || [];
-    const dayLogs = foodLogs.filter(log => log.date === date);
-
-    let totalCalories = 0;
-    let protein = 0, carbs = 0, fats = 0;
-
-    dayLogs.forEach(log => {
-      totalCalories += log.calories || 0;
-      protein += log.protein_grams || 0;
-      carbs += log.carbs_grams || 0;
-      fats += log.fat_grams || 0;
-    });
-
-    // Calculate calorie distribution from macros
-    const proteinCalories = protein * 4;
-    const carbsCalories = carbs * 4;
-    const fatsCalories = fats * 9;
-    const totalMacroCalories = proteinCalories + carbsCalories + fatsCalories;
-
-    const distribution = {
-      date,
-      totals: {
-        calories: totalCalories,
-        protein_grams: protein,
-        carbs_grams: carbs,
-        fat_grams: fats
-      },
-      byCalories: totalMacroCalories > 0 ? {
-        protein: Math.round((proteinCalories / totalMacroCalories) * 100 * 10) / 10,
-        carbs: Math.round((carbsCalories / totalMacroCalories) * 100 * 10) / 10,
-        fats: Math.round((fatsCalories / totalMacroCalories) * 100 * 10) / 10
-      } : { protein: 0, carbs: 0, fats: 0 },
-      byGrams: protein + carbs + fats > 0 ? {
-        protein: Math.round((protein / (protein + carbs + fats)) * 100 * 10) / 10,
-        carbs: Math.round((carbs / (protein + carbs + fats)) * 100 * 10) / 10,
-        fats: Math.round((fats / (protein + carbs + fats)) * 100 * 10) / 10
-      } : { protein: 0, carbs: 0, fats: 0 }
-    };
-
-    return res.json(distribution);
-  } catch (error) {
-    return res.status(500).json({ error: 'Failed to get macros distribution', details: error.message, requestId: req.id });
-  }
-});
-
 // ========== INSIGHTS & BADGES ==========
 
 /**
@@ -3289,13 +3300,14 @@ app.get('/api/food-logs/macros-distribution', auth.authMiddleware, async (req, r
 app.get('/api/insights/daily', auth.authMiddleware, async (req, res) => {
   try {
     const { date = new Date().toISOString().split('T')[0] } = req.query;
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
-    const foodLogs = db.getFoodLogs(userId) || [];
+    const foodLogs = await db.getFoodLogs(userId);
     const dayLogs = foodLogs.filter(log => log.date === date);
 
-    const survey = db.getLatestSurvey(userId);
-    const targetCalories = survey?.daily_calories?.targetDailyCalories || null;
+    const surveys = await db.getSurveys(userId);
+    const survey = surveys[0] || null; // getSurveys is sorted newest-first
+    const targetCalories = survey?.daily_calories?.targetDailyCalories ?? null;
     const macroTargets = survey ? {
       protein_grams: survey.protein_target_g,
       carbs_grams: null,
@@ -3336,25 +3348,28 @@ app.get('/api/insights/daily', auth.authMiddleware, async (req, res) => {
  */
 app.get('/api/badges', auth.authMiddleware, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const foodLogs = db.getFoodLogs(userId) || [];
-    
+    const userId = req.user.userId;
+    const foodLogs = await db.getFoodLogs(userId);
+
     const badges = [];
     const dates = new Set(foodLogs.map(log => log.date));
+    const today = formatDateYYYYMMDD(new Date());
+    const streak = computeCurrentStreak(dates, today);
 
     // Badge: First food log
     if (foodLogs.length >= 1) {
+      // foodLogs is sorted newest-first; the true first log is the oldest.
+      const firstLog = [...foodLogs].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))[0];
       badges.push({
         id: 'first-log',
         name: 'First Step',
         description: 'Logged your first food',
-        earnedAt: foodLogs[0].created_at || new Date().toISOString(),
+        earnedAt: firstLog.created_at || new Date().toISOString(),
         icon: '🥗'
       });
     }
 
     // Badge: 7-day streak
-    const streak = calculateStreak(foodLogs, null);
     if (streak >= 7) {
       badges.push({
         id: 'week-streak',
@@ -3399,15 +3414,21 @@ app.get('/api/badges', auth.authMiddleware, async (req, res) => {
  */
 app.get('/api/targets', auth.authMiddleware, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const survey = db.getLatestSurvey(userId);
-    const prefs = db.getUserPreferences(userId);
+    const userId = req.user.userId;
+    const surveys = await db.getSurveys(userId);
+    const survey = surveys[0] || null; // getSurveys is sorted newest-first
+    const user = await db.getUser(userId);
+    const prefs = user?.preferences || null;
 
+    // Note: PUT /api/targets also stores a calorieOverride, which this GET
+    // does not read back yet -- survey always wins for calories/protein
+    // today. Making overrides take precedence is a product decision, not
+    // part of this fix.
     let targets = {
-      calories: survey?.daily_calories?.targetDailyCalories || null,
-      protein_grams: survey?.protein_target_g || null,
-      carbs_grams: prefs?.macroTargets?.carbs_grams || null,
-      fat_grams: prefs?.macroTargets?.fat_grams || null
+      calories: survey?.daily_calories?.targetDailyCalories ?? null,
+      protein_grams: survey?.protein_target_g ?? null,
+      carbs_grams: prefs?.macroTargets?.carbs_grams ?? null,
+      fat_grams: prefs?.macroTargets?.fat_grams ?? null
     };
 
     return res.json({
@@ -3427,7 +3448,7 @@ app.get('/api/targets', auth.authMiddleware, async (req, res) => {
  */
 app.put('/api/targets', auth.authMiddleware, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     const { calories, protein_grams, carbs_grams, fat_grams } = req.body;
 
     // Validate
@@ -3435,9 +3456,18 @@ app.put('/api/targets', auth.authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Invalid input', details: 'Calories must be between 1000 and 5000' });
     }
 
-    // Store in preferences
-    const updated = db.setUserPreferences(userId, {
+    // Merge into existing preferences -- updateUserPreferences replaces the
+    // whole blob, and this key is shared with PUT /api/users/me/preferences.
+    const user = await db.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found', requestId: req.id });
+    }
+    const existingPreferences = user.preferences || {};
+
+    await db.updateUserPreferences(userId, {
+      ...existingPreferences,
       macroTargets: {
+        ...(existingPreferences.macroTargets || {}),
         calorieOverride: calories,
         protein_grams: protein_grams || null,
         carbs_grams: carbs_grams || null,
@@ -3467,9 +3497,9 @@ app.put('/api/targets', auth.authMiddleware, async (req, res) => {
  */
 app.get('/api/progress/overview', auth.authMiddleware, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const foodLogs = db.getFoodLogs(userId) || [];
-    const weightLogs = db.getWeightLogs(userId) || [];
+    const userId = req.user.userId;
+    const foodLogs = await db.getFoodLogs(userId);
+    const weightLogs = await db.getWeightLogs(userId);
 
     const today = new Date().toISOString().split('T')[0];
     const todayLogs = foodLogs.filter(log => log.date === today);
@@ -3481,7 +3511,8 @@ app.get('/api/progress/overview', auth.authMiddleware, async (req, res) => {
       totalProtein += log.protein_grams || 0;
     });
 
-    const latestWeight = weightLogs.length > 0 ? weightLogs[weightLogs.length - 1].weight_kg : null;
+    // getWeightLogs is sorted newest-first; index 0 is the latest.
+    const latestWeight = weightLogs.length > 0 ? weightLogs[0].weight_kg : null;
 
     return res.json({
       today: {
