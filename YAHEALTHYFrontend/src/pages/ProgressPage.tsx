@@ -11,6 +11,7 @@ import {
 import { Plus, Pencil, Trash2, Scale, Trophy } from 'lucide-react';
 import { Card, Button, Modal, Field, inputCls, ErrorState, EmptyState, SkeletonCard, ProgressBar, Chip, Segmented } from '@/components/ui';
 import { WeightModal } from '@/components/QuickLogModals';
+import { TrendsSection } from '@/components/TrendsSection';
 import { weightApi, apiError, WeightLog } from '@/services/api';
 import { useAsync } from '@/hooks/useAsync';
 import { useToast } from '@/hooks/useToast';
@@ -196,6 +197,9 @@ export const ProgressPage = () => {
           </div>
         </Card>
       )}
+
+      {/* 30-day weight & calorie trends */}
+      <TrendsSection />
 
       {/* Chart */}
       {goal && chartData.length > 0 && (
