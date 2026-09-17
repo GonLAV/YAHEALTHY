@@ -1,0 +1,17 @@
+{
+  "name": "yitro-gen",
+  "version": "2.0.0",
+  "description": "יתרו — מאמן את בוט הוואטסאפ של YAHEALTHY. עובר על שיחות אמיתיות, מאבחן איפה הבוט לא ביצע טוב (ייעוץ תזונתי אסור, החמצת דגל בריאותי, מחיר שגוי, הזדמנות שהוחמצה), ומציע שיפור מדויק ומינימלי לפרומפט/בסיס הידע — לא בונה סוכן חדש, לא נוגע בתשתית. מופעל עם /yitro.",
+  "author": {
+    "name": "YAHEALTHY"
+  },
+  "keywords": [
+    "yitro",
+    "partner-agent",
+    "whatsapp-coaching",
+    "prompt-tuning",
+    "conversation-review",
+    "yahealthy",
+    "hebrew"
+  ]
+}
