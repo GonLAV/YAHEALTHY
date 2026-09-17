@@ -90,7 +90,9 @@
 | `/coaching` | `CoachingPage` | 145 | ✅ |
 | `/` | הפניה | — | — |
 
-**הפער הבולט:** ה-backend חושף **82 endpoints**; ה-frontend נוגע ב-5 מסכים בלבד. **רוב ה-API לא נצרך בכלל** — הרגלים, קניות, תובנות, גיימיפיקציה, offline. זו הזדמנות מוצר, או קוד שנבנה ואף אחד לא משתמש בו. **שווה הכרעה של VLAD.**
+**הפער הבולט:** ה-backend חושף **82 endpoints**; ה-frontend קורא ל-**17** בלבד. **53 endpoints (65%) בלי שום UI.** המפה המלאה לפי ערך מוצרי: `docs/product-gap-map.md`.
+
+🔴 **ובאג חי:** `CoachingPage.tsx` קורא ל-`/api/crm/...` דרך `crmApi` ב-`services/api.ts:85` — **וה-routes של CRM לא רשומים ב-`index.js`.** אחד מחמשת המסכים מקבל 404.
 
 תשתית: `useAuth` (87) · `PrivateRoute` (16) · `services/api.ts` (124) — **כל הקריאות עוברות דרכו, נקודת מינוף מרכזית.**
 
