@@ -419,6 +419,57 @@ async function getWeightLogs(userId, goalId = null) {
 }
 
 /**
+ * Update a weight log entry (own data only)
+ */
+async function updateWeightLog(userId, logId, updates) {
+  const allowed = {};
+  if (updates.weight_kg !== undefined) allowed.weight_kg = updates.weight_kg;
+  if (updates.water_liters !== undefined) allowed.water_liters = updates.water_liters;
+  if (updates.sleep_hours !== undefined) allowed.sleep_hours = updates.sleep_hours;
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const row = memoryDb.weightLogs.find(r => r.id === logId && r.user_id === userId);
+    if (!row) return null;
+    Object.assign(row, allowed);
+    return row;
+  }
+
+  const { data, error } = await supabase
+    .from('weight_logs')
+    .update(allowed)
+    .eq('id', logId)
+    .eq('user_id', userId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Delete a weight log entry (own data only)
+ */
+async function deleteWeightLog(userId, logId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const index = memoryDb.weightLogs.findIndex(r => r.id === logId && r.user_id === userId);
+    if (index === -1) return false;
+    memoryDb.weightLogs.splice(index, 1);
+    return true;
+  }
+
+  const { error } = await supabase
+    .from('weight_logs')
+    .delete()
+    .eq('id', logId)
+    .eq('user_id', userId);
+
+  if (error) throw error;
+  return true;
+}
+
+/**
  * HYDRATION LOGS
  */
 async function createHydrationLog(userId, logData) {
@@ -1063,6 +1114,8 @@ module.exports = {
   // Weight Logs
   createWeightLog,
   getWeightLogs,
+  updateWeightLog,
+  deleteWeightLog,
   // Hydration
   createHydrationLog,
   getHydrationLogs,

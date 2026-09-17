@@ -1,6 +1,8 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { Leaf } from 'lucide-react';
+import { Button, Field, inputCls } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
 export const SignupPage = () => {
     const [email, setEmail] = useState('');
@@ -13,6 +15,10 @@ export const SignupPage = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        if (password.length < 6) {
+            setError('Password must be at least 6 characters');
+            return;
+        }
         if (password !== confirmPassword) {
             setError('Passwords do not match');
             return;
@@ -23,11 +29,11 @@ export const SignupPage = () => {
             navigate('/dashboard');
         }
         catch (err) {
-            setError(err.response?.data?.message || 'Signup failed');
+            setError(err.response?.data?.error || 'Signup failed — please try again');
         }
         finally {
             setLoading(false);
         }
     };
-    return (_jsx("div", { className: "min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4", children: _jsxs("div", { className: "bg-white rounded-lg shadow-xl p-8 w-full max-w-md", children: [_jsx("h1", { className: "text-3xl font-bold text-gray-900 mb-6", children: "YAHealthy" }), _jsx("p", { className: "text-gray-600 mb-8", children: "Create your account" }), _jsxs("form", { onSubmit: handleSubmit, className: "space-y-4", children: [_jsxs("div", { children: [_jsx("label", { className: "block text-sm font-medium text-gray-700 mb-2", children: "Email" }), _jsx("input", { type: "email", value: email, onChange: (e) => setEmail(e.target.value), className: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none", required: true })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm font-medium text-gray-700 mb-2", children: "Password" }), _jsx("input", { type: "password", value: password, onChange: (e) => setPassword(e.target.value), className: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none", required: true })] }), _jsxs("div", { children: [_jsx("label", { className: "block text-sm font-medium text-gray-700 mb-2", children: "Confirm Password" }), _jsx("input", { type: "password", value: confirmPassword, onChange: (e) => setConfirmPassword(e.target.value), className: "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none", required: true })] }), error && (_jsx("div", { className: "bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg", children: error })), _jsx("button", { type: "submit", disabled: loading, className: "w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700 disabled:opacity-50", children: loading ? 'Creating account...' : 'Sign Up' })] }), _jsxs("p", { className: "text-center text-gray-600 mt-6", children: ["Already have an account?", ' ', _jsx("a", { href: "/login", className: "text-indigo-600 hover:text-indigo-700 font-semibold", children: "Sign in" })] })] }) }));
+    return (_jsx("div", { className: "min-h-screen bg-gradient-to-b from-teal-50 via-emerald-50/40 to-slate-50 flex flex-col items-center justify-center px-4 py-10", children: _jsxs("div", { className: "w-full max-w-md", children: [_jsxs("div", { className: "flex flex-col items-center mb-8", children: [_jsx("span", { className: "w-16 h-16 rounded-3xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white flex items-center justify-center shadow-lg shadow-teal-600/20 mb-4", children: _jsx(Leaf, { className: "w-8 h-8" }) }), _jsxs("h1", { className: "text-3xl font-extrabold tracking-tight text-slate-900", children: ["YA", _jsx("span", { className: "text-teal-600", children: "Healthy" })] }), _jsx("p", { className: "text-slate-500 mt-1.5", children: "Create your account and start your journey" })] }), _jsxs("div", { className: "bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 p-8", children: [_jsxs("form", { onSubmit: handleSubmit, className: "space-y-4", children: [_jsx(Field, { label: "Email", children: _jsx("input", { type: "email", value: email, onChange: (e) => setEmail(e.target.value), className: inputCls, autoComplete: "email", required: true }) }), _jsx(Field, { label: "Password", hint: "At least 6 characters", children: _jsx("input", { type: "password", value: password, onChange: (e) => setPassword(e.target.value), className: inputCls, autoComplete: "new-password", required: true }) }), _jsx(Field, { label: "Confirm password", children: _jsx("input", { type: "password", value: confirmPassword, onChange: (e) => setConfirmPassword(e.target.value), className: inputCls, autoComplete: "new-password", required: true }) }), error && (_jsx("div", { className: "bg-rose-50 border border-rose-100 text-rose-700 px-4 py-3 rounded-xl text-sm", role: "alert", children: error })), _jsx(Button, { type: "submit", size: "lg", className: "w-full", loading: loading, children: "Create account" })] }), _jsxs("p", { className: "text-center text-sm text-slate-500 mt-6", children: ["Already have an account?", ' ', _jsx(Link, { to: "/login", className: "font-semibold text-teal-600 hover:text-teal-700", children: "Sign in" })] })] })] }) }));
 };

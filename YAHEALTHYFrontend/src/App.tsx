@@ -1,94 +1,85 @@
 import { Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
 import { PrivateRoute } from '@/components/PrivateRoute';
-import './App.css';
+import { AppShell } from '@/components/Layout';
+import { ToastProvider, useToast } from '@/hooks/useToast';
+import { useReminders } from '@/hooks/useReminders';
 
 const LoginPage = lazy(() => import('@/pages/LoginPage').then((m) => ({ default: m.LoginPage })));
 const SignupPage = lazy(() => import('@/pages/SignupPage').then((m) => ({ default: m.SignupPage })));
 const DashboardPage = lazy(() => import('@/pages/DashboardPage').then((m) => ({ default: m.DashboardPage })));
 const FoodLogPage = lazy(() => import('@/pages/FoodLogPage').then((m) => ({ default: m.FoodLogPage })));
-const CoachingPage = lazy(() => import('@/pages/CoachingPage').then((m) => ({ default: m.CoachingPage })));
+const RecipesPage = lazy(() => import('@/pages/RecipesPage').then((m) => ({ default: m.RecipesPage })));
+const MealPlanPage = lazy(() => import('@/pages/MealPlanPage').then((m) => ({ default: m.MealPlanPage })));
+const HealthPage = lazy(() => import('@/pages/HealthPage').then((m) => ({ default: m.HealthPage })));
+const ProgressPage = lazy(() => import('@/pages/ProgressPage').then((m) => ({ default: m.ProgressPage })));
+const ProfilePage = lazy(() => import('@/pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
+const ReportsPage = lazy(() => import('@/pages/ReportsPage').then((m) => ({ default: m.ReportsPage })));
+const CoachPage = lazy(() => import('@/pages/CoachPage').then((m) => ({ default: m.CoachPage })));
+const AchievementsPage = lazy(() => import('@/pages/AchievementsPage').then((m) => ({ default: m.AchievementsPage })));
+const FavoritesPage = lazy(() => import('@/pages/FavoritesPage').then((m) => ({ default: m.FavoritesPage })));
+const SettingsPage = lazy(() => import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 
 const PageLoader = () => (
-  <div className="flex items-center justify-center min-h-screen">Loading...</div>
+  <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+    <span className="w-9 h-9 border-[3px] border-teal-200 border-t-teal-600 rounded-full animate-spin" />
+    <p className="text-sm text-slate-400">Loading…</p>
+  </div>
 );
 
-const Navigation = () => {
-  const { isAuthenticated, user, logout } = useAuth();
-
-  if (!isAuthenticated) return null;
-
-  return (
-    <nav className="bg-white shadow">
-      <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-        <div className="font-bold text-xl text-indigo-600">YAHealthy</div>
-        <div className="flex space-x-6">
-          <Link to="/dashboard" className="text-gray-600 hover:text-gray-900">
-            Dashboard
-          </Link>
-          <Link to="/food-log" className="text-gray-600 hover:text-gray-900">
-            Food Log
-          </Link>
-          <Link to="/coaching" className="text-gray-600 hover:text-gray-900">
-            Coaching
-          </Link>
-          <span className="text-gray-600">{user?.email}</span>
-          <button
-            onClick={logout}
-            className="text-red-600 hover:text-red-700"
-          >
-            Logout
-          </button>
-        </div>
-      </div>
-    </nav>
-  );
+/** Fires user-enabled reminders while the app is open (notifications or in-app toasts). */
+const ReminderEngine = () => {
+  const { isAuthenticated } = useAuth();
+  const { push } = useToast();
+  useReminders(isAuthenticated ? (msg) => push(msg) : undefined);
+  return null;
 };
 
-const AppRoutes = () => {
-  return (
-    <Suspense fallback={<PageLoader />}>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
+const protectedRoutes = [
+  { path: '/dashboard', element: <DashboardPage /> },
+  { path: '/food-log', element: <FoodLogPage /> },
+  { path: '/recipes', element: <RecipesPage /> },
+  { path: '/meal-plan', element: <MealPlanPage /> },
+  { path: '/health', element: <HealthPage /> },
+  { path: '/progress', element: <ProgressPage /> },
+  { path: '/profile', element: <ProfilePage /> },
+  { path: '/reports', element: <ReportsPage /> },
+  { path: '/coach', element: <CoachPage /> },
+  { path: '/achievements', element: <AchievementsPage /> },
+  { path: '/favorites', element: <FavoritesPage /> },
+  { path: '/settings', element: <SettingsPage /> },
+];
+
+const AppRoutes = () => (
+  <Suspense fallback={<PageLoader />}>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignupPage />} />
+      {protectedRoutes.map((r) => (
         <Route
-          path="/dashboard"
-          element={
-            <PrivateRoute>
-              <DashboardPage />
-            </PrivateRoute>
-          }
+          key={r.path}
+          path={r.path}
+          element={<PrivateRoute>{r.element}</PrivateRoute>}
         />
-        <Route
-          path="/food-log"
-          element={
-            <PrivateRoute>
-              <FoodLogPage />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/coaching"
-          element={
-            <PrivateRoute>
-              <CoachingPage />
-            </PrivateRoute>
-          }
-        />
-        <Route path="/" element={<Navigate to="/dashboard" />} />
-      </Routes>
-    </Suspense>
-  );
-};
+      ))}
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    </Routes>
+  </Suspense>
+);
 
 function App() {
   return (
     <Router>
-      <AuthProvider>
-        <Navigation />
-        <AppRoutes />
-      </AuthProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <ReminderEngine />
+          <AppShell>
+            <AppRoutes />
+          </AppShell>
+        </AuthProvider>
+      </ToastProvider>
     </Router>
   );
 }

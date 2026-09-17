@@ -387,7 +387,10 @@ app.put('/api/users/me/preferences', auth.authMiddleware, async (req, res) => {
         const n = Number(v);
         return Number.isFinite(n) ? n : null;
       };
+      // Preserve other macro keys the caller stores (e.g. calorieOverride set
+      // via PUT /api/targets) so saving unrelated preferences doesn't drop them.
       normalizedPreferences.macroTargets = {
+        ...incomingMacro,
         protein_grams: toNumberOrNull(macro.protein_grams ?? macro.proteinGrams ?? macro.protein),
         carbs_grams: toNumberOrNull(macro.carbs_grams ?? macro.carbsGrams ?? macro.carbs),
         fat_grams: toNumberOrNull(macro.fat_grams ?? macro.fatGrams ?? macro.fat)
@@ -616,6 +619,49 @@ app.get('/api/weight-logs', auth.authMiddleware, async (req, res) => {
     res.json(logs || []);
   } catch (error) {
     res.status(500).json({ error: 'Failed to get weight logs', details: safeErrorDetails(error) });
+  }
+});
+
+/**
+ * PUT /api/weight-logs/:id
+ * Correct a previously logged weigh-in
+ */
+app.put('/api/weight-logs/:id', auth.authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { weightKg, waterLiters, sleepHours } = req.body;
+
+    if (weightKg !== undefined && !validateWeight(weightKg)) {
+      return res.status(400).json({ error: 'Invalid weight' });
+    }
+
+    const updated = await db.updateWeightLog(userId, req.params.id, {
+      weight_kg: weightKg,
+      water_liters: waterLiters ?? undefined,
+      sleep_hours: sleepHours ?? undefined
+    });
+    if (!updated) {
+      return res.status(404).json({ error: 'Weight log not found' });
+    }
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update weight log', details: safeErrorDetails(error) });
+  }
+});
+
+/**
+ * DELETE /api/weight-logs/:id
+ */
+app.delete('/api/weight-logs/:id', auth.authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const deleted = await db.deleteWeightLog(userId, req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Weight log not found' });
+    }
+    res.status(204).end();
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete weight log', details: safeErrorDetails(error) });
   }
 });
 
@@ -3160,9 +3206,9 @@ app.get('/api/weekly-nutrition', auth.authMiddleware, async (req, res) => {
 app.get('/api/food-logs/search', auth.authMiddleware, async (req, res) => {
   try {
     const { q = '', limit = 50, offset = 0 } = req.query;
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
-    const foodLogs = db.getFoodLogs(userId) || [];
+    const foodLogs = await db.getFoodLogs(userId) || [];
     const queryLower = (q || '').toLowerCase();
 
     const filtered = foodLogs.filter(log => 
@@ -3188,9 +3234,9 @@ app.get('/api/food-logs/search', auth.authMiddleware, async (req, res) => {
 app.get('/api/food-logs/stats', auth.authMiddleware, async (req, res) => {
   try {
     const { start, end } = req.query;
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
-    const foodLogs = db.getFoodLogs(userId) || [];
+    const foodLogs = await db.getFoodLogs(userId) || [];
 
     // Filter by date range
     let filtered = foodLogs;
@@ -3244,13 +3290,13 @@ app.get('/api/food-logs/stats', auth.authMiddleware, async (req, res) => {
 app.get('/api/food-logs/macros-distribution', auth.authMiddleware, async (req, res) => {
   try {
     const { date } = req.query;
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
     if (!date) {
       return res.status(400).json({ error: 'date parameter is required' });
     }
 
-    const foodLogs = db.getFoodLogs(userId) || [];
+    const foodLogs = await db.getFoodLogs(userId) || [];
     const dayLogs = foodLogs.filter(log => log.date === date);
 
     let totalCalories = 0;
@@ -3304,12 +3350,13 @@ app.get('/api/food-logs/macros-distribution', auth.authMiddleware, async (req, r
 app.get('/api/insights/daily', auth.authMiddleware, async (req, res) => {
   try {
     const { date = new Date().toISOString().split('T')[0] } = req.query;
-    const userId = req.user.id;
+    const userId = req.user.userId;
 
-    const foodLogs = db.getFoodLogs(userId) || [];
+    const foodLogs = await db.getFoodLogs(userId) || [];
     const dayLogs = foodLogs.filter(log => log.date === date);
 
-    const survey = db.getLatestSurvey(userId);
+    const surveys = await db.getSurveys(userId);
+    const survey = Array.isArray(surveys) && surveys.length > 0 ? surveys[0] : null;
     const targetCalories = survey?.daily_calories?.targetDailyCalories || null;
     const macroTargets = survey ? {
       protein_grams: survey.protein_target_g,
@@ -3349,10 +3396,26 @@ app.get('/api/insights/daily', auth.authMiddleware, async (req, res) => {
  * GET /api/badges
  * Get earned badges
  */
+/**
+ * Consecutive-day logging streak ending today (used by /api/badges)
+ */
+function calculateStreak(logs) {
+  const active = new Set((logs || []).map(l => String(l.date || '')).filter(Boolean));
+  let streak = 0;
+  const today = new Date();
+  for (let i = 0; i < 366; i++) {
+    const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - i));
+    const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+    if (!active.has(key)) break;
+    streak++;
+  }
+  return streak;
+}
+
 app.get('/api/badges', auth.authMiddleware, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const foodLogs = db.getFoodLogs(userId) || [];
+    const userId = req.user.userId;
+    const foodLogs = await db.getFoodLogs(userId) || [];
     
     const badges = [];
     const dates = new Set(foodLogs.map(log => log.date));
@@ -3414,20 +3477,23 @@ app.get('/api/badges', auth.authMiddleware, async (req, res) => {
  */
 app.get('/api/targets', auth.authMiddleware, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const survey = db.getLatestSurvey(userId);
-    const prefs = db.getUserPreferences(userId);
+    const userId = req.user.userId;
+    const surveys = await db.getSurveys(userId);
+    const survey = Array.isArray(surveys) && surveys.length > 0 ? surveys[0] : null;
+    const user = await db.getUser(userId);
+    const macro = user?.preferences?.macroTargets || {};
 
+    // Custom targets (set via PUT /api/targets) take precedence over survey-derived ones.
     let targets = {
-      calories: survey?.daily_calories?.targetDailyCalories || null,
-      protein_grams: survey?.protein_target_g || null,
-      carbs_grams: prefs?.macroTargets?.carbs_grams || null,
-      fat_grams: prefs?.macroTargets?.fat_grams || null
+      calories: macro.calorieOverride || survey?.daily_calories?.targetDailyCalories || null,
+      protein_grams: macro.protein_grams || survey?.protein_target_g || null,
+      carbs_grams: macro.carbs_grams || null,
+      fat_grams: macro.fat_grams || null
     };
 
     return res.json({
       targets,
-      source: survey ? 'survey' : 'preferences',
+      source: (macro.calorieOverride || macro.protein_grams) ? 'preferences' : (survey ? 'survey' : 'none'),
       surveyId: survey?.id || null,
       lastUpdated: survey?.created_at || null
     });
@@ -3442,7 +3508,7 @@ app.get('/api/targets', auth.authMiddleware, async (req, res) => {
  */
 app.put('/api/targets', auth.authMiddleware, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     const { calories, protein_grams, carbs_grams, fat_grams } = req.body;
 
     // Validate
@@ -3450,15 +3516,23 @@ app.put('/api/targets', auth.authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Invalid input', details: 'Calories must be between 1000 and 5000' });
     }
 
-    // Store in preferences
-    const updated = db.setUserPreferences(userId, {
+    // Store in preferences (merge, so other preference keys are preserved)
+    const user = await db.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found', requestId: req.id });
+    }
+    const updated = await db.updateUserPreferences(userId, {
+      ...(user.preferences || {}),
       macroTargets: {
-        calorieOverride: calories,
-        protein_grams: protein_grams || null,
-        carbs_grams: carbs_grams || null,
-        fat_grams: fat_grams || null
+        calorieOverride: calories ?? null,
+        protein_grams: protein_grams ?? null,
+        carbs_grams: carbs_grams ?? null,
+        fat_grams: fat_grams ?? null
       }
     });
+    if (!updated) {
+      return res.status(404).json({ error: 'User not found', requestId: req.id });
+    }
 
     return res.json({
       targets: {
@@ -3482,9 +3556,9 @@ app.put('/api/targets', auth.authMiddleware, async (req, res) => {
  */
 app.get('/api/progress/overview', auth.authMiddleware, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const foodLogs = db.getFoodLogs(userId) || [];
-    const weightLogs = db.getWeightLogs(userId) || [];
+    const userId = req.user.userId;
+    const foodLogs = await db.getFoodLogs(userId) || [];
+    const weightLogs = await db.getWeightLogs(userId) || [];
 
     const today = new Date().toISOString().split('T')[0];
     const todayLogs = foodLogs.filter(log => log.date === today);
