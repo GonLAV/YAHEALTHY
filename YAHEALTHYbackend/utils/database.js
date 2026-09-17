@@ -40,7 +40,8 @@ const memoryDb = {
   readinessScores: [],
   offlineLogs: [],
   foodLogs: [],
-  foodLogTemplates: []
+  foodLogTemplates: [],
+  mealPlans: []
 };
 
 function sortByCreatedAtDesc(items) {
@@ -1032,6 +1033,128 @@ async function updateFoodLog(userId, logId, patch) {
   return normalizeFoodLogRow(data || null);
 }
 
+/**
+ * MEAL PLANS
+ */
+async function createMealPlan(userId, planData) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const row = {
+      id: uuidv4(),
+      user_id: userId,
+      ...planData,
+      created_at: new Date().toISOString()
+    };
+    memoryDb.mealPlans.push(row);
+    return row;
+  }
+  const { data, error } = await supabase
+    .from('meal_plans')
+    .insert([
+      {
+        user_id: userId,
+        ...planData,
+        created_at: new Date().toISOString()
+      }
+    ])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+async function getMealPlans(userId, { start = null, end = null } = {}) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.mealPlans.filter(p => {
+      if (p.user_id !== userId) return false;
+      if (start && p.date < start) return false;
+      if (end && p.date > end) return false;
+      return true;
+    });
+  }
+  let query = supabase
+    .from('meal_plans')
+    .select('*')
+    .eq('user_id', userId);
+
+  if (start) query = query.gte('date', start);
+  if (end) query = query.lte('date', end);
+
+  const { data, error } = await query.order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+async function updateMealPlan(userId, planId, patch) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const idx = memoryDb.mealPlans.findIndex(p => p.id === planId && p.user_id === userId);
+    if (idx === -1) return null;
+    const updated = { ...memoryDb.mealPlans[idx], ...patch, id: memoryDb.mealPlans[idx].id, user_id: memoryDb.mealPlans[idx].user_id };
+    memoryDb.mealPlans[idx] = updated;
+    return updated;
+  }
+  const { data, error } = await supabase
+    .from('meal_plans')
+    .update(patch)
+    .eq('id', planId)
+    .eq('user_id', userId)
+    .select()
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+async function deleteMealPlan(userId, planId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const idx = memoryDb.mealPlans.findIndex(p => p.id === planId && p.user_id === userId);
+    if (idx === -1) return null;
+    const [removed] = memoryDb.mealPlans.splice(idx, 1);
+    return removed;
+  }
+  const { data, error } = await supabase
+    .from('meal_plans')
+    .delete()
+    .eq('id', planId)
+    .eq('user_id', userId)
+    .select()
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+async function deleteMealPlansInRange(userId, { start, end, mealTypes }) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    let deleted = 0;
+    for (let i = memoryDb.mealPlans.length - 1; i >= 0; i -= 1) {
+      const p = memoryDb.mealPlans[i];
+      if (p.user_id !== userId) continue;
+      if (p.date < start || p.date > end) continue;
+      if (!mealTypes.includes(p.meal_type)) continue;
+      memoryDb.mealPlans.splice(i, 1);
+      deleted += 1;
+    }
+    return deleted;
+  }
+  const { data, error } = await supabase
+    .from('meal_plans')
+    .delete()
+    .eq('user_id', userId)
+    .gte('date', start)
+    .lte('date', end)
+    .in('meal_type', mealTypes)
+    .select('id');
+
+  if (error) throw error;
+  return (data || []).length;
+}
+
 module.exports = {
   supabase,
   initializeDatabase,
@@ -1082,5 +1205,11 @@ module.exports = {
   getFoodLogById,
   deleteFoodLog,
   updateFoodLog,
-  deleteFoodLogTemplate
+  deleteFoodLogTemplate,
+  // Meal plans
+  createMealPlan,
+  getMealPlans,
+  updateMealPlan,
+  deleteMealPlan,
+  deleteMealPlansInRange
 };

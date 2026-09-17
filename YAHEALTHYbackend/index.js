@@ -30,10 +30,6 @@ const {
   calculateSleepDebt
 } = require('./utils/health-calculations');
 
-const {
-  generateId
-} = require('./utils/id-generator');
-
 const auth = require('./utils/auth');
 const db = require('./utils/database');
 
@@ -1025,22 +1021,11 @@ app.get('/api/recipes/:id/share', auth.authMiddleware, (req, res) => {
 
 // ========== MEAL PLAN ENDPOINTS ==========
 
-const mealPlans = [];
-
 function parseISODate(dateStr) {
   const d = new Date(dateStr);
   if (Number.isNaN(d.getTime())) return null;
   // Normalize to YYYY-MM-DD (UTC-ish) for comparisons used by this API.
   return d;
-}
-
-function isDateInRange(dateStr, start, end) {
-  if (!dateStr) return false;
-  const d = parseISODate(dateStr);
-  if (!d) return false;
-  if (start && d < start) return false;
-  if (end && d > end) return false;
-  return true;
 }
 
 function formatDateYYYYMMDD(date) {
@@ -1066,34 +1051,40 @@ function daysBetweenUTC(start, end) {
 /**
  * GET /api/meal-plans
  */
-app.get('/api/meal-plans', auth.authMiddleware, (req, res) => {
-  const userId = req.user.userId;
-  res.json(mealPlans.filter(p => p.user_id === userId));
+app.get('/api/meal-plans', auth.authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const plans = await db.getMealPlans(userId);
+    res.json(plans);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get meal plans', details: error.message });
+  }
 });
 
 /**
  * POST /api/meal-plans
  */
-app.post('/api/meal-plans', auth.authMiddleware, (req, res) => {
-  const { recipeId, date, mealType } = req.body;
-  const userId = req.user.userId;
-  const plan = {
-    id: generateId(),
-    user_id: userId,
-    recipe_id: recipeId,
-    date,
-    meal_type: mealType,
-    completed: false
-  };
-  mealPlans.push(plan);
-  res.status(201).json(plan);
+app.post('/api/meal-plans', auth.authMiddleware, async (req, res) => {
+  try {
+    const { recipeId, date, mealType } = req.body;
+    const userId = req.user.userId;
+    const plan = await db.createMealPlan(userId, {
+      recipe_id: recipeId,
+      date,
+      meal_type: mealType,
+      completed: false
+    });
+    res.status(201).json(plan);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create meal plan', details: error.message });
+  }
 });
 
 /**
  * POST /api/meal-plans/generate
  * Auto-generate meal plans for a date range.
  */
-app.post('/api/meal-plans/generate', auth.authMiddleware, (req, res) => {
+app.post('/api/meal-plans/generate', auth.authMiddleware, async (req, res) => {
   const userId = req.user.userId;
 
   const schema = z.object({
@@ -1133,92 +1124,99 @@ app.post('/api/meal-plans/generate', auth.authMiddleware, (req, res) => {
     return res.status(400).json({ error: 'Date range too large (max 31 days)', requestId: req.id });
   }
 
-  const created = [];
-  let skipped = 0;
-  let deleted = 0;
+  try {
+    const startStr = formatDateYYYYMMDD(startDate);
+    const endStr = formatDateYYYYMMDD(endDate);
 
-  if (overwrite) {
-    for (let i = mealPlans.length - 1; i >= 0; i -= 1) {
-      const p = mealPlans[i];
-      if (p.user_id !== userId) continue;
-      if (!isDateInRange(p.date, startDate, endDate)) continue;
-      if (!mealTypes.includes(p.meal_type)) continue;
-      mealPlans.splice(i, 1);
-      deleted += 1;
+    let deleted = 0;
+    if (overwrite) {
+      deleted = await db.deleteMealPlansInRange(userId, { start: startStr, end: endStr, mealTypes });
     }
-  }
 
-  for (let dayOffset = 0; dayOffset <= rangeDays; dayOffset += 1) {
-    const date = formatDateYYYYMMDD(addDaysUTC(startDate, dayOffset));
-    for (const mealType of mealTypes) {
-      const exists = mealPlans.some(p => p.user_id === userId && p.date === date && p.meal_type === mealType);
-      if (exists) {
-        skipped += 1;
-        continue;
+    // One fetch for the whole range instead of a query per day/mealType.
+    const existing = await db.getMealPlans(userId, { start: startStr, end: endStr });
+    const existingKeys = new Set(existing.map(p => `${p.date}|${p.meal_type}`));
+
+    const created = [];
+    let skipped = 0;
+
+    for (let dayOffset = 0; dayOffset <= rangeDays; dayOffset += 1) {
+      const date = formatDateYYYYMMDD(addDaysUTC(startDate, dayOffset));
+      for (const mealType of mealTypes) {
+        if (existingKeys.has(`${date}|${mealType}`)) {
+          skipped += 1;
+          continue;
+        }
+
+        const recipe = recipes[Math.floor(Math.random() * recipes.length)];
+        if (!recipe) {
+          skipped += 1;
+          continue;
+        }
+
+        const plan = await db.createMealPlan(userId, {
+          recipe_id: recipe.id,
+          date,
+          meal_type: mealType,
+          completed: false
+        });
+        created.push(plan);
+        existingKeys.add(`${date}|${mealType}`);
       }
-
-      const recipe = recipes[Math.floor(Math.random() * recipes.length)];
-      if (!recipe) {
-        skipped += 1;
-        continue;
-      }
-
-      const plan = {
-        id: generateId(),
-        user_id: userId,
-        recipe_id: recipe.id,
-        date,
-        meal_type: mealType,
-        completed: false
-      };
-      mealPlans.push(plan);
-      created.push(plan);
     }
-  }
 
-  return res.status(201).json({
-    startDate: req.body.startDate,
-    endDate: req.body.endDate,
-    mealTypes,
-    overwrite,
-    deleted,
-    createdCount: created.length,
-    skippedCount: skipped,
-    plans: created
-  });
+    return res.status(201).json({
+      startDate: req.body.startDate,
+      endDate: req.body.endDate,
+      mealTypes,
+      overwrite,
+      deleted,
+      createdCount: created.length,
+      skippedCount: skipped,
+      plans: created
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to generate meal plans', details: error.message, requestId: req.id });
+  }
 });
 
 /**
  * PUT /api/meal-plans/:id
  */
-app.put('/api/meal-plans/:id', auth.authMiddleware, (req, res) => {
-  const userId = req.user.userId;
-  const plan = mealPlans.find(p => p.id === req.params.id && p.user_id === userId);
-  if (!plan) {
-    return res.status(404).json({ error: 'Meal plan not found' });
+app.put('/api/meal-plans/:id', auth.authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const plan = await db.updateMealPlan(userId, req.params.id, req.body);
+    if (!plan) {
+      return res.status(404).json({ error: 'Meal plan not found' });
+    }
+    res.json(plan);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update meal plan', details: error.message });
   }
-  Object.assign(plan, req.body);
-  res.json(plan);
 });
 
 /**
  * DELETE /api/meal-plans/:id
  */
-app.delete('/api/meal-plans/:id', auth.authMiddleware, (req, res) => {
-  const userId = req.user.userId;
-  const index = mealPlans.findIndex(p => p.id === req.params.id && p.user_id === userId);
-  if (index === -1) {
-    return res.status(404).json({ error: 'Meal plan not found' });
+app.delete('/api/meal-plans/:id', auth.authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const deleted = await db.deleteMealPlan(userId, req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Meal plan not found' });
+    }
+    res.json(deleted);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete meal plan', details: error.message });
   }
-  const deleted = mealPlans.splice(index, 1);
-  res.json(deleted[0]);
 });
 
 /**
  * GET /api/grocery-list
  * Build a grocery list from the user's meal plans (optional date range)
  */
-app.get('/api/grocery-list', auth.authMiddleware, (req, res) => {
+app.get('/api/grocery-list', auth.authMiddleware, async (req, res) => {
   const userId = req.user.userId;
 
   const querySchema = z.object({
@@ -1250,40 +1248,42 @@ app.get('/api/grocery-list', auth.authMiddleware, (req, res) => {
     return res.status(400).json({ error: 'Invalid query', requestId: req.id });
   }
 
-  const plans = mealPlans
-    .filter(p => p.user_id === userId)
-    .filter(p => {
-      if (!startDate && !endDate) return true;
-      return isDateInRange(p.date, startDate, endDate);
+  try {
+    const plans = await db.getMealPlans(userId, {
+      start: startDate ? formatDateYYYYMMDD(startDate) : null,
+      end: endDate ? formatDateYYYYMMDD(endDate) : null
     });
 
-  const counts = new Map();
-  const recipeIds = new Set();
+    const counts = new Map();
+    const recipeIds = new Set();
 
-  for (const plan of plans) {
-    recipeIds.add(plan.recipe_id);
-    const recipe = recipes.find(r => r.id === plan.recipe_id);
-    if (!recipe || !Array.isArray(recipe.ingredients)) continue;
-    for (const ingredient of recipe.ingredients) {
-      const key = String(ingredient).trim().toLowerCase();
-      if (!key) continue;
-      const prev = counts.get(key) || 0;
-      counts.set(key, prev + 1);
+    for (const plan of plans) {
+      recipeIds.add(plan.recipe_id);
+      const recipe = recipes.find(r => r.id === plan.recipe_id);
+      if (!recipe || !Array.isArray(recipe.ingredients)) continue;
+      for (const ingredient of recipe.ingredients) {
+        const key = String(ingredient).trim().toLowerCase();
+        if (!key) continue;
+        const prev = counts.get(key) || 0;
+        counts.set(key, prev + 1);
+      }
     }
+
+    const items = [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([item, count]) => ({ item, count }));
+
+    return res.json({
+      start: req.query.start || null,
+      end: req.query.end || null,
+      mealPlansCount: plans.length,
+      recipeIds: [...recipeIds],
+      totalUniqueItems: items.length,
+      items
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to build grocery list', details: error.message, requestId: req.id });
   }
-
-  const items = [...counts.entries()]
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .map(([item, count]) => ({ item, count }));
-
-  return res.json({
-    start: req.query.start || null,
-    end: req.query.end || null,
-    mealPlansCount: plans.length,
-    recipeIds: [...recipeIds],
-    totalUniqueItems: items.length,
-    items
-  });
 });
 
 // ========== GROCERY PLANNING ENDPOINTS ==========
