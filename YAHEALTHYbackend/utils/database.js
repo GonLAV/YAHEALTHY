@@ -10,6 +10,14 @@ const USE_MEMORY_DB =
   SUPABASE_URL === 'https://your-supabase-url.supabase.co' ||
   SUPABASE_KEY === 'your-supabase-anon-key';
 
+if (USE_MEMORY_DB && process.env.ALLOW_MEMORY_DB !== 'true') {
+  throw new Error(
+    'SUPABASE_URL/SUPABASE_KEY are missing or still placeholders. ' +
+    'Refusing to fall back to the in-memory DB silently — all data would be lost on every restart. ' +
+    'Set real Supabase credentials, or set ALLOW_MEMORY_DB=true to explicitly allow the in-memory DB (dev only).'
+  );
+}
+
 // Initialize Supabase client (only used when configured)
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
