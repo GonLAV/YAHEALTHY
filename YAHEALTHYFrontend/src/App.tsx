@@ -9,6 +9,10 @@ const SignupPage = lazy(() => import('@/pages/SignupPage').then((m) => ({ defaul
 const DashboardPage = lazy(() => import('@/pages/DashboardPage').then((m) => ({ default: m.DashboardPage })));
 const FoodLogPage = lazy(() => import('@/pages/FoodLogPage').then((m) => ({ default: m.FoodLogPage })));
 const CoachingPage = lazy(() => import('@/pages/CoachingPage').then((m) => ({ default: m.CoachingPage })));
+const FastingWindowsPage = lazy(() =>
+  import('@/pages/FastingWindowsPage').then((m) => ({ default: m.FastingWindowsPage }))
+);
+const MealSwapsPage = lazy(() => import('@/pages/MealSwapsPage').then((m) => ({ default: m.MealSwapsPage })));
 
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-screen">Loading...</div>
@@ -32,6 +36,12 @@ const Navigation = () => {
           </Link>
           <Link to="/coaching" className="text-gray-600 hover:text-gray-900">
             Coaching
+          </Link>
+          <Link to="/fasting" className="text-gray-600 hover:text-gray-900">
+            Fasting
+          </Link>
+          <Link to="/meal-swaps" className="text-gray-600 hover:text-gray-900">
+            Meal Swaps
           </Link>
           <span className="text-gray-600">{user?.email}</span>
           <button
@@ -73,6 +83,22 @@ const AppRoutes = () => {
           element={
             <PrivateRoute>
               <CoachingPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/fasting"
+          element={
+            <PrivateRoute>
+              <FastingWindowsPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/meal-swaps"
+          element={
+            <PrivateRoute>
+              <MealSwapsPage />
             </PrivateRoute>
           }
         />

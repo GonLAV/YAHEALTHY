@@ -83,6 +83,36 @@ export interface Streaks {
   longestStreak: number;
 }
 
+export interface FastingWindow {
+  id: string;
+  user_id: string;
+  window_hours: number;
+  protocol: string;
+  tips: string;
+  created_at: string;
+}
+
+// ingredients/allergies/swaps are stored as JSON-stringified text (see
+// supabase/migrations/20260917100000_initial_schema.sql) -- the create
+// response merges in the parsed `swaps` object, but rows fetched via GET
+// carry the raw JSON strings and need parsing before display.
+export interface MealSwapRaw {
+  id: string;
+  user_id: string;
+  ingredients: string;
+  allergies: string;
+  swaps: string;
+  created_at: string;
+}
+
+export interface MealSwapParsed {
+  id: string;
+  ingredients: string[];
+  allergies: string[];
+  swaps: Record<string, string[]>;
+  created_at: string;
+}
+
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -163,6 +193,25 @@ export const analyticsApi = {
 
   getStreaks: (asOf?: string) =>
     api.get<Streaks>('/api/streaks', { params: asOf ? { asOf } : undefined }),
+};
+
+export const fastingApi = {
+  create: (windowHours: number) =>
+    api.post<FastingWindow>('/api/fasting-windows', { windowHours }),
+
+  getAll: () =>
+    api.get<FastingWindow[]>('/api/fasting-windows'),
+};
+
+export const mealSwapApi = {
+  create: (ingredients: string[], allergies: string[]) =>
+    api.post<MealSwapRaw & { swaps: Record<string, string[]> }>('/api/meal-swaps', {
+      ingredients,
+      allergies,
+    }),
+
+  getAll: () =>
+    api.get<MealSwapRaw[]>('/api/meal-swaps'),
 };
 
 export const settingsApi = {
