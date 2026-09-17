@@ -220,6 +220,13 @@ async function updateUserPasswordHash(userId, passwordHash) {
 /**
  * Update user preferences JSON
  */
+// Preferences are stored on the user record; this is the read side of
+// updateUserPreferences, which several routes assumed already existed.
+async function getUserPreferences(userId) {
+  const user = await getUser(userId);
+  return user ? (user.preferences || {}) : null;
+}
+
 async function updateUserPreferences(userId, preferences) {
   if (USE_MEMORY_DB) {
     maybeLogMemoryMode();
@@ -286,6 +293,12 @@ async function getSurveys(userId) {
   
   if (error) throw error;
   return data || [];
+}
+
+// getSurveys returns newest-first, so the latest survey is simply the first.
+async function getLatestSurvey(userId) {
+  const surveys = await getSurveys(userId);
+  return surveys[0] || null;
 }
 
 async function getSurveyById(surveyId, userId) {
@@ -1051,10 +1064,12 @@ module.exports = {
   getUserByEmail,
   createUser,
   updateUserPasswordHash,
+  getUserPreferences,
   updateUserPreferences,
   // Surveys
   createSurvey,
   getSurveys,
+  getLatestSurvey,
   getSurveyById,
   // Weight Goals
   createWeightGoal,
