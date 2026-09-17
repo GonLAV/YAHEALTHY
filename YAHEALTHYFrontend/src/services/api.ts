@@ -23,6 +23,66 @@ interface FoodLogInput {
   notes?: string;
 }
 
+export interface DailyInsights {
+  date: string;
+  logCount: number;
+  totalCalories: number;
+  totalProtein: number;
+  mealCounts: Record<string, number>;
+  meetsProteinTarget: boolean | null;
+  calorieStatus: 'under' | 'over' | 'perfect' | null;
+}
+
+export interface Badge {
+  id: string;
+  name: string;
+  description: string;
+  earnedAt: string;
+  icon: string;
+}
+
+export interface BadgesResponse {
+  badges: Badge[];
+  totalEarned: number;
+}
+
+export interface ProgressOverview {
+  today: {
+    date: string;
+    caloriesLogged: number;
+    proteinLogged: number;
+    logsCount: number;
+  };
+  stats: {
+    totalDaysLogged: number;
+    totalLogsCount: number;
+    averageLogsPerDay: number;
+    latestWeight: number | null;
+  };
+}
+
+export interface ResolvedTargets {
+  targets: {
+    calories: number | null;
+    protein_grams: number | null;
+    carbs_grams: number | null;
+    fat_grams: number | null;
+  };
+  source: string;
+  surveyId: string | null;
+  lastUpdated: string | null;
+}
+
+export interface Streaks {
+  asOf: string;
+  streakType: string;
+  activeOnAsOfDate: boolean;
+  lastActiveDate: string | null;
+  activeDatesCount: number;
+  currentStreak: number;
+  longestStreak: number;
+}
+
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -81,24 +141,28 @@ export const foodLogApi = {
     api.get('/api/food-logs/macros-distribution', { params }),
 };
 
-export const crmApi = {
-  getInsights: (userId: string) => api.get(`/api/crm/users/${userId}/insights`),
-  askCoach: (userId: string, message: string) =>
-    api.post(`/api/crm/users/${userId}/ask`, { message }),
-};
+// There is no `/api/crm/*` backend -- crm-routes.js was dead code, never
+// mounted in index.js, and was deleted outright (see
+// Plugin/DEV-TEAM/skills/dev-team/references/decisions.md, ADR-002). A
+// coaching chat that generates free-text nutrition advice is a health-
+// boundary decision (needs explicit review of the advice logic, not a
+// routing fix) -- CoachingPage now shows real computed data instead.
 
 export const analyticsApi = {
-  getInsights: () =>
-    api.get('/api/insights/daily'),
-  
+  getInsights: (date?: string) =>
+    api.get<DailyInsights>('/api/insights/daily', { params: date ? { date } : undefined }),
+
   getBadges: () =>
-    api.get('/api/badges'),
-  
-  getProgress: (params?: { metric?: string; startDate?: string; endDate?: string }) =>
-    api.get('/api/progress/overview', { params }),
-  
+    api.get<BadgesResponse>('/api/badges'),
+
+  getProgress: () =>
+    api.get<ProgressOverview>('/api/progress/overview'),
+
   getTargets: () =>
-    api.get('/api/users/me/preferences'),
+    api.get<ResolvedTargets>('/api/targets'),
+
+  getStreaks: (asOf?: string) =>
+    api.get<Streaks>('/api/streaks', { params: asOf ? { asOf } : undefined }),
 };
 
 export const settingsApi = {

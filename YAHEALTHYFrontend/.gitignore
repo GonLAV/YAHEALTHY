@@ -6,6 +6,13 @@ build/
 .env.local
 .env.*.local
 
+# TypeScript build output/cache -- tsconfig.json now sets noEmit, but a
+# stray tsc -b run previously emitted .js next to every .ts/.tsx source
+# and got committed, silently shadowing them in Vite's module resolution
+# (.js resolves before .tsx). Never let this recur.
+*.tsbuildinfo
+.tsc-out/
+
 # IDE
 .vscode/
 .idea/
