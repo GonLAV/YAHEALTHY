@@ -10,6 +10,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
+    env:
+      # test-system.sh boots the server itself (node index.js). Since the server
+      # now refuses to start without real credentials, the test job has to opt in
+      # to the in-memory store explicitly.
+      ALLOW_MEMORY_DB: 'true'
+      # A throwaway secret: the suite only needs tokens to verify against
+      # themselves within a single run.
+      JWT_SECRET: ci-test-secret-not-used-anywhere-else
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,3 +40,11 @@ jobs:
       - name: Run system test
         working-directory: YAHEALTHYbackend
         run: npm test
+
+      - name: Upload server log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-log
+          path: /tmp/yahealthy_server.log
+          if-no-files-found: ignore

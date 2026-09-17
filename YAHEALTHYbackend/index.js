@@ -45,6 +45,19 @@ const { buildOpenApiSpec } = require('./openapi');
 dotenv.config();
 
 const app = express();
+
+// Behind a proxy (Vercel and similar), req.ip is the proxy's address unless this
+// is set, which makes the rate limiter treat every visitor as the same client.
+// middleware/rateLimit.js documents this as a prerequisite.
+app.set('trust proxy', 1);
+
+// Internal error text (stack paths, field names, driver messages) tells a client
+// more about the system than it should know. Outside development the client gets
+// a stable, uninformative string; the real message still goes to the server log.
+function safeErrorDetails(error) {
+  if (process.env.NODE_ENV === 'production') return undefined;
+  return error && error.message;
+}
 const PORT = process.env.PORT || 5000;
 
 // Middleware
@@ -165,7 +178,7 @@ app.post('/api/auth/signup', async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
     }
-    res.status(500).json({ error: 'Signup failed', details: error.message, requestId: req.id });
+    res.status(500).json({ error: 'Signup failed', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -208,7 +221,7 @@ app.post('/api/auth/login', async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
     }
-    res.status(500).json({ error: 'Login failed', details: error.message, requestId: req.id });
+    res.status(500).json({ error: 'Login failed', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -226,7 +239,7 @@ app.get('/api/auth/me', auth.authMiddleware, async (req, res) => {
       preferences: user.preferences
     });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to get user', details: error.message });
+    res.status(500).json({ error: 'Failed to get user', details: safeErrorDetails(error) });
   }
 });
 
@@ -259,7 +272,7 @@ app.post('/api/auth/change-password', auth.authMiddleware, async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
     }
-    return res.status(500).json({ error: 'Change password failed', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Change password failed', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -286,7 +299,7 @@ app.post('/api/auth/request-password-reset', async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
     }
-    return res.status(500).json({ error: 'Password reset request failed', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Password reset request failed', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -318,7 +331,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
     }
-    return res.status(500).json({ error: 'Reset password failed', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Reset password failed', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -335,7 +348,7 @@ app.get('/api/users/me/preferences', auth.authMiddleware, async (req, res) => {
     }
     return res.json({ preferences: user.preferences || {} });
   } catch (error) {
-    return res.status(500).json({ error: 'Failed to get preferences', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to get preferences', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -390,7 +403,7 @@ app.put('/api/users/me/preferences', auth.authMiddleware, async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
     }
-    return res.status(500).json({ error: 'Failed to update preferences', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to update preferences', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -453,7 +466,7 @@ app.post('/api/surveys', auth.authMiddleware, async (req, res) => {
     res.status(201).json(survey);
   } catch (error) {
     console.error('Survey creation error:', error);
-    res.status(500).json({ error: 'Failed to create survey', details: error.message });
+    res.status(500).json({ error: 'Failed to create survey', details: safeErrorDetails(error) });
   }
 });
 
@@ -467,7 +480,7 @@ app.get('/api/surveys', auth.authMiddleware, async (req, res) => {
     const surveys = await db.getSurveys(userId);
     res.json(surveys || []);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to get surveys', details: error.message });
+    res.status(500).json({ error: 'Failed to get surveys', details: safeErrorDetails(error) });
   }
 });
 
@@ -483,7 +496,7 @@ app.get('/api/surveys/:id', auth.authMiddleware, async (req, res) => {
     }
     res.json(survey);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to get survey', details: error.message });
+    res.status(500).json({ error: 'Failed to get survey', details: safeErrorDetails(error) });
   }
 });
 
@@ -509,7 +522,7 @@ app.post('/api/weight-goals', auth.authMiddleware, async (req, res) => {
 
     res.status(201).json(goal);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to create weight goal', details: error.message });
+    res.status(500).json({ error: 'Failed to create weight goal', details: safeErrorDetails(error) });
   }
 });
 
@@ -522,7 +535,7 @@ app.get('/api/weight-goals', auth.authMiddleware, async (req, res) => {
     const goals = await db.getWeightGoals(userId);
     res.json(goals || []);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to get weight goals', details: error.message });
+    res.status(500).json({ error: 'Failed to get weight goals', details: safeErrorDetails(error) });
   }
 });
 
@@ -538,7 +551,7 @@ app.get('/api/weight-goals/:id', auth.authMiddleware, async (req, res) => {
     }
     res.json(goal);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to get weight goal', details: error.message });
+    res.status(500).json({ error: 'Failed to get weight goal', details: safeErrorDetails(error) });
   }
 });
 
@@ -588,7 +601,7 @@ app.post('/api/weight-logs', auth.authMiddleware, async (req, res) => {
 
     res.status(201).json({ ...log, celebration });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to create weight log', details: error.message });
+    res.status(500).json({ error: 'Failed to create weight log', details: safeErrorDetails(error) });
   }
 });
 
@@ -602,7 +615,7 @@ app.get('/api/weight-logs', auth.authMiddleware, async (req, res) => {
     const logs = await db.getWeightLogs(userId, goalId);
     res.json(logs || []);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to get weight logs', details: error.message });
+    res.status(500).json({ error: 'Failed to get weight logs', details: safeErrorDetails(error) });
   }
 });
 
@@ -629,7 +642,7 @@ app.post('/api/hydration-logs', auth.authMiddleware, async (req, res) => {
 
     res.status(201).json(log);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to log hydration', details: error.message });
+    res.status(500).json({ error: 'Failed to log hydration', details: safeErrorDetails(error) });
   }
 });
 
@@ -643,7 +656,7 @@ app.get('/api/hydration-logs', auth.authMiddleware, async (req, res) => {
     const logs = await db.getHydrationLogs(userId, date);
     res.json(logs || []);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to get hydration logs', details: error.message });
+    res.status(500).json({ error: 'Failed to get hydration logs', details: safeErrorDetails(error) });
   }
 });
 
@@ -670,7 +683,7 @@ app.post('/api/sleep-logs', auth.authMiddleware, async (req, res) => {
 
     res.status(201).json(log);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to log sleep', details: error.message });
+    res.status(500).json({ error: 'Failed to log sleep', details: safeErrorDetails(error) });
   }
 });
 
@@ -684,7 +697,7 @@ app.get('/api/sleep-logs', auth.authMiddleware, async (req, res) => {
     const logs = await db.getSleepLogs(userId, date);
     res.json(logs || []);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to get sleep logs', details: error.message });
+    res.status(500).json({ error: 'Failed to get sleep logs', details: safeErrorDetails(error) });
   }
 });
 
@@ -719,7 +732,7 @@ app.post('/api/fasting-windows', auth.authMiddleware, async (req, res) => {
 
     res.status(201).json(window);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to create fasting window', details: error.message });
+    res.status(500).json({ error: 'Failed to create fasting window', details: safeErrorDetails(error) });
   }
 });
 
@@ -732,7 +745,7 @@ app.get('/api/fasting-windows', auth.authMiddleware, async (req, res) => {
     const windows = await db.getFastingWindows(userId);
     res.json(windows || []);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to get fasting windows', details: error.message });
+    res.status(500).json({ error: 'Failed to get fasting windows', details: safeErrorDetails(error) });
   }
 });
 
@@ -772,7 +785,7 @@ app.post('/api/meal-swaps', auth.authMiddleware, async (req, res) => {
 
     res.status(201).json({ ...swap, swaps });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to create meal swap', details: error.message });
+    res.status(500).json({ error: 'Failed to create meal swap', details: safeErrorDetails(error) });
   }
 });
 
@@ -785,7 +798,7 @@ app.get('/api/meal-swaps', auth.authMiddleware, async (req, res) => {
     const swaps = await db.getMealSwaps(userId);
     res.json(swaps || []);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to get meal swaps', details: error.message });
+    res.status(500).json({ error: 'Failed to get meal swaps', details: safeErrorDetails(error) });
   }
 });
 
@@ -818,7 +831,7 @@ app.post('/api/readiness', auth.authMiddleware, async (req, res) => {
 
     res.status(201).json({ ...readiness, level });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to calculate readiness', details: error.message });
+    res.status(500).json({ error: 'Failed to calculate readiness', details: safeErrorDetails(error) });
   }
 });
 
@@ -831,7 +844,7 @@ app.get('/api/readiness', auth.authMiddleware, async (req, res) => {
     const readinessScores = await db.getReadinessScores(userId);
     res.json(readinessScores || []);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to get readiness scores', details: error.message });
+    res.status(500).json({ error: 'Failed to get readiness scores', details: safeErrorDetails(error) });
   }
 });
 
@@ -854,7 +867,7 @@ app.post('/api/sleep-debt', auth.authMiddleware, async (req, res) => {
         : 'You are all caught up!'
     });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to calculate sleep debt', details: error.message });
+    res.status(500).json({ error: 'Failed to calculate sleep debt', details: safeErrorDetails(error) });
   }
 });
 
@@ -885,7 +898,7 @@ app.post('/api/water-reminders', auth.authMiddleware, async (req, res) => {
       activityBonus: Math.round((activityMinutes / 30) * 0.5 * 10) / 10
     });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to get water reminders', details: error.message });
+    res.status(500).json({ error: 'Failed to get water reminders', details: safeErrorDetails(error) });
   }
 });
 
@@ -911,7 +924,7 @@ app.post('/api/offline-logs', auth.authMiddleware, async (req, res) => {
 
     res.status(201).json(log);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to create offline log', details: error.message });
+    res.status(500).json({ error: 'Failed to create offline log', details: safeErrorDetails(error) });
   }
 });
 
@@ -924,7 +937,7 @@ app.get('/api/offline-logs', auth.authMiddleware, async (req, res) => {
     const logs = await db.getOfflineLogs(userId, false);
     res.json(logs || []);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to get offline logs', details: error.message });
+    res.status(500).json({ error: 'Failed to get offline logs', details: safeErrorDetails(error) });
   }
 });
 
@@ -937,7 +950,7 @@ app.post('/api/offline-logs/:id/sync', auth.authMiddleware, async (req, res) => 
     const log = await db.markOfflineLogSynced(req.params.id, userId);
     res.json(log);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to sync offline log', details: error.message });
+    res.status(500).json({ error: 'Failed to sync offline log', details: safeErrorDetails(error) });
   }
 });
 
@@ -989,7 +1002,9 @@ app.get('/api/recipes', auth.authMiddleware, (req, res) => {
  */
 app.get('/api/recipes/shuffle', auth.authMiddleware, (req, res) => {
   const count = parseInt(req.query.count) || 2;
-  const shuffled = recipes.sort(() => Math.random() - 0.5).slice(0, count);
+  // Copy before sorting: Array.prototype.sort mutates in place, so shuffling
+  // the shared recipes array reordered it permanently for every later request.
+  const shuffled = [...recipes].sort(() => Math.random() - 0.5).slice(0, count);
   res.json(shuffled);
 });
 
@@ -1369,7 +1384,7 @@ app.post('/api/food-logs', auth.authMiddleware, async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
     }
-    return res.status(500).json({ error: 'Failed to create food log', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to create food log', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -1417,7 +1432,7 @@ app.post('/api/food-logs/bulk', auth.authMiddleware, async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
     }
-    return res.status(500).json({ error: 'Failed to create food logs', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to create food logs', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -1476,7 +1491,7 @@ app.post('/api/food-logs/import', auth.authMiddleware, async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
     }
-    return res.status(500).json({ error: 'Failed to import food logs', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to import food logs', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -1516,7 +1531,7 @@ app.post('/api/food-logs/copy', auth.authMiddleware, async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
     }
-    return res.status(500).json({ error: 'Failed to copy food logs', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to copy food logs', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -1559,7 +1574,7 @@ app.post('/api/food-logs/template', auth.authMiddleware, async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
     }
-    return res.status(500).json({ error: 'Failed to create food log template', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to create food log template', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -1588,7 +1603,7 @@ app.get('/api/food-logs/templates', auth.authMiddleware, async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
     }
-    return res.status(500).json({ error: 'Failed to get food log templates', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to get food log templates', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -1614,7 +1629,7 @@ app.delete('/api/food-logs/templates/:id', auth.authMiddleware, async (req, res)
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
     }
-    return res.status(500).json({ error: 'Failed to delete food log template', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to delete food log template', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -1649,7 +1664,7 @@ app.get('/api/food-logs', auth.authMiddleware, async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
     }
-    return res.status(500).json({ error: 'Failed to get food logs', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to get food logs', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -1673,7 +1688,7 @@ app.get('/api/food-days', auth.authMiddleware, async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
     }
-    return res.status(500).json({ error: 'Failed to get food days', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to get food days', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -1698,7 +1713,7 @@ app.get('/api/food-logs/:id', auth.authMiddleware, async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
     }
-    return res.status(500).json({ error: 'Failed to get food log', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to get food log', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -1723,7 +1738,7 @@ app.delete('/api/food-logs/:id', auth.authMiddleware, async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
     }
-    return res.status(500).json({ error: 'Failed to delete food log', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to delete food log', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -1784,7 +1799,7 @@ app.put('/api/food-logs/:id', auth.authMiddleware, async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
     }
-    return res.status(500).json({ error: 'Failed to update food log', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to update food log', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -1845,7 +1860,7 @@ app.patch('/api/food-logs/:id', auth.authMiddleware, async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
     }
-    return res.status(500).json({ error: 'Failed to update food log', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to update food log', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -1885,7 +1900,7 @@ app.get('/api/food-summary', auth.authMiddleware, async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
     }
-    return res.status(500).json({ error: 'Failed to get food summary', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to get food summary', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -1973,7 +1988,7 @@ app.get('/api/food-summary/range', auth.authMiddleware, async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
     }
-    return res.status(500).json({ error: 'Failed to get food summary range', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to get food summary range', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -2059,7 +2074,7 @@ app.get('/api/food-summary/week', auth.authMiddleware, async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
     }
-    return res.status(500).json({ error: 'Failed to get food summary week', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to get food summary week', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -2148,7 +2163,7 @@ app.get('/api/food-summary/month', auth.authMiddleware, async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
     }
-    return res.status(500).json({ error: 'Failed to get food summary month', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to get food summary month', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -2188,7 +2203,7 @@ app.get('/api/calorie-balance', auth.authMiddleware, async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
     }
-    return res.status(500).json({ error: 'Failed to get calorie balance', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to get calorie balance', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -2284,7 +2299,7 @@ app.get('/api/weekly-calorie-balance', auth.authMiddleware, async (req, res) => 
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
     }
-    return res.status(500).json({ error: 'Failed to get weekly calorie balance', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to get weekly calorie balance', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -2357,7 +2372,7 @@ app.get('/api/streaks', auth.authMiddleware, async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
     }
-    return res.status(500).json({ error: 'Failed to get streaks', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to get streaks', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -2455,7 +2470,7 @@ app.get('/api/macro-balance', auth.authMiddleware, async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
     }
-    return res.status(500).json({ error: 'Failed to get macro balance', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to get macro balance', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -2634,7 +2649,7 @@ app.get('/api/macro-balance/range', auth.authMiddleware, async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
     }
-    return res.status(500).json({ error: 'Failed to get macro balance range', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to get macro balance range', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -2758,7 +2773,7 @@ app.get('/api/nutrition-score', auth.authMiddleware, async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
     }
-    return res.status(500).json({ error: 'Failed to get nutrition score', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to get nutrition score', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -2945,7 +2960,7 @@ app.get('/api/nutrition-score/range', auth.authMiddleware, async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
     }
-    return res.status(500).json({ error: 'Failed to get nutrition score range', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to get nutrition score range', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -3132,7 +3147,7 @@ app.get('/api/weekly-nutrition', auth.authMiddleware, async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
     }
-    return res.status(500).json({ error: 'Failed to get weekly nutrition', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to get weekly nutrition', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -3162,7 +3177,7 @@ app.get('/api/food-logs/search', auth.authMiddleware, async (req, res) => {
       logs: filtered
     });
   } catch (error) {
-    return res.status(500).json({ error: 'Failed to search food logs', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to search food logs', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -3218,7 +3233,7 @@ app.get('/api/food-logs/stats', auth.authMiddleware, async (req, res) => {
       dateRange: { start: start || 'all', end: end || 'all' }
     });
   } catch (error) {
-    return res.status(500).json({ error: 'Failed to get food statistics', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to get food statistics', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -3276,7 +3291,7 @@ app.get('/api/food-logs/macros-distribution', auth.authMiddleware, async (req, r
 
     return res.json(distribution);
   } catch (error) {
-    return res.status(500).json({ error: 'Failed to get macros distribution', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to get macros distribution', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -3326,7 +3341,7 @@ app.get('/api/insights/daily', auth.authMiddleware, async (req, res) => {
 
     return res.json(insights);
   } catch (error) {
-    return res.status(500).json({ error: 'Failed to get daily insights', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to get daily insights', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -3389,7 +3404,7 @@ app.get('/api/badges', auth.authMiddleware, async (req, res) => {
 
     return res.json({ badges, totalEarned: badges.length });
   } catch (error) {
-    return res.status(500).json({ error: 'Failed to get badges', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to get badges', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -3417,7 +3432,7 @@ app.get('/api/targets', auth.authMiddleware, async (req, res) => {
       lastUpdated: survey?.created_at || null
     });
   } catch (error) {
-    return res.status(500).json({ error: 'Failed to get targets', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to get targets', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -3455,7 +3470,7 @@ app.put('/api/targets', auth.authMiddleware, async (req, res) => {
       message: 'Targets updated'
     });
   } catch (error) {
-    return res.status(500).json({ error: 'Failed to set targets', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to set targets', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
@@ -3498,7 +3513,7 @@ app.get('/api/progress/overview', auth.authMiddleware, async (req, res) => {
       }
     });
   } catch (error) {
-    return res.status(500).json({ error: 'Failed to get progress overview', details: error.message, requestId: req.id });
+    return res.status(500).json({ error: 'Failed to get progress overview', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 

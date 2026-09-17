@@ -1,62 +1,85 @@
 name: Deploy YAHEALTHY Backend
 
+# Only deploys. Tests live in ci.yml, which runs on every push and pull request —
+# this workflow used to duplicate a weaker version of them on the same triggers,
+# with a different Node version, so what was tested was not what shipped.
 on:
   push:
     branches: [ main ]
     paths:
       - 'YAHEALTHYbackend/**'
       - '.github/workflows/deploy.yml'
-  pull_request:
-    branches: [ main ]
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v3
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
-    
-    - name: Install dependencies
-      run: |
-        cd YAHEALTHYbackend
-        npm install
-    
-    - name: Syntax check
-      run: |
-        cd YAHEALTHYbackend
-        node -c index.js
-    
-    - name: Lint (optional)
-      run: |
-        cd YAHEALTHYbackend
-        npm run lint 2>/dev/null || echo "No lint configured yet"
-      continue-on-error: true
-
   deploy:
-    needs: test
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
+    timeout-minutes: 15
+
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Deploy to Vercel
-      env:
-        VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      run: |
-        npm i -g vercel
-        vercel --token $VERCEL_TOKEN --prod
-      continue-on-error: true
-    
-    - name: Notify Deployment
-      if: success()
-      run: |
-        echo "✅ Deployment successful!"
-        echo "Backend URL: https://your-vercel-url.vercel.app"
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: YAHEALTHYbackend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: YAHEALTHYbackend
+        run: npm ci
+
+      - name: Syntax check
+        working-directory: YAHEALTHYbackend
+        run: node -c index.js
+
+      # The server refuses to start without these. Checking here turns a silent
+      # production failure into a red build before anything ships.
+      - name: Verify required secrets are present
+        env:
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          missing=""
+          for name in JWT_SECRET SUPABASE_URL SUPABASE_KEY VERCEL_TOKEN; do
+            if [ -z "${!name}" ]; then missing="$missing $name"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing required repository secrets:$missing"
+            echo "Add them under Settings -> Secrets and variables -> Actions."
+            echo "Without JWT_SECRET the server would sign tokens with a predictable key;"
+            echo "without SUPABASE_* it would lose all user data on every restart."
+            exit 1
+          fi
+          echo "All required secrets are present."
+
+      # No continue-on-error here on purpose: a failed deploy must fail the run.
+      # The previous version let this step fail and still reported success.
+      - name: Deploy to Vercel
+        id: vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        run: |
+          npm i -g vercel@latest
+          # NOTE: runs from the repository root. There is no vercel.json in this
+          # repo, so the root directory comes from the Vercel project settings.
+          # If the project is not pointed at YAHEALTHYbackend/, this deploys the
+          # wrong tree — confirm in the Vercel dashboard.
+          url=$(vercel --token "$VERCEL_TOKEN" --prod --yes)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Deployed to $url"
+
+      - name: Summary
+        if: success()
+        run: |
+          echo "### Deployment successful" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Backend URL: ${{ steps.vercel.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"

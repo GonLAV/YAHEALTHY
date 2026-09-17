@@ -1,5 +1,40 @@
 {
   "plugins": [
+    {
+      "name": "alon-gen",
+      "version": "1.0.2",
+      "source": "./alon-gen"
+    },
+    {
+      "name": "yachin-gen",
+      "version": "1.0.0",
+      "source": "./yachin-gen"
+    },
+    {
+      "name": "netanel-gen",
+      "version": "1.0.0",
+      "source": "./netanel-gen"
+    },
+    {
+      "name": "betzalel-gen",
+      "version": "1.0.0",
+      "source": "./betzalel-gen"
+    },
+    {
+      "name": "yitro-gen",
+      "version": "2.0.0",
+      "source": "./yitro-gen"
+    },
+    {
+      "name": "malachi-gen",
+      "version": "2.0.0",
+      "source": "./malachi-gen"
+    },
+    {
+      "name": "dev-team",
+      "version": "2.0.0",
+      "source": "./DEV-TEAM"
+    }
     { "name": "alon-gen",     "version": "1.0.2", "source": "./alon-gen" },
     { "name": "yachin-gen",   "version": "1.0.0", "source": "./yachin-gen" },
     { "name": "netanel-gen",  "version": "1.0.0", "source": "./netanel-gen" },
@@ -9,7 +44,9 @@
     { "name": "dev-team",     "version": "1.1.0", "source": "./DEV-TEAM" }
   ],
   "name": "local-desktop-app-uploads",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Locally uploaded plugins via Claude Desktop app",
-  "owner": { "name": "Local User" }
+  "owner": {
+    "name": "Local User"
+  }
 }

@@ -11,3 +11,6 @@ npm-debug.log*
 Thumbs.db
 coverage/
 .vscode/
+
+# malachi channel credentials — never commit
+.env.malachi
