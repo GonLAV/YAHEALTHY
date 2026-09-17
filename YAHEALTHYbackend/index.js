@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
+const fs = require('fs');
 const swaggerUi = require('swagger-ui-express');
 const { z, ZodError } = require('zod');
 
@@ -957,38 +958,11 @@ app.post('/api/offline-logs/:id/sync', auth.authMiddleware, async (req, res) => 
 // ========== RECIPE ENDPOINTS ==========
 
 // Existing hardcoded recipes for now
-const recipes = [
-  {
-    id: 'recipe_1',
-    name: 'Sabich - Israeli Eggplant Salad',
-    category: 'salad',
-    difficulty: 'easy',
-    time_minutes: 15,
-    calories: 280,
-    ingredients: ['eggplant', 'tahini', 'lemon', 'garlic', 'olive oil'],
-    steps: ['Roast eggplant', 'Mix with tahini', 'Add lemon and garlic', 'Serve with olive oil']
-  },
-  {
-    id: 'recipe_2',
-    name: 'Shakshuka - Eggs in Tomato Sauce',
-    category: 'breakfast',
-    difficulty: 'easy',
-    time_minutes: 20,
-    calories: 350,
-    ingredients: ['eggs', 'tomatoes', 'onion', 'garlic', 'olive oil', 'cumin'],
-    steps: ['Cook tomato sauce', 'Make wells', 'Crack eggs', 'Simmer until set']
-  },
-  {
-    id: 'recipe_3',
-    name: 'Tabbouleh - Herb Salad',
-    category: 'salad',
-    difficulty: 'easy',
-    time_minutes: 15,
-    calories: 220,
-    ingredients: ['parsley', 'bulgur', 'tomato', 'lemon', 'olive oil', 'mint'],
-    steps: ['Soak bulgur', 'Chop herbs', 'Mix all ingredients', 'Dress with lemon oil']
-  }
-];
+// Recipes live in data/recipes.json, not in this file: content that changes
+// without a code change should not require a deploy. Loaded once at startup.
+const recipes = JSON.parse(
+  fs.readFileSync(path.join(__dirname, 'data', 'recipes.json'), 'utf8')
+);
 
 /**
  * GET /api/recipes
