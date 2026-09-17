@@ -35,7 +35,8 @@ version: 2.0.0
 | עובדים על פייסבוק Messenger | `references/facebook-messenger.md` |
 | עולה בקשה לטיקטוק | `references/tiktok-status.md` |
 | "על איזה חשבון אנחנו עובדים" / מצב חיבור | `references/accounts.md` |
-| מחברים ערוץ / עובדים מול Make | `references/connector-setup.md` |
+| מחברים ערוץ / הגדרת Meta App | `references/connector-setup.md` |
+| "מה צריך כדי לנהל את כל החשבונות" | `references/channel-checklist.md` |
 
 ## כללי-ברזל 🔒
 
