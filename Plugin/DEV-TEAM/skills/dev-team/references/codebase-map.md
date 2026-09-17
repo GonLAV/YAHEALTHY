@@ -26,11 +26,11 @@ import { pool } from './db.js';   // crm-routes.js:6
 ### 2. התנגשות מודולים — ESM מול CommonJS
 `package.json` מצהיר `"type": "commonjs"`, אבל `crm-routes.js` משתמש ב-`import`/`export` (ESM). זה לא ירוץ. `index.js` ו-`utils/database.js` משתמשים ב-`require` — הריפו מעורבב.
 
-### 3. שלוש ערימות DB מותקנות, אף אחת לא גמורה
+### 3. שלוש ערימות DB מותקנות — הוכרע: Supabase (ADR-001)
 | חבילה | סטטוס בפועל |
 |---|---|
-| `mongoose` ^9.0.2 | **מותקן, לא בשימוש בכלל.** אין חיבור, אין מודל |
-| `@supabase/supabase-js` ^2.89.0 | בשימוש ב-`utils/database.js` |
+| `mongoose` ^9.0.2 | **מותקן, לא בשימוש. ADR-001 הכריע להסיר** |
+| `@supabase/supabase-js` ^2.89.0 | ✅ **הערימה הרשמית (ADR-001).** בשימוש ב-`utils/database.js` |
 | `pg` (PostgreSQL) | **קוד ה-CRM מניח `pool.query()` — אבל `pg` לא ב-dependencies בכלל** |
 
 **+ `crm-*.js` לא מחוברים ל-`index.js`** — אף route לא רשום. קוד מת לחלוטין.
