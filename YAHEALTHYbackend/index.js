@@ -1,6 +1,7 @@
 
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const dotenv = require('dotenv');
 // Must run before any module that reads process.env at load time — utils/database.js
 // and utils/auth.js both do. This used to sit below those requires, so .env never
@@ -65,8 +66,58 @@ function safeErrorDetails(error) {
 }
 const PORT = process.env.PORT || 5000;
 
+// Applies when a password is being set, not when one is being checked, so
+// accounts created under the old six-character rule keep signing in.
+const MIN_PASSWORD_LENGTH = 10;
+
 // Middleware
-app.use(cors());
+
+// Which sites may call this API from a browser. Anything not named here is
+// refused, because the previous `cors()` with no arguments answered every
+// origin on the internet.
+//
+// Production must say so explicitly: an allowlist that quietly defaults to
+// something permissive is the same hole with more steps, so a missing value
+// stops the server instead of guessing. Development falls back to the Vite
+// dev server, which is where the frontend actually runs.
+const CORS_ORIGINS = (() => {
+  const configured = (process.env.CORS_ORIGINS || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  if (configured.length) return configured;
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'CORS_ORIGINS is required in production. Refusing to start: without it the ' +
+      'API would have to either answer every origin or none.'
+    );
+  }
+
+  return ['http://localhost:5173', 'http://127.0.0.1:5173'];
+})();
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      // No Origin header at all is a server-to-server call, curl, or a health
+      // probe — not a browser acting for some other site, so it is allowed.
+      // The header is what a browser attaches, and it is not forgeable by the
+      // page making the request.
+      if (!origin) return callback(null, true);
+      if (CORS_ORIGINS.includes(origin)) return callback(null, true);
+      return callback(null, false);
+    }
+  })
+);
+
+// Security headers. Content-Security-Policy is deliberately left off for now:
+// public/login.html and public/index.html carry inline scripts and 38 inline
+// style attributes, so a default policy would break the pages this server
+// serves. Turning CSP on means giving those pages nonces first, and that is
+// its own change with its own testing — not a flag flipped in passing.
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(requestContext);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
@@ -151,7 +202,7 @@ app.post('/api/auth/signup', async (req, res) => {
   try {
     const signupSchema = z.object({
       email: z.string().email(),
-      password: z.string().min(6),
+      password: z.string().min(MIN_PASSWORD_LENGTH),
       name: z.string().min(1).optional()
     });
     const { email, password, name } = signupSchema.parse(req.body);
@@ -161,8 +212,10 @@ app.post('/api/auth/signup', async (req, res) => {
       return res.status(400).json({ error: 'Email and password required' });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({
+        error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`
+      });
     }
 
     // Check if user exists
@@ -286,7 +339,7 @@ app.post('/api/auth/change-password', auth.authMiddleware, async (req, res) => {
   try {
     const schema = z.object({
       oldPassword: z.string().min(1),
-      newPassword: z.string().min(6)
+      newPassword: z.string().min(MIN_PASSWORD_LENGTH)
     });
     const { oldPassword, newPassword } = schema.parse(req.body);
 
@@ -354,7 +407,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
   try {
     const schema = z.object({
       token: z.string().min(1),
-      newPassword: z.string().min(6)
+      newPassword: z.string().min(MIN_PASSWORD_LENGTH)
     });
     const { token, newPassword } = schema.parse(req.body);
 
