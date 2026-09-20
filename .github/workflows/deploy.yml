@@ -36,9 +36,16 @@ jobs:
         working-directory: YAHEALTHYbackend
         run: npm ci
 
+      # `node -c` only parses index.js itself, not the modules it requires --
+      # a syntax error in utils/database.js (two functions left unclosed by a
+      # bad merge) passed this check and then crashed every single request in
+      # production instead. Actually require() the app so the whole
+      # dependency tree gets parsed and its module-level code runs.
       - name: Syntax check
         working-directory: YAHEALTHYbackend
-        run: node -c index.js
+        env:
+          ALLOW_MEMORY_DB: 'true'
+        run: node -e "require('./index.js'); process.exit(0);"
 
       # The server refuses to start without these. Checking here turns a silent
       # production failure into a red build before anything ships.
@@ -62,17 +69,6 @@ jobs:
           fi
           echo "All required secrets are present."
 
-      # Diagnostic only -- prints the project's real Project ID and Org/Team ID
-      # via the API (avoids dashboard copy-paste errors). Remove once
-      # VERCEL_PROJECT_ID/VERCEL_ORG_ID are confirmed correct.
-      - name: Look up Vercel project ID
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          npm i -g vercel@latest
-          vercel whoami --token "$VERCEL_TOKEN" || true
-          vercel project inspect yahealthy --token "$VERCEL_TOKEN" || true
-
       # No continue-on-error here on purpose: a failed deploy must fail the run.
       # The previous version let this step fail and still reported success.
       - name: Deploy to Vercel
@@ -90,17 +86,6 @@ jobs:
           url=$(vercel --cwd YAHEALTHYbackend --token "$VERCEL_TOKEN" --prod --yes)
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Deployed to $url"
-
-      # Diagnostic only -- /api/health is 500ing (FUNCTION_INVOCATION_FAILED).
-      # Hit it once to produce a fresh log line, then print the real crash
-      # reason instead of guessing at it. Remove once it's fixed.
-      - name: Print the actual crash reason
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          curl -s -o /dev/null "${{ steps.vercel.outputs.url }}/api/health" || true
-          sleep 3
-          timeout 20 vercel logs "${{ steps.vercel.outputs.url }}" --token "$VERCEL_TOKEN" || true
 
       - name: Summary
         if: success()

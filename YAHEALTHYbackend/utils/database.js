@@ -1086,6 +1086,13 @@ async function saveWhatsappMessage(msg) {
   const { data, error } = await supabase
     .from('whatsapp_messages')
     .upsert([{ ...msg, received_at: new Date().toISOString() }], { onConflict: 'id' })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 /**
  * WHAPI BOT CONVERSATIONS (Nuri + the chef) -- see migrations/001
  */
@@ -1139,6 +1146,8 @@ async function getWhatsappMessages({ status = null, limit = 50 } = {}) {
   const { data, error } = await q;
   if (error) throw error;
   return data || [];
+}
+
 async function logWhapiMessage(phone, role, content) {
   if (USE_MEMORY_DB) {
     maybeLogMemoryMode();
