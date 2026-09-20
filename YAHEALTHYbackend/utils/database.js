@@ -168,6 +168,7 @@ async function createUser(email, passwordHash, name) {
       password_hash: passwordHash,
       name: name || normalizedEmail.split('@')[0] || 'user',
       preferences: null,
+      token_version: 0,
       created_at: new Date().toISOString()
     };
     memoryDb.usersById.set(userId, user);
@@ -216,6 +217,44 @@ async function updateUserPasswordHash(userId, passwordHash) {
 
   if (error && error.code !== 'PGRST116') throw error;
   return data || null;
+}
+
+/**
+ * Raise the user's token version, which invalidates every token already
+ * issued to them. This is what makes a signed JWT revocable: logout, a
+ * password change and a password reset all call it, and any token carrying
+ * the old value is refused from that moment on.
+ *
+ * Returns the new version. Throws rather than reporting success for a
+ * revocation that did not happen — a logout that silently fails is worse
+ * than one that errors.
+ */
+async function bumpTokenVersion(userId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const user = memoryDb.usersById.get(userId);
+    if (!user) return null;
+    const updated = { ...user, token_version: (user.token_version || 0) + 1 };
+    memoryDb.usersById.set(userId, updated);
+    memoryDb.usersByEmail.set(String(updated.email || '').toLowerCase(), updated);
+    return updated.token_version;
+  }
+
+  // Read-then-write only races when the same user revokes twice at once, and
+  // the loser of that race still writes a number higher than the tokens being
+  // revoked carry — so every one of them is refused either way.
+  const current = await getUser(userId);
+  if (!current) return null;
+
+  const { data, error } = await supabase
+    .from('users')
+    .update({ token_version: (current.token_version || 0) + 1 })
+    .eq('id', userId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data.token_version;
 }
 
 /**
@@ -1114,6 +1153,7 @@ module.exports = {
   getUserByEmail,
   createUser,
   updateUserPasswordHash,
+  bumpTokenVersion,
   getUserPreferences,
   updateUserPreferences,
   // Surveys

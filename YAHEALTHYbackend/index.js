@@ -176,7 +176,7 @@ app.post('/api/auth/signup', async (req, res) => {
     const user = await db.createUser(email, passwordHash, name);
 
     // Generate token
-    const token = auth.generateToken(user.id, user.email);
+    const token = auth.generateToken(user.id, user.email, user.token_version || 0);
 
     res.status(201).json({
       id: user.id,
@@ -219,7 +219,7 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    const token = auth.generateToken(user.id, user.email);
+    const token = auth.generateToken(user.id, user.email, user.token_version || 0);
 
     res.json({
       id: user.id,
@@ -255,6 +255,30 @@ app.get('/api/auth/me', auth.authMiddleware, async (req, res) => {
 });
 
 /**
+ * POST /api/auth/logout
+ *
+ * Signing out has to happen on the server. Dropping the token from the browser
+ * leaves it valid for the rest of its seven days, which is no help at all to
+ * someone signing out on a shared machine. Raising the token version refuses
+ * every token already issued to this user.
+ *
+ * This ends sessions on every device, because there is nothing yet that tells
+ * one device from another. Per-device sign-out needs a session record, and that
+ * is a later step, not a silent half-measure now.
+ */
+app.post('/api/auth/logout', auth.authMiddleware, async (req, res) => {
+  try {
+    const version = await db.bumpTokenVersion(req.user.userId);
+    if (version === null) {
+      return res.status(404).json({ error: 'User not found', requestId: req.id });
+    }
+    return res.json({ status: 'ok', message: 'All sessions for this account have been ended.' });
+  } catch (error) {
+    return res.status(500).json({ error: 'Logout failed', details: safeErrorDetails(error), requestId: req.id });
+  }
+});
+
+/**
  * POST /api/auth/change-password
  * Change password for the current user
  */
@@ -278,7 +302,15 @@ app.post('/api/auth/change-password', auth.authMiddleware, async (req, res) => {
 
     const passwordHash = await auth.hashPassword(newPassword);
     await db.updateUserPasswordHash(user.id, passwordHash);
-    return res.json({ status: 'ok' });
+
+    // Someone who changes their password expects the old one to stop working
+    // everywhere, which has to include sessions opened with it. Everything is
+    // cut, then this caller gets a fresh token so the act of securing the
+    // account does not also sign them out of it.
+    const version = await db.bumpTokenVersion(user.id);
+    const token = auth.generateToken(user.id, user.email, version);
+
+    return res.json({ status: 'ok', token });
   } catch (error) {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
@@ -302,7 +334,7 @@ app.post('/api/auth/request-password-reset', async (req, res) => {
     };
 
     if (user && process.env.NODE_ENV !== 'production') {
-      response.resetToken = auth.generatePasswordResetToken(user.id, user.email);
+      response.resetToken = auth.generatePasswordResetToken(user.id, user.email, user.token_version || 0);
     }
 
     return res.json(response);
@@ -331,11 +363,26 @@ app.post('/api/auth/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'Invalid or expired reset token', requestId: req.id });
     }
 
+    // The link carries the token version that was current when it was issued,
+    // and the reset below raises that version. So the same link stops working
+    // the moment it is used, and a link issued before an earlier reset is
+    // already dead — a reset token is single use without needing a table to
+    // remember which ones were spent.
+    const user = await db.getUser(decoded.userId);
+    if (!user || typeof decoded.tv !== 'number' || (user.token_version || 0) !== decoded.tv) {
+      return res.status(400).json({ error: 'Invalid or expired reset token', requestId: req.id });
+    }
+
     const passwordHash = await auth.hashPassword(newPassword);
     const updated = await db.updateUserPasswordHash(decoded.userId, passwordHash);
     if (!updated) {
       return res.status(404).json({ error: 'User not found', requestId: req.id });
     }
+
+    // Whoever set this password holds the account from here. Sessions opened
+    // before this moment are cut — including one an attacker was sitting on,
+    // which is the entire reason a person resets their password.
+    await db.bumpTokenVersion(decoded.userId);
 
     return res.json({ status: 'ok' });
   } catch (error) {

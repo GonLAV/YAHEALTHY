@@ -46,9 +46,17 @@ export const authApi = {
   login: (email: string, password: string) =>
     api.post<AuthToken>('/api/auth/login', { email, password }),
   
-  logout: () => {
-    localStorage.removeItem('token');
-    return Promise.resolve();
+  // Dropping the token from this browser is not a sign-out: the token stays
+  // valid for the rest of its life and still works for anyone holding a copy.
+  // The server call is what actually ends the session, so it goes first. The
+  // local clear runs either way — leaving the user staring at a logged-in UI
+  // because the network blipped helps nobody.
+  logout: async () => {
+    try {
+      await api.post('/api/auth/logout');
+    } finally {
+      localStorage.removeItem('token');
+    }
   },
 
   getCurrentUser: () =>
