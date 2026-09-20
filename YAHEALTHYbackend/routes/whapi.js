@@ -22,10 +22,12 @@ router.post('/webhook', async (req, res) => {
   if (!whapi.verifyWebhookSecret(req)) {
     return res.status(401).json({ error: 'invalid webhook secret' });
   }
-  // Ack immediately -- WHAPI doesn't need to wait for the LLM round trip,
-  // and a slow response here just risks a retry that double-processes.
-  res.status(200).json({ received: true });
 
+  // On Vercel this runs as a serverless function: the execution environment
+  // is frozen right after the response is sent, so work started after
+  // res.json() here is not guaranteed to finish (confirmed -- an earlier
+  // "ack immediately, then process" version silently dropped every message,
+  // nothing ever reached the DB). Await the real work before responding.
   const messages = req.body?.messages || [];
   for (const message of messages) {
     try {
@@ -34,6 +36,8 @@ router.post('/webhook', async (req, res) => {
       console.error('[whapi] failed to handle message:', message?.id, err);
     }
   }
+
+  res.status(200).json({ received: true });
 });
 
 async function handleIncomingMessage(message) {
