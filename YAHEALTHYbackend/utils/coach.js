@@ -33,7 +33,7 @@ async function collectUserData(userId) {
   const sleepHours = (sleepLogs || []).reduce((s, l) => s + (l.sleep_hours || 0), 0);
   const streak = calculateStreak(foodLogs || [], null);
 
-  const survey = db.getLatestSurvey(userId);
+  const survey = await db.getLatestSurvey(userId);
   const calorieTarget = survey?.daily_calories?.targetDailyCalories || null;
   const proteinTarget = survey?.protein_target_g || null;
 
