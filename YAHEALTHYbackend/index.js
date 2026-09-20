@@ -38,6 +38,7 @@ const {
 
 const auth = require('./utils/auth');
 const db = require('./utils/database');
+const coach = require('./utils/coach');
 
 const { apiLimiter, authLimiter } = require('./middleware/rateLimit');
 const { requestContext } = require('./middleware/requestContext');
@@ -3517,6 +3518,40 @@ app.get('/api/progress/overview', auth.authMiddleware, async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ error: 'Failed to get progress overview', details: safeErrorDetails(error), requestId: req.id });
+  }
+});
+
+// ========== AI COACHING (CRM) ==========
+// Rule-based coach grounded in the user's own data (see utils/coach.js).
+// Both endpoints are bilingual: pass ?lang=he or ?lang=en (default: en).
+
+app.get('/api/crm/users/:userId/insights', auth.authMiddleware, async (req, res) => {
+  try {
+    if (req.params.userId !== req.user.userId) {
+      return res.status(403).json({ error: 'You can only access your own insights' });
+    }
+    const { lang = 'en' } = req.query;
+    const insights = await coach.generateInsights(req.user.userId, lang === 'he' ? 'he' : 'en');
+    res.json(insights);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get insights', details: safeErrorDetails(error) });
+  }
+});
+
+app.post('/api/crm/users/:userId/ask', auth.authMiddleware, async (req, res) => {
+  try {
+    if (req.params.userId !== req.user.userId) {
+      return res.status(403).json({ error: 'You can only talk to your own coach' });
+    }
+    const { message } = req.body;
+    if (!message || typeof message !== 'string' || !message.trim()) {
+      return res.status(400).json({ error: 'Message required' });
+    }
+    const { lang = 'en' } = req.query;
+    const response = await coach.answer(req.user.userId, message.trim(), lang === 'he' ? 'he' : 'en');
+    res.json({ response });
+  } catch (error) {
+    res.status(500).json({ error: 'Coach request failed', details: safeErrorDetails(error) });
   }
 });
 
