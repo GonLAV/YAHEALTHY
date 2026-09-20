@@ -1,0 +1,23 @@
+{
+  "previewPort": 3000,
+  "healthPath": "/",
+  "startCommand": "docker compose -f docker-compose.base44.yml up -d",
+  "secrets": [
+    {
+      "name": "JWT_SECRET",
+      "description": "Secret key for signing JWT auth tokens. Auto-generated for development; set a real value for stable sessions across restarts.",
+      "requiredAtBoot": false,
+      "generatedForDevelopment": true
+    },
+    {
+      "name": "SUPABASE_URL",
+      "description": "Supabase project URL. Optional — without it the backend runs on in-memory storage (ALLOW_MEMORY_DB=true).",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "SUPABASE_KEY",
+      "description": "Supabase anon public key. Optional — paired with SUPABASE_URL for persistent storage.",
+      "requiredAtBoot": false
+    }
+  ]
+}
