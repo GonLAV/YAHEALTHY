@@ -51,7 +51,10 @@ const memoryDb = {
   offlineLogs: [],
   foodLogs: [],
   foodLogTemplates: [],
-  mealPlans: []
+  mealPlans: [],
+  subscriptions: [],
+  paymentEvents: [],
+  chefRequests: []
 };
 
 function sortByCreatedAtDesc(items) {
@@ -468,6 +471,163 @@ async function deleteMealPlan(planId, userId) {
 
   if (error && error.code !== 'PGRST116') throw error;
   return data || null;
+}
+
+/**
+ * Subscriptions — what someone bought, which is what grants access.
+ */
+async function getActiveSubscriptions(userId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.subscriptions.filter(
+      (row) => row.user_id === userId && row.status === 'active'
+    );
+  }
+
+  const { data, error } = await supabase
+    .from('subscriptions')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('status', 'active');
+
+  if (error) throw error;
+  return data || [];
+}
+
+async function hasEntitlement(userId, plan) {
+  const active = await getActiveSubscriptions(userId);
+  return active.some((row) => row.plan === plan);
+}
+
+/**
+ * Start a subscription, or leave the existing one alone.
+ *
+ * A repeated callback must not produce a second active row, so the collision
+ * is treated as "already subscribed" rather than as an error. Postgres code
+ * 23505 is the unique violation from subscriptions_one_active_per_plan.
+ */
+async function createSubscription(userId, plan) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const existing = memoryDb.subscriptions.find(
+      (row) => row.user_id === userId && row.plan === plan && row.status === 'active'
+    );
+    if (existing) return { subscription: existing, created: false };
+
+    const row = {
+      id: uuidv4(),
+      user_id: userId,
+      plan,
+      status: 'active',
+      started_at: new Date().toISOString(),
+      ends_at: null,
+      created_at: new Date().toISOString()
+    };
+    memoryDb.subscriptions.push(row);
+    return { subscription: row, created: true };
+  }
+
+  const { data, error } = await supabase
+    .from('subscriptions')
+    .insert([{ user_id: userId, plan, status: 'active' }])
+    .select()
+    .single();
+
+  if (error) {
+    if (error.code === '23505') {
+      const active = await getActiveSubscriptions(userId);
+      return { subscription: active.find((row) => row.plan === plan) || null, created: false };
+    }
+    throw error;
+  }
+  return { subscription: data, created: true };
+}
+
+/**
+ * Record a payment callback, once.
+ *
+ * The provider retries, so the page request id is the primary key and the
+ * database decides whether this delivery is new. `created: false` means we
+ * have seen it before and nothing further should happen — that is the whole
+ * idempotency guarantee, and it lives in a constraint rather than in an if.
+ */
+async function recordPaymentEvent(event) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    if (memoryDb.paymentEvents.some((row) => row.page_request_uid === event.page_request_uid)) {
+      return { created: false };
+    }
+    memoryDb.paymentEvents.push({ ...event, received_at: new Date().toISOString() });
+    return { created: true };
+  }
+
+  const { error } = await supabase.from('payment_events').insert([event]);
+
+  if (error) {
+    if (error.code === '23505') return { created: false };
+    throw error;
+  }
+  return { created: true };
+}
+
+/**
+ * Chef requests — ADR-007. The chef is a person, so "we will have him get in
+ * touch" has to be a row somebody can look at, not a sentence a bot said.
+ */
+async function getOpenChefRequest(userId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.chefRequests.find((row) => row.user_id === userId && row.status === 'open') || null;
+  }
+
+  const { data, error } = await supabase
+    .from('chef_requests')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('status', 'open')
+    .maybeSingle();
+
+  if (error && error.code !== 'PGRST116') throw error;
+  return data || null;
+}
+
+/**
+ * Open a request, or hand back the one already open.
+ *
+ * Pressing the button twice must not put two conversations in front of the
+ * chef, so the partial unique index decides rather than a read-then-write.
+ */
+async function createChefRequest(userId, note) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const existing = await getOpenChefRequest(userId);
+    if (existing) return { request: existing, created: false };
+
+    const row = {
+      id: uuidv4(),
+      user_id: userId,
+      status: 'open',
+      note: note || null,
+      requested_at: new Date().toISOString(),
+      contacted_at: null
+    };
+    memoryDb.chefRequests.push(row);
+    return { request: row, created: true };
+  }
+
+  const { data, error } = await supabase
+    .from('chef_requests')
+    .insert([{ user_id: userId, note: note || null }])
+    .select()
+    .single();
+
+  if (error) {
+    if (error.code === '23505') {
+      return { request: await getOpenChefRequest(userId), created: false };
+    }
+    throw error;
+  }
+  return { request: data, created: true };
 }
 
 /**
@@ -1374,6 +1534,12 @@ module.exports = {
   deleteMealPlansInRange,
   updateMealPlan,
   deleteMealPlan,
+  getActiveSubscriptions,
+  hasEntitlement,
+  createSubscription,
+  recordPaymentEvent,
+  getOpenChefRequest,
+  createChefRequest,
   getUserPreferences,
   updateUserPreferences,
   // Surveys

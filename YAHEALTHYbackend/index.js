@@ -120,11 +120,35 @@ app.use(
 // its own change with its own testing — not a flag flipped in passing.
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(requestContext);
-app.use(express.json());
+app.use(
+  express.json({
+    verify(req, res, buf) {
+      // Only where it is needed. Holding a second copy of every request body
+      // in memory to serve one route would be a poor trade.
+      if (req.originalUrl.startsWith('/api/payments/callback')) {
+        req.rawBody = buf;
+      }
+    }
+  })
+);
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
+
+// Payments. The callback is deliberately mounted before the rate limiter:
+// every PayPlus callback arrives from the same IP, so a shared per-IP budget
+// would start refusing payment confirmations under load and customers who had
+// already paid would never get access. Its protection is the signature check,
+// which does not weaken under traffic the way a counter does.
+const { callbackRouter, checkoutRouter } = require('./routes/payments');
+app.use('/api/payments', callbackRouter);
 
 // Rate limiting
 app.use('/api', apiLimiter);
+
+app.use('/api/payments', checkoutRouter);
+
+// The chef track. Both gates — a paid plan, and a week already planned — are
+// enforced inside this router, not by whichever screen or bot happens to call it.
+app.use('/api/chef', require('./routes/chef'));
 
 // WhatsApp inbound. The webhook is public (guarded by a path secret); the
 // listing endpoint underneath it requires auth because it returns message text.
