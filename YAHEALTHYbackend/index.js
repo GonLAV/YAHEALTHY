@@ -2,6 +2,10 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+// Must run before any module that reads process.env at load time — utils/database.js
+// and utils/auth.js both do. This used to sit below those requires, so .env never
+// reached them; the silent memory fallback hid it.
+dotenv.config();
 const path = require('path');
 const fs = require('fs');
 const swaggerUi = require('swagger-ui-express');
@@ -44,7 +48,6 @@ const { requestContext } = require('./middleware/requestContext');
 const { notFoundHandler, errorHandler } = require('./utils/error-handler');
 const { buildOpenApiSpec } = require('./openapi');
 
-dotenv.config();
 
 const app = express();
 
