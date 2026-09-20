@@ -3574,9 +3574,17 @@ app.use(errorHandler);
 
 // ========== SERVER START ==========
 
-app.listen(PORT, () => {
-  console.log(`🚀 YAHEALTHY server running on port ${PORT}`);
-  console.log(`📚 API docs: http://localhost:${PORT}/api/docs`);
-  console.log(`🔐 Authentication enabled with JWT`);
-  console.log(`💾 Database: ${process.env.SUPABASE_URL ? 'Supabase' : 'In-memory (development)'}`);
-});
+// On Vercel, requests reach this app through the exported handler below, not
+// through a bound port -- app.listen() would just occupy a port nothing
+// connects to. Skip it there; everywhere else (local dev, a plain VM) it's
+// how the server actually starts.
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`🚀 YAHEALTHY server running on port ${PORT}`);
+    console.log(`📚 API docs: http://localhost:${PORT}/api/docs`);
+    console.log(`🔐 Authentication enabled with JWT`);
+    console.log(`💾 Database: ${process.env.SUPABASE_URL ? 'Supabase' : 'In-memory (development)'}`);
+  });
+}
+
+module.exports = app;
