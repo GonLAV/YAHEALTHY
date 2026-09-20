@@ -35,7 +35,15 @@ const SYSTEM_PROMPTS = {
 };
 
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5';
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const client = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+  // Required when ANTHROPIC_API_KEY is an org-level key not scoped to one
+  // workspace -- Anthropic rejects requests from such a key with a 400
+  // (invalid_request_error) unless this header names which workspace to use.
+  defaultHeaders: process.env.ANTHROPIC_WORKSPACE_ID
+    ? { 'anthropic-workspace-id': process.env.ANTHROPIC_WORKSPACE_ID }
+    : undefined
+});
 
 /**
  * @param {'nuri'|'chef'} activeBot
