@@ -1,8 +1,13 @@
 /**
- * WHAPI webhook -- receives WhatsApp messages, routes them to Nuri or the
+ * WHAPI webhook -- receives WhatsApp messages, routes them to Mor or the
  * chef, and sends the reply back. See docs/bot/nuri-bot-prompt.md and
  * docs/bot/chef-bot-prompt.md for what each persona actually does; this file
  * is only transport and routing.
+ *
+ * The 'nuri' identifier below is the internal DB value (whapi_conversations
+ * .active_bot, constrained by migrations/001) -- renaming it would need a
+ * migration for no user-visible benefit. "Mor" is the persona's name in
+ * every user-facing string; SWITCH_COMMANDS is what a customer types.
  */
 const express = require('express');
 const { waitUntil } = require('@vercel/functions');
@@ -12,12 +17,12 @@ const brain = require('../utils/whapi-brain');
 
 const router = express.Router();
 
-const SWITCH_COMMANDS = { 'שף': 'chef', chef: 'chef', 'נורי': 'nuri', nuri: 'nuri' };
+const SWITCH_COMMANDS = { 'שף': 'chef', chef: 'chef', 'מור': 'nuri', mor: 'nuri' };
 
 const WELCOME = `היי! \u{1F642} כאן YAHEALTHY.
 
-אני נורי -- שלחו תמונת תווית ("מה יש בזה?") או כל שאלת מזון.
-רוצים את השף במקום (מתכונים, איך לבשל) -- כתבו בכל שלב "שף". לחזור אליי -- "נורי".`;
+אני מור -- שלחו תמונת תווית ("מה יש בזה?") או כל שאלת מזון.
+רוצים את השף במקום (מתכונים, איך לבשל) -- כתבו בכל שלב "שף". לחזור אליי -- "מור".`;
 
 // WHAPI's dispatcher appends the event type to the configured webhook URL
 // (confirmed by inspecting a raw delivery: a webhook set to base "/x" arrives
@@ -70,7 +75,7 @@ async function handleIncomingMessage(message) {
     await db.upsertWhapiConversation(phone, switchTo);
     await whapi.sendText(
       phone,
-      switchTo === 'chef' ? 'עברנו לשף \u{1F468}‍\u{1F373} מה מבשלים היום?' : 'עברנו לנורי \u{1F642} שלחו תמונת תווית או שאלת מזון.'
+      switchTo === 'chef' ? 'עברנו לשף \u{1F468}‍\u{1F373} מה מבשלים היום?' : 'עברנו למור \u{1F642} שלחו תמונת תווית או שאלת מזון.'
     );
     return;
   }
