@@ -15,6 +15,16 @@ export const translations: Record<Lang, Record<string, string>> = {
     'nav.coaching': 'AI Coaching',
     'nav.logout': 'Logout',
 
+    // Accessibility
+    'a11y.skipToContent': 'Skip to main content',
+    'a11y.toggleLang': 'Switch language',
+    'a11y.mainNav': 'Main navigation',
+    'a11y.mobileNav': 'Mobile navigation',
+
+    // WhatsApp
+    'whatsapp.chat': 'WhatsApp us',
+    'whatsapp.aria': 'Chat with our health assistant bot on WhatsApp',
+
     // Common
     'common.loading': 'Loading…',
     'common.cancel': 'Cancel',
@@ -178,6 +188,16 @@ export const translations: Record<Lang, Record<string, string>> = {
     'nav.weight': 'משקל',
     'nav.coaching': 'ליווי AI',
     'nav.logout': 'התנתקות',
+
+    // נגישות
+    'a11y.skipToContent': 'דלג לתוכן הראשי',
+    'a11y.toggleLang': 'החלף שפה',
+    'a11y.mainNav': 'ניווט ראשי',
+    'a11y.mobileNav': 'ניווט נייד',
+
+    // וואטסאפ
+    'whatsapp.chat': 'כתבו לנו בוואטסאפ',
+    'whatsapp.aria': 'לשוחח עם בוט עוזר הבריאות שלנו בוואטסאפ',
 
     // Common
     'common.loading': 'טוען…',

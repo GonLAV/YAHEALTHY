@@ -4,6 +4,7 @@ import { AuthProvider } from '@/hooks/useAuth';
 import { LanguageProvider } from '@/i18n/LanguageContext';
 import { PrivateRoute } from '@/components/PrivateRoute';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { WhatsAppWidget } from '@/components/WhatsAppWidget';
 
 const LoginPage = lazy(() => import('@/pages/LoginPage').then((m) => ({ default: m.LoginPage })));
 const SignupPage = lazy(() => import('@/pages/SignupPage').then((m) => ({ default: m.SignupPage })));
@@ -98,6 +99,7 @@ function App() {
         <AuthProvider>
           <AppRoutes />
         </AuthProvider>
+        <WhatsAppWidget />
       </LanguageProvider>
     </Router>
   );

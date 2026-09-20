@@ -23,12 +23,12 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 const LangToggle = ({ className = '' }: { className?: string }) => {
-  const { lang, toggleLang } = useLanguage();
+  const { lang, toggleLang, t } = useLanguage();
   return (
     <button
       onClick={toggleLang}
       className={`inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 ${className}`}
-      aria-label="Toggle language"
+      aria-label={t('a11y.toggleLang')}
     >
       <Languages size={16} />
       {lang === 'he' ? 'EN' : 'עב'}
@@ -55,6 +55,13 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <a
+        href="#main-content"
+        className="skip-link rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-lg"
+      >
+        {t('a11y.skipToContent')}
+      </a>
+
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 start-0 z-30 hidden w-64 flex-col border-e border-slate-200 bg-white md:flex">
         <div className="flex items-center gap-2.5 px-6 py-6">
@@ -67,7 +74,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
           </div>
         </div>
 
-        <nav className="flex-1 space-y-1 px-4">
+        <nav aria-label={t('a11y.mainNav')} className="flex-1 space-y-1 px-4">
           {NAV_ITEMS.map((item) => (
             <NavLink key={item.to} to={item.to} className={navLinkClass}>
               {item.icon}
@@ -114,10 +121,13 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
       </header>
 
       {/* Main content */}
-      <main className="pb-20 md:pb-8 md:ms-64">{children}</main>
+      <main id="main-content" className="pb-20 md:pb-8 md:ms-64">{children}</main>
 
       {/* Mobile bottom nav */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex justify-around border-t border-slate-200 bg-white/95 py-1.5 backdrop-blur md:hidden">
+      <nav
+        aria-label={t('a11y.mobileNav')}
+        className="fixed inset-x-0 bottom-0 z-30 flex justify-around border-t border-slate-200 bg-white/95 py-1.5 backdrop-blur md:hidden"
+      >
         {NAV_ITEMS.map((item) => (
           <NavLink
             key={item.to}

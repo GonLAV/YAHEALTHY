@@ -60,12 +60,14 @@ export const LoginPage = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+              <label htmlFor="login-email" className="mb-1.5 block text-sm font-medium text-slate-700">
                 {t('auth.email')}
               </label>
               <div className="relative">
-                <Mail size={17} className="pointer-events-none absolute top-1/2 -translate-y-1/2 start-3.5 text-slate-400" />
+                <Mail size={17} className="pointer-events-none absolute top-1/2 -translate-y-1/2 start-3.5 text-slate-400" aria-hidden="true" />
                 <input
+                  id="login-email"
+                  autoComplete="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -77,12 +79,14 @@ export const LoginPage = () => {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+              <label htmlFor="login-password" className="mb-1.5 block text-sm font-medium text-slate-700">
                 {t('auth.password')}
               </label>
               <div className="relative">
-                <Lock size={17} className="pointer-events-none absolute top-1/2 -translate-y-1/2 start-3.5 text-slate-400" />
+                <Lock size={17} className="pointer-events-none absolute top-1/2 -translate-y-1/2 start-3.5 text-slate-400" aria-hidden="true" />
                 <input
+                  id="login-password"
+                  autoComplete="current-password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -93,7 +97,7 @@ export const LoginPage = () => {
             </div>
 
             {error && (
-              <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              <div role="alert" className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                 <AlertCircle size={16} className="shrink-0" />
                 {error}
               </div>
