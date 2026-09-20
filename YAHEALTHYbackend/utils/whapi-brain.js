@@ -7,12 +7,13 @@ const fs = require('fs');
 const path = require('path');
 const Anthropic = require('@anthropic-ai/sdk');
 
-// docs/bot/ lives at the repo root, two levels above utils/. If Vercel's
-// project root is set to YAHEALTHYbackend/ instead of the repo root, this
-// file won't be in the deploy bundle -- see the error below if that happens.
+// Vendored into YAHEALTHYbackend/docs/bot/ (copied from the repo-root
+// docs/bot/, which stays the source of truth for editing) because Vercel's
+// project root is set to YAHEALTHYbackend/ -- anything outside it isn't part
+// of the deploy bundle.
 const PROMPT_PATHS = {
-  nuri: path.join(__dirname, '..', '..', 'docs', 'bot', 'nuri-bot-prompt.md'),
-  chef: path.join(__dirname, '..', '..', 'docs', 'bot', 'chef-bot-prompt.md')
+  nuri: path.join(__dirname, '..', 'docs', 'bot', 'nuri-bot-prompt.md'),
+  chef: path.join(__dirname, '..', 'docs', 'bot', 'chef-bot-prompt.md')
 };
 
 function loadPrompt(bot) {
@@ -20,11 +21,7 @@ function loadPrompt(bot) {
     return fs.readFileSync(PROMPT_PATHS[bot], 'utf8');
   } catch (err) {
     throw new Error(
-      `Could not read the ${bot} prompt at ${PROMPT_PATHS[bot]}. If this is a ` +
-      `Vercel deploy whose project root is set to YAHEALTHYbackend/ rather than ` +
-      `the repo root, docs/bot/ isn't in the bundle -- point the project root at ` +
-      `the repo root, or vendor the prompt files into YAHEALTHYbackend/. ` +
-      `Original error: ${err.message}`
+      `Could not read the ${bot} prompt at ${PROMPT_PATHS[bot]}. Original error: ${err.message}`
     );
   }
 }

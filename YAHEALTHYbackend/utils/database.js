@@ -1,5 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID: uuidv4 } = require('crypto');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://your-supabase-url.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || 'your-supabase-anon-key';
@@ -1086,6 +1086,13 @@ async function saveWhatsappMessage(msg) {
   const { data, error } = await supabase
     .from('whatsapp_messages')
     .upsert([{ ...msg, received_at: new Date().toISOString() }], { onConflict: 'id' })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 /**
  * WHAPI BOT CONVERSATIONS (Nuri + the chef) -- see migrations/001
  */
@@ -1139,6 +1146,8 @@ async function getWhatsappMessages({ status = null, limit = 50 } = {}) {
   const { data, error } = await q;
   if (error) throw error;
   return data || [];
+}
+
 async function logWhapiMessage(phone, role, content) {
   if (USE_MEMORY_DB) {
     maybeLogMemoryMode();
