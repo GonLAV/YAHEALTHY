@@ -91,6 +91,17 @@ jobs:
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Deployed to $url"
 
+      # Diagnostic only -- /api/health is 500ing (FUNCTION_INVOCATION_FAILED).
+      # Hit it once to produce a fresh log line, then print the real crash
+      # reason instead of guessing at it. Remove once it's fixed.
+      - name: Print the actual crash reason
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          curl -s -o /dev/null "${{ steps.vercel.outputs.url }}/api/health" || true
+          sleep 5
+          vercel inspect "${{ steps.vercel.outputs.url }}" --logs --token "$VERCEL_TOKEN" || true
+
       - name: Summary
         if: success()
         run: |
