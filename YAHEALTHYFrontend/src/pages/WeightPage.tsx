@@ -96,10 +96,10 @@ export const WeightPage = () => {
 
   const progressPct = useMemo(() => {
     if (!goal || current == null) return 0;
-    const total = Math.abs(goal.start_weight_kg - goal.target_weight_kg);
+    const total = goal.target_weight_kg - goal.start_weight_kg;
     if (total === 0) return 100;
-    const done = Math.abs(goal.start_weight_kg - current);
-    return Math.min(100, Math.round((done / total) * 100));
+    const done = current - goal.start_weight_kg;
+    return Math.min(100, Math.max(0, Math.round((done / total) * 100)));
   }, [goal, current]);
 
   const remaining = useMemo(() => {
