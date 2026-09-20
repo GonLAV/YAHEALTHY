@@ -19,3 +19,7 @@ coverage/
 # .tsx, so a stale .js shadows the real source and edits appear to do nothing.
 YAHEALTHYFrontend/src/**/*.js
 YAHEALTHYFrontend/vite.config.d.ts
+
+# eval harness: deps and run output
+evals/node_modules/
+evals/results/
