@@ -5,6 +5,7 @@
  * is only transport and routing.
  */
 const express = require('express');
+const { waitUntil } = require('@vercel/functions');
 const db = require('../utils/database');
 const whapi = require('../utils/whapi');
 const brain = require('../utils/whapi-brain');
@@ -23,21 +24,27 @@ router.post('/webhook', async (req, res) => {
     return res.status(401).json({ error: 'invalid webhook secret' });
   }
 
-  // On Vercel this runs as a serverless function: the execution environment
-  // is frozen right after the response is sent, so work started after
-  // res.json() here is not guaranteed to finish (confirmed -- an earlier
-  // "ack immediately, then process" version silently dropped every message,
-  // nothing ever reached the DB). Await the real work before responding.
-  const messages = req.body?.messages || [];
-  for (const message of messages) {
-    try {
-      await handleIncomingMessage(message);
-    } catch (err) {
-      console.error('[whapi] failed to handle message:', message?.id, err);
-    }
-  }
-
+  // Ack immediately -- WHAPI expects a fast response and appears to give up
+  // silently if the Claude round trip (2-20+s) makes it wait (confirmed: a
+  // real incoming message never got a reply even though a direct POST to
+  // this same handler worked). But a plain "respond then keep running"
+  // doesn't work on Vercel either: the execution environment is frozen right
+  // after the response is sent, so unfinished work after res.json() was
+  // silently dropped (confirmed too -- nothing ever reached the DB). Ack
+  // fast, then hand the rest to waitUntil so Vercel keeps the function alive
+  // until it's actually done.
   res.status(200).json({ received: true });
+
+  const messages = req.body?.messages || [];
+  waitUntil((async () => {
+    for (const message of messages) {
+      try {
+        await handleIncomingMessage(message);
+      } catch (err) {
+        console.error('[whapi] failed to handle message:', message?.id, err);
+      }
+    }
+  })());
 });
 
 async function handleIncomingMessage(message) {
