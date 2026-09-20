@@ -50,7 +50,8 @@ const memoryDb = {
   readinessScores: [],
   offlineLogs: [],
   foodLogs: [],
-  foodLogTemplates: []
+  foodLogTemplates: [],
+  mealPlans: []
 };
 
 function sortByCreatedAtDesc(items) {
@@ -291,6 +292,182 @@ async function deleteUser(userId) {
   const { error } = await supabase.from('users').delete().eq('id', userId);
   if (error) throw error;
   return true;
+}
+
+/**
+ * Meal plans — the week a paying customer is buying.
+ *
+ * These lived in a module-level array in index.js until now, which meant every
+ * restart silently discarded the plan and the grocery list derived from it.
+ * The functions below are the whole surface the routes need, so no route has
+ * to know which store is underneath.
+ */
+async function getMealPlans(userId, { start = null, end = null } = {}) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.mealPlans.filter(
+      (plan) =>
+        plan.user_id === userId &&
+        (!start || plan.date >= start) &&
+        (!end || plan.date <= end)
+    );
+  }
+
+  let query = supabase.from('meal_plans').select('*').eq('user_id', userId);
+  if (start) query = query.gte('date', start);
+  if (end) query = query.lte('date', end);
+
+  const { data, error } = await query.order('date', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+async function getMealPlanById(planId, userId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.mealPlans.find((plan) => plan.id === planId && plan.user_id === userId) || null;
+  }
+
+  const { data, error } = await supabase
+    .from('meal_plans')
+    .select('*')
+    .eq('id', planId)
+    .eq('user_id', userId)
+    .single();
+
+  if (error && error.code !== 'PGRST116') throw error;
+  return data || null;
+}
+
+/**
+ * Insert plans, skipping any that collide with the one-per-meal-slot rule.
+ *
+ * The caller wants to know what was actually written, so a collision is
+ * reported as a skip rather than raised: generating a week over days that are
+ * already planned is ordinary use, not an error. Postgres code 23505 is the
+ * unique violation.
+ */
+async function createMealPlans(userId, entries) {
+  const created = [];
+  let skipped = 0;
+
+  for (const entry of entries) {
+    const row = {
+      id: uuidv4(),
+      user_id: userId,
+      recipe_id: entry.recipe_id,
+      date: entry.date,
+      meal_type: entry.meal_type,
+      completed: false,
+      created_at: new Date().toISOString()
+    };
+
+    if (USE_MEMORY_DB) {
+      maybeLogMemoryMode();
+      const clash = memoryDb.mealPlans.some(
+        (plan) =>
+          plan.user_id === userId && plan.date === row.date && plan.meal_type === row.meal_type
+      );
+      if (clash) {
+        skipped += 1;
+        continue;
+      }
+      memoryDb.mealPlans.push(row);
+      created.push(row);
+      continue;
+    }
+
+    const { data, error } = await supabase.from('meal_plans').insert([row]).select().single();
+
+    if (error) {
+      if (error.code === '23505') {
+        skipped += 1;
+        continue;
+      }
+      throw error;
+    }
+    created.push(data);
+  }
+
+  return { created, skipped };
+}
+
+async function deleteMealPlansInRange(userId, { start, end, mealTypes }) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const before = memoryDb.mealPlans.length;
+    memoryDb.mealPlans = memoryDb.mealPlans.filter(
+      (plan) =>
+        !(
+          plan.user_id === userId &&
+          plan.date >= start &&
+          plan.date <= end &&
+          mealTypes.includes(plan.meal_type)
+        )
+    );
+    return before - memoryDb.mealPlans.length;
+  }
+
+  const { data, error } = await supabase
+    .from('meal_plans')
+    .delete()
+    .eq('user_id', userId)
+    .gte('date', start)
+    .lte('date', end)
+    .in('meal_type', mealTypes)
+    .select();
+
+  if (error) throw error;
+  return (data || []).length;
+}
+
+/**
+ * Update a plan. Only the fields a client is allowed to move are passed in;
+ * the route decides which those are, so nothing here can reassign ownership.
+ */
+async function updateMealPlan(planId, userId, changes) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const index = memoryDb.mealPlans.findIndex(
+      (plan) => plan.id === planId && plan.user_id === userId
+    );
+    if (index === -1) return null;
+    memoryDb.mealPlans[index] = { ...memoryDb.mealPlans[index], ...changes };
+    return memoryDb.mealPlans[index];
+  }
+
+  const { data, error } = await supabase
+    .from('meal_plans')
+    .update(changes)
+    .eq('id', planId)
+    .eq('user_id', userId)
+    .select()
+    .single();
+
+  if (error && error.code !== 'PGRST116') throw error;
+  return data || null;
+}
+
+async function deleteMealPlan(planId, userId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const index = memoryDb.mealPlans.findIndex(
+      (plan) => plan.id === planId && plan.user_id === userId
+    );
+    if (index === -1) return null;
+    return memoryDb.mealPlans.splice(index, 1)[0];
+  }
+
+  const { data, error } = await supabase
+    .from('meal_plans')
+    .delete()
+    .eq('id', planId)
+    .eq('user_id', userId)
+    .select()
+    .single();
+
+  if (error && error.code !== 'PGRST116') throw error;
+  return data || null;
 }
 
 /**
@@ -1191,6 +1368,12 @@ module.exports = {
   updateUserPasswordHash,
   bumpTokenVersion,
   deleteUser,
+  getMealPlans,
+  getMealPlanById,
+  createMealPlans,
+  deleteMealPlansInRange,
+  updateMealPlan,
+  deleteMealPlan,
   getUserPreferences,
   updateUserPreferences,
   // Surveys

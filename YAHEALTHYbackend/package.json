@@ -7,7 +7,9 @@
     "start": "node index.js",
     "dev": "nodemon index.js",
     "test": "bash ./test-system.sh",
-    "test:tokens": "node tests/token-lifecycle.test.js"
+    "test:tokens": "node tests/token-lifecycle.test.js",
+    "test:meal-plans": "node tests/meal-plans.test.js",
+    "test:all": "node tests/run-all.js"
   },
   "keywords": [],
   "author": "",

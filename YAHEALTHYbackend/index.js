@@ -1212,8 +1212,6 @@ app.get('/api/recipes/:id/share', auth.authMiddleware, (req, res) => {
 
 // ========== MEAL PLAN ENDPOINTS ==========
 
-const mealPlans = [];
-
 function parseISODate(dateStr) {
   const d = new Date(dateStr);
   if (Number.isNaN(d.getTime())) return null;
@@ -1253,34 +1251,63 @@ function daysBetweenUTC(start, end) {
 /**
  * GET /api/meal-plans
  */
-app.get('/api/meal-plans', auth.authMiddleware, (req, res) => {
-  const userId = req.user.userId;
-  res.json(mealPlans.filter(p => p.user_id === userId));
+app.get('/api/meal-plans', auth.authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const plans = await db.getMealPlans(userId, {
+      start: req.query.start || null,
+      end: req.query.end || null
+    });
+    return res.json(plans);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to get meal plans', details: safeErrorDetails(error), requestId: req.id });
+  }
 });
 
 /**
  * POST /api/meal-plans
  */
-app.post('/api/meal-plans', auth.authMiddleware, (req, res) => {
-  const { recipeId, date, mealType } = req.body;
-  const userId = req.user.userId;
-  const plan = {
-    id: generateId(),
-    user_id: userId,
-    recipe_id: recipeId,
-    date,
-    meal_type: mealType,
-    completed: false
-  };
-  mealPlans.push(plan);
-  res.status(201).json(plan);
+app.post('/api/meal-plans', auth.authMiddleware, async (req, res) => {
+  try {
+    const schema = z.object({
+      recipeId: z.string().min(1),
+      date: z.string().min(1),
+      mealType: z.string().min(1)
+    });
+    const { recipeId, date, mealType } = schema.parse(req.body);
+
+    if (!parseISODate(date)) {
+      return res.status(400).json({ error: 'Invalid date', requestId: req.id });
+    }
+    if (!recipes.some((recipe) => recipe.id === recipeId)) {
+      return res.status(400).json({ error: 'Unknown recipe', requestId: req.id });
+    }
+
+    const { created, skipped } = await db.createMealPlans(req.user.userId, [
+      { recipe_id: recipeId, date, meal_type: mealType }
+    ]);
+
+    if (skipped) {
+      return res.status(409).json({
+        error: 'A meal is already planned for that slot',
+        requestId: req.id
+      });
+    }
+
+    return res.status(201).json(created[0]);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to create meal plan', details: safeErrorDetails(error), requestId: req.id });
+  }
 });
 
 /**
  * POST /api/meal-plans/generate
  * Auto-generate meal plans for a date range.
  */
-app.post('/api/meal-plans/generate', auth.authMiddleware, (req, res) => {
+app.post('/api/meal-plans/generate', auth.authMiddleware, async (req, res) => {
   const userId = req.user.userId;
 
   const schema = z.object({
@@ -1320,47 +1347,43 @@ app.post('/api/meal-plans/generate', auth.authMiddleware, (req, res) => {
     return res.status(400).json({ error: 'Date range too large (max 31 days)', requestId: req.id });
   }
 
-  const created = [];
-  let skipped = 0;
+  const rangeStart = formatDateYYYYMMDD(startDate);
+  const rangeEnd = formatDateYYYYMMDD(endDate);
+
   let deleted = 0;
+  let created = [];
+  let skipped = 0;
 
-  if (overwrite) {
-    for (let i = mealPlans.length - 1; i >= 0; i -= 1) {
-      const p = mealPlans[i];
-      if (p.user_id !== userId) continue;
-      if (!isDateInRange(p.date, startDate, endDate)) continue;
-      if (!mealTypes.includes(p.meal_type)) continue;
-      mealPlans.splice(i, 1);
-      deleted += 1;
+  try {
+    if (overwrite) {
+      deleted = await db.deleteMealPlansInRange(userId, {
+        start: rangeStart,
+        end: rangeEnd,
+        mealTypes
+      });
     }
-  }
 
-  for (let dayOffset = 0; dayOffset <= rangeDays; dayOffset += 1) {
-    const date = formatDateYYYYMMDD(addDaysUTC(startDate, dayOffset));
-    for (const mealType of mealTypes) {
-      const exists = mealPlans.some(p => p.user_id === userId && p.date === date && p.meal_type === mealType);
-      if (exists) {
-        skipped += 1;
-        continue;
+    const wanted = [];
+    for (let dayOffset = 0; dayOffset <= rangeDays; dayOffset += 1) {
+      const date = formatDateYYYYMMDD(addDaysUTC(startDate, dayOffset));
+      for (const mealType of mealTypes) {
+        const recipe = recipes[Math.floor(Math.random() * recipes.length)];
+        if (!recipe) {
+          skipped += 1;
+          continue;
+        }
+        wanted.push({ recipe_id: recipe.id, date, meal_type: mealType });
       }
-
-      const recipe = recipes[Math.floor(Math.random() * recipes.length)];
-      if (!recipe) {
-        skipped += 1;
-        continue;
-      }
-
-      const plan = {
-        id: generateId(),
-        user_id: userId,
-        recipe_id: recipe.id,
-        date,
-        meal_type: mealType,
-        completed: false
-      };
-      mealPlans.push(plan);
-      created.push(plan);
     }
+
+    // Slots that are already planned come back as skips. The unique
+    // constraint decides, rather than a read followed by a write that another
+    // request could slip between.
+    const result = await db.createMealPlans(userId, wanted);
+    created = result.created;
+    skipped += result.skipped;
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to generate meal plans', details: safeErrorDetails(error), requestId: req.id });
   }
 
   return res.status(201).json({
@@ -1378,34 +1401,60 @@ app.post('/api/meal-plans/generate', auth.authMiddleware, (req, res) => {
 /**
  * PUT /api/meal-plans/:id
  */
-app.put('/api/meal-plans/:id', auth.authMiddleware, (req, res) => {
-  const userId = req.user.userId;
-  const plan = mealPlans.find(p => p.id === req.params.id && p.user_id === userId);
-  if (!plan) {
-    return res.status(404).json({ error: 'Meal plan not found' });
+app.put('/api/meal-plans/:id', auth.authMiddleware, async (req, res) => {
+  try {
+    const schema = z.object({
+      completed: z.boolean().optional(),
+      recipeId: z.string().min(1).optional()
+    });
+    const parsed = schema.parse(req.body);
+
+    const changes = {};
+    if (parsed.completed !== undefined) changes.completed = parsed.completed;
+    if (parsed.recipeId !== undefined) {
+      if (!recipes.some((recipe) => recipe.id === parsed.recipeId)) {
+        return res.status(400).json({ error: 'Unknown recipe', requestId: req.id });
+      }
+      changes.recipe_id = parsed.recipeId;
+    }
+
+    if (!Object.keys(changes).length) {
+      return res.status(400).json({ error: 'Nothing to update', requestId: req.id });
+    }
+
+    const plan = await db.updateMealPlan(req.params.id, req.user.userId, changes);
+    if (!plan) {
+      return res.status(404).json({ error: 'Meal plan not found', requestId: req.id });
+    }
+    return res.json(plan);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to update meal plan', details: safeErrorDetails(error), requestId: req.id });
   }
-  Object.assign(plan, req.body);
-  res.json(plan);
 });
 
 /**
  * DELETE /api/meal-plans/:id
  */
-app.delete('/api/meal-plans/:id', auth.authMiddleware, (req, res) => {
-  const userId = req.user.userId;
-  const index = mealPlans.findIndex(p => p.id === req.params.id && p.user_id === userId);
-  if (index === -1) {
-    return res.status(404).json({ error: 'Meal plan not found' });
+app.delete('/api/meal-plans/:id', auth.authMiddleware, async (req, res) => {
+  try {
+    const deleted = await db.deleteMealPlan(req.params.id, req.user.userId);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Meal plan not found', requestId: req.id });
+    }
+    return res.json(deleted);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to delete meal plan', details: safeErrorDetails(error), requestId: req.id });
   }
-  const deleted = mealPlans.splice(index, 1);
-  res.json(deleted[0]);
 });
 
 /**
  * GET /api/grocery-list
  * Build a grocery list from the user's meal plans (optional date range)
  */
-app.get('/api/grocery-list', auth.authMiddleware, (req, res) => {
+app.get('/api/grocery-list', auth.authMiddleware, async (req, res) => {
   const userId = req.user.userId;
 
   const querySchema = z.object({
@@ -1437,12 +1486,15 @@ app.get('/api/grocery-list', auth.authMiddleware, (req, res) => {
     return res.status(400).json({ error: 'Invalid query', requestId: req.id });
   }
 
-  const plans = mealPlans
-    .filter(p => p.user_id === userId)
-    .filter(p => {
-      if (!startDate && !endDate) return true;
-      return isDateInRange(p.date, startDate, endDate);
+  let plans;
+  try {
+    plans = await db.getMealPlans(userId, {
+      start: startDate ? formatDateYYYYMMDD(startDate) : null,
+      end: endDate ? formatDateYYYYMMDD(endDate) : null
     });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to build grocery list', details: safeErrorDetails(error), requestId: req.id });
+  }
 
   const counts = new Map();
   const recipeIds = new Set();
