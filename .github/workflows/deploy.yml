@@ -9,6 +9,9 @@ on:
     paths:
       - 'YAHEALTHYbackend/**'
       - '.github/workflows/deploy.yml'
+  # Lets a deploy be tested against a feature branch before it merges to
+  # main, from the Actions tab or the API -- same job, explicit trigger.
+  workflow_dispatch: {}
 
 concurrency:
   group: deploy-backend
