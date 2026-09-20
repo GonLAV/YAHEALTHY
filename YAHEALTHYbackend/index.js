@@ -961,6 +961,12 @@ app.post('/api/offline-logs/:id/sync', auth.authMiddleware, async (req, res) => 
 // Existing hardcoded recipes for now
 // Recipes live in data/recipes.json, not in this file: content that changes
 // without a code change should not require a deploy. Loaded once at startup.
+// Chef knowledge is not recipe data: it answers "why does my chicken come out
+// dry" without needing to find a recipe at all.
+const chefKnowledge = JSON.parse(
+  fs.readFileSync(path.join(__dirname, 'data', 'chef-knowledge.json'), 'utf8')
+);
+
 const recipes = JSON.parse(
   fs.readFileSync(path.join(__dirname, 'data', 'recipes.json'), 'utf8')
 );
@@ -970,6 +976,22 @@ const recipes = JSON.parse(
  */
 app.get('/api/recipes', auth.authMiddleware, (req, res) => {
   res.json(recipes);
+});
+
+/**
+ * GET /api/recipes/shuffle
+ */
+app.get('/api/chef-knowledge', auth.authMiddleware, (req, res) => {
+  res.json(chefKnowledge);
+});
+
+/**
+ * GET /api/chef-knowledge/techniques/:id
+ */
+app.get('/api/chef-knowledge/techniques/:id', auth.authMiddleware, (req, res) => {
+  const t = chefKnowledge.techniques.find(x => x.id === req.params.id);
+  if (!t) return res.status(404).json({ error: 'Technique not found', requestId: req.id });
+  res.json(t);
 });
 
 /**
