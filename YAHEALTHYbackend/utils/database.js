@@ -46,6 +46,7 @@ const memoryDb = {
   sleepLogs: [],
   fastingWindows: [],
   mealSwaps: [],
+  whatsappMessages: [],
   readinessScores: [],
   offlineLogs: [],
   foodLogs: [],
@@ -1054,7 +1055,56 @@ async function updateFoodLog(userId, logId, patch) {
   return normalizeFoodLogRow(data || null);
 }
 
+
+/**
+ * WHATSAPP
+ */
+
+// Upsert on the WHAPI message id: the same webhook can be delivered twice, and
+// a retry must not create a second row.
+async function saveWhatsappMessage(msg) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const i = memoryDb.whatsappMessages.findIndex(r => r.id === msg.id);
+    const row = { ...msg, received_at: new Date().toISOString() };
+    if (i >= 0) memoryDb.whatsappMessages[i] = row;
+    else memoryDb.whatsappMessages.push(row);
+    return row;
+  }
+
+  const { data, error } = await supabase
+    .from('whatsapp_messages')
+    .upsert([{ ...msg, received_at: new Date().toISOString() }], { onConflict: 'id' })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+async function getWhatsappMessages({ status = null, limit = 50 } = {}) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return sortByCreatedAtDesc(
+      memoryDb.whatsappMessages.filter(r => !status || r.status === status)
+    ).slice(0, limit);
+  }
+
+  let q = supabase
+    .from('whatsapp_messages')
+    .select('*')
+    .order('received_at', { ascending: false })
+    .limit(limit);
+  if (status) q = q.eq('status', status);
+
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+}
+
 module.exports = {
+  saveWhatsappMessage,
+  getWhatsappMessages,
   supabase,
   initializeDatabase,
   isMemoryMode,

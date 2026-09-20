@@ -73,6 +73,12 @@ app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 // Rate limiting
 app.use('/api', apiLimiter);
+
+// WhatsApp inbound. The webhook is public (guarded by a path secret); the
+// listing endpoint underneath it requires auth because it returns message text.
+const whatsappRouter = require('./routes/whatsapp');
+app.use('/api/whatsapp/pending', auth.authMiddleware);
+app.use('/api/whatsapp', whatsappRouter);
 app.use('/api/auth', authLimiter);
 
 // OpenAPI docs (not authenticated)
