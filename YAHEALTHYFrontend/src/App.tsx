@@ -14,6 +14,7 @@ const HydrationPage = lazy(() => import('@/pages/HydrationPage').then((m) => ({ 
 const SleepPage = lazy(() => import('@/pages/SleepPage').then((m) => ({ default: m.SleepPage })));
 const WeightPage = lazy(() => import('@/pages/WeightPage').then((m) => ({ default: m.WeightPage })));
 const CoachingPage = lazy(() => import('@/pages/CoachingPage').then((m) => ({ default: m.CoachingPage })));
+const RecipesPage = lazy(() => import('@/pages/RecipesPage').then((m) => ({ default: m.RecipesPage })));
 
 const PageLoader = () => (
   <div className="flex min-h-screen items-center justify-center">
@@ -31,6 +32,51 @@ const AppRoutes = () => (
         element={
           <PrivateRoute>
             <AppLayout>
+const Navigation = () => {
+  const { isAuthenticated, user, logout } = useAuth();
+
+  if (!isAuthenticated) return null;
+
+  return (
+    <nav className="bg-white shadow">
+      <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+        <div className="font-bold text-xl text-indigo-600">YAHealthy</div>
+        <div className="flex space-x-6">
+          <Link to="/dashboard" className="text-gray-600 hover:text-gray-900">
+            Dashboard
+          </Link>
+          <Link to="/food-log" className="text-gray-600 hover:text-gray-900">
+            Food Log
+          </Link>
+          <Link to="/coaching" className="text-gray-600 hover:text-gray-900">
+            Coaching
+          </Link>
+          <Link to="/recipes" className="text-gray-600 hover:text-gray-900">
+            Recipes
+          </Link>
+          <span className="text-gray-600">{user?.email}</span>
+          <button
+            onClick={logout}
+            className="text-red-600 hover:text-red-700"
+          >
+            Logout
+          </button>
+        </div>
+      </div>
+    </nav>
+  );
+};
+
+const AppRoutes = () => {
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route
+          path="/dashboard"
+          element={
+            <PrivateRoute>
               <DashboardPage />
             </AppLayout>
           </PrivateRoute>
@@ -91,6 +137,22 @@ const AppRoutes = () => (
     </Routes>
   </Suspense>
 );
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/recipes"
+          element={
+            <PrivateRoute>
+              <RecipesPage />
+            </PrivateRoute>
+          }
+        />
+        <Route path="/" element={<Navigate to="/dashboard" />} />
+      </Routes>
+    </Suspense>
+  );
+};
 
 function App() {
   return (

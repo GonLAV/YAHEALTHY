@@ -201,6 +201,46 @@ export const crmApi = {
     api.get(`/api/crm/users/${userId}/insights`, { params: { lang } }),
   askCoach: (userId: string, message: string, lang: string) =>
     api.post(`/api/crm/users/${userId}/ask?lang=${lang}`, { message }),
+export interface RecipeIngredient {
+  item: string;
+  amount: string;
+  category?: string;
+}
+
+export interface RecipeStep {
+  step: number;
+  text: string;
+  temp_c?: number;
+  heat?: string;
+  minutes?: number;
+  cue?: string;
+}
+
+export interface Recipe {
+  id: string;
+  name: string;
+  name_en?: string;
+  category: string;
+  difficulty: string;
+  time_minutes: number;
+  calories: number;
+  servings?: number;
+  vessel?: string;
+  ingredients: RecipeIngredient[];
+  steps: RecipeStep[];
+  tips?: string[];
+  chef_note?: string;
+  /** Present only where an internal temperature is a food-safety requirement. */
+  safety?: string;
+}
+
+export const recipeApi = {
+  getAll: () => api.get<Recipe[]>('/api/recipes'),
+
+  getById: (id: string) => api.get<Recipe>(`/api/recipes/${id}`),
+
+  shuffle: (count = 2) =>
+    api.get<Recipe[]>('/api/recipes/shuffle', { params: { count } }),
 };
 
 export const analyticsApi = {
