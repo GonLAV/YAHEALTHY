@@ -2,6 +2,10 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+// Must run before any module that reads process.env at load time — utils/database.js
+// and utils/auth.js both do. This used to sit below those requires, so .env never
+// reached them; the silent memory fallback hid it.
+dotenv.config();
 const path = require('path');
 const fs = require('fs');
 const swaggerUi = require('swagger-ui-express');
@@ -45,7 +49,6 @@ const { requestContext } = require('./middleware/requestContext');
 const { notFoundHandler, errorHandler } = require('./utils/error-handler');
 const { buildOpenApiSpec } = require('./openapi');
 
-dotenv.config();
 
 const app = express();
 
@@ -71,6 +74,12 @@ app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 // Rate limiting
 app.use('/api', apiLimiter);
+
+// WhatsApp inbound. The webhook is public (guarded by a path secret); the
+// listing endpoint underneath it requires auth because it returns message text.
+const whatsappRouter = require('./routes/whatsapp');
+app.use('/api/whatsapp/pending', auth.authMiddleware);
+app.use('/api/whatsapp', whatsappRouter);
 app.use('/api/auth', authLimiter);
 
 // Nuri + the chef (WhatsApp via WHAPI) -- see routes/whapi.js

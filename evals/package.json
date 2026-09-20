@@ -1,0 +1,17 @@
+{
+  "name": "yahealthy-evals",
+  "private": true,
+  "type": "module",
+  "description": "Adversarial eval harness for the YAHEALTHY food bots",
+  "scripts": {
+    "eval": "node run-eval.mjs --bot both",
+    "eval:chef": "node run-eval.mjs --bot chef",
+    "eval:nuri": "node run-eval.mjs --bot nuri",
+    "eval:safety": "node run-eval.mjs --bot both --only safety",
+    "eval:dry": "node run-eval.mjs --bot both --dry-run"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.70.0",
+    "zod": "^3.24.1"
+  }
+}
