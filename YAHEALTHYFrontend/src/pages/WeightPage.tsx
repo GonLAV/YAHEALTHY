@@ -108,7 +108,7 @@ export const WeightPage = () => {
   }, [goal, current]);
 
   const chartData = useMemo(() => {
-    const points = logs.map((l) => ({ kg: l.weight_kg, date: l.date || l.created_at }));
+    const points = [...logs].reverse().map((l) => ({ kg: l.weight_kg, date: l.date || l.created_at }));
     return [
       ...(goal ? [{ kg: goal.start_weight_kg, date: 'start' }] : []),
       ...points,
