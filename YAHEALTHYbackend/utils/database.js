@@ -36,6 +36,15 @@ const USE_MEMORY_DB = !SUPABASE_CONFIGURED;
 // Initialize Supabase client (only used when configured)
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// whapi_conversations/whapi_messages (migrations/001) have RLS enabled with no
+// policies, so SUPABASE_KEY (the anon key, per .env.example) has zero access to
+// them by design -- only a service-role key bypasses RLS. Falls back to the
+// anon client so memory-mode/dev keeps working; against a real RLS-enabled
+// table without this key set, the four whapi* functions below will fail loudly.
+const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY
+  ? createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+  : supabase;
+
 const memoryDb = {
   usersById: new Map(),
   usersByEmail: new Map(),
@@ -50,7 +59,9 @@ const memoryDb = {
   readinessScores: [],
   offlineLogs: [],
   foodLogs: [],
-  foodLogTemplates: []
+  foodLogTemplates: [],
+  whapiConversations: new Map(),
+  whapiMessages: []
 };
 
 function sortByCreatedAtDesc(items) {
@@ -1075,6 +1086,34 @@ async function saveWhatsappMessage(msg) {
   const { data, error } = await supabase
     .from('whatsapp_messages')
     .upsert([{ ...msg, received_at: new Date().toISOString() }], { onConflict: 'id' })
+/**
+ * WHAPI BOT CONVERSATIONS (Nuri + the chef) -- see migrations/001
+ */
+async function getWhapiConversation(phone) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.whapiConversations.get(phone) || null;
+  }
+  const { data, error } = await supabaseServiceRole
+    .from('whapi_conversations')
+    .select('*')
+    .eq('phone', phone)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+async function upsertWhapiConversation(phone, activeBot) {
+  const row = { phone, active_bot: activeBot, updated_at: new Date().toISOString() };
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    memoryDb.whapiConversations.set(phone, row);
+    return row;
+  }
+  const { data, error } = await supabaseServiceRole
+    .from('whapi_conversations')
+    .upsert(row, { onConflict: 'phone' })
     .select()
     .single();
 
@@ -1100,6 +1139,40 @@ async function getWhatsappMessages({ status = null, limit = 50 } = {}) {
   const { data, error } = await q;
   if (error) throw error;
   return data || [];
+async function logWhapiMessage(phone, role, content) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const row = { phone, role, content, created_at: new Date().toISOString() };
+    memoryDb.whapiMessages.push(row);
+    return row;
+  }
+  const { data, error } = await supabaseServiceRole
+    .from('whapi_messages')
+    .insert([{ phone, role, content, created_at: new Date().toISOString() }])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+async function getRecentWhapiMessages(phone, limit = 20) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.whapiMessages
+      .filter(m => m.phone === phone)
+      .slice(-limit)
+      .map(({ role, content }) => ({ role, content }));
+  }
+  const { data, error } = await supabaseServiceRole
+    .from('whapi_messages')
+    .select('role, content, created_at')
+    .eq('phone', phone)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return (data || []).reverse().map(({ role, content }) => ({ role, content }));
 }
 
 module.exports = {
@@ -1156,5 +1229,10 @@ module.exports = {
   getFoodLogById,
   deleteFoodLog,
   updateFoodLog,
-  deleteFoodLogTemplate
+  deleteFoodLogTemplate,
+  // WHAPI bot conversations
+  getWhapiConversation,
+  upsertWhapiConversation,
+  logWhapiMessage,
+  getRecentWhapiMessages
 };
