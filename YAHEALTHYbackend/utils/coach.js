@@ -31,7 +31,7 @@ async function collectUserData(userId) {
 
   const waterLiters = (hydrationLogs || []).reduce((s, l) => s + (l.liters_consumed || 0), 0);
   const sleepHours = (sleepLogs || []).reduce((s, l) => s + (l.sleep_hours || 0), 0);
-  const streak = calculateStreak(foodLogs || [], null);
+  const streak = calculateStreak(await db.getFoodLogs(userId).catch(() => []));
 
   const survey = await db.getLatestSurvey(userId);
   const calorieTarget = survey?.daily_calories?.targetDailyCalories || null;
