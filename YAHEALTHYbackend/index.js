@@ -73,6 +73,9 @@ app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 app.use('/api', apiLimiter);
 app.use('/api/auth', authLimiter);
 
+// Nuri + the chef (WhatsApp via WHAPI) -- see routes/whapi.js
+app.use('/api/whapi', require('./routes/whapi'));
+
 // OpenAPI docs (not authenticated)
 const openApiSpec = buildOpenApiSpec({ version: '2.0' });
 app.get('/api/docs.json', (req, res) => res.json(openApiSpec));
