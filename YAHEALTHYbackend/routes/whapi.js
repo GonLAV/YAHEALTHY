@@ -19,7 +19,13 @@ const WELCOME = `היי! \u{1F642} כאן YAHEALTHY.
 אני נורי -- שלחו תמונת תווית ("מה יש בזה?") או כל שאלת מזון.
 רוצים את השף במקום (מתכונים, איך לבשל) -- כתבו בכל שלב "שף". לחזור אליי -- "נורי".`;
 
-router.post('/webhook', async (req, res) => {
+// WHAPI's dispatcher appends the event type to the configured webhook URL
+// (confirmed by inspecting a raw delivery: a webhook set to base "/x" arrives
+// at "/x/messages" for message events) -- so this route is "/messages", not
+// "/webhook". The mismatch was silent: our catch-all Vercel rewrite still
+// invoked the function, Express just had no matching route, so it 404'd with
+// nothing logged anywhere WHAPI's side surfaces to us.
+router.post('/messages', async (req, res) => {
   if (!whapi.verifyWebhookSecret(req)) {
     return res.status(401).json({ error: 'invalid webhook secret' });
   }
