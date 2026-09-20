@@ -87,19 +87,6 @@ jobs:
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Deployed to $url"
 
-      # Diagnostic only -- a test POST to /api/whapi/webhook returns 200 but
-      # nothing lands in Supabase. Remove once it's fixed.
-      - name: Print the webhook handler's actual error
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          curl -s -o /dev/null -X POST "${{ steps.vercel.outputs.url }}/api/whapi/webhook" \
-            -H "Content-Type: application/json" \
-            -d '{"messages":[{"id":"ci-diag-1","from_me":false,"type":"text","chat_id":"972500000002@s.whatsapp.net","from":"972500000002","text":{"body":"בדיקה"}}]}' \
-            || true
-          sleep 8
-          timeout 25 vercel logs "${{ steps.vercel.outputs.url }}" --token "$VERCEL_TOKEN" || true
-
       - name: Summary
         if: success()
         run: |
