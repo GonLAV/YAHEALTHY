@@ -2,6 +2,7 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const mailer = require('./utils/mailer');
 const dotenv = require('dotenv');
 // Must run before any module that reads process.env at load time — utils/database.js
 // and utils/auth.js both do. This used to sit below those requires, so .env never
@@ -382,15 +383,31 @@ app.post('/api/auth/request-password-reset', async (req, res) => {
     const { email } = schema.parse(req.body);
 
     const user = await db.getUserByEmail(email);
-    const response = {
-      message: 'If an account exists for that email, password reset instructions were sent.'
-    };
 
-    if (user && process.env.NODE_ENV !== 'production') {
-      response.resetToken = auth.generatePasswordResetToken(user.id, user.email, user.token_version || 0);
+    if (user) {
+      const resetToken = auth.generatePasswordResetToken(
+        user.id,
+        user.email,
+        user.token_version || 0
+      );
+
+      try {
+        await mailer.sendPasswordResetEmail(user.email, resetToken);
+      } catch (mailError) {
+        // The reply stays the same either way. Telling the caller that sending
+        // failed for this address would confirm the address exists, which is
+        // the thing this endpoint is careful not to reveal.
+        console.error('[auth] could not send password reset mail:', mailError && mailError.message);
+      }
     }
 
-    return res.json(response);
+    // Always the same answer, whether or not the address is registered. The
+    // token itself is never in this response: this endpoint takes no
+    // authentication, so returning it would hand anyone a working reset link
+    // for any address they can name.
+    return res.json({
+      message: 'If an account exists for that email, password reset instructions were sent.'
+    });
   } catch (error) {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
@@ -447,6 +464,55 @@ app.post('/api/auth/reset-password', async (req, res) => {
 });
 
 // ========== USER PREFERENCES ==========
+
+/**
+ * DELETE /api/users/me
+ *
+ * Deleting an account is irreversible and takes a person's health history with
+ * it, so it asks for the password again rather than accepting a session that
+ * might have been left open on a shared machine.
+ *
+ * The user row is the anchor: every one of the eleven tables holding their data
+ * references it with ON DELETE CASCADE, so removing it removes the rest in the
+ * same statement rather than depending on eleven deletes all succeeding.
+ */
+app.delete('/api/users/me', auth.authMiddleware, async (req, res) => {
+  try {
+    const schema = z.object({ password: z.string().min(1) });
+    const { password } = schema.parse(req.body);
+
+    const user = await db.getUser(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found', requestId: req.id });
+    }
+
+    const ok = await auth.comparePassword(password, user.password_hash);
+    if (!ok) {
+      return res.status(401).json({ error: 'Invalid password', requestId: req.id });
+    }
+
+    await db.deleteUser(user.id);
+
+    // No identifying detail in the log line. The point of the request was to
+    // stop holding this person's data.
+    console.info('[users] account deleted');
+
+    return res.json({
+      status: 'ok',
+      message: 'Your account and its data have been deleted.',
+      // Said plainly rather than left for someone to discover: inbound
+      // WhatsApp messages are stored against a phone number, not an account,
+      // so they are not reached by this delete. Clearing them needs its own
+      // retention policy.
+      note: 'WhatsApp conversation history is held separately and is not covered by this deletion.'
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Password is required to delete an account', requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Account deletion failed', details: safeErrorDetails(error), requestId: req.id });
+  }
+});
 
 /**
  * GET /api/users/me/preferences

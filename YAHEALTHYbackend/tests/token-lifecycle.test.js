@@ -40,6 +40,17 @@ function freePort() {
 let PORT;
 let BASE;
 
+// Everything the server writes. The reset link is no longer returned by the
+// API — it is mailed, and in development the mailer prints it here — so this is
+// where the test has to look for it, exactly like a developer would.
+const serverLog = [];
+
+function resetLinkToken() {
+  const matches = serverLog.join('').match(/reset-password\?token=([^\s&"]+)/g) || [];
+  if (!matches.length) return null;
+  return decodeURIComponent(matches[matches.length - 1].split('token=')[1]);
+}
+
 let passed = 0;
 let failed = 0;
 
@@ -152,8 +163,16 @@ async function run() {
   // ── password reset: single use, and it cuts every earlier session ──────────
   const liveToken = changed.body?.token;
   const requested = await call('POST', '/api/auth/request-password-reset', { body: { email } });
-  const resetToken = requested.body?.resetToken;
-  check('reset request returns a token outside production', !!resetToken);
+  check(
+    'the reset token is never in the API response',
+    requested.status === 200 && !JSON.stringify(requested.body || {}).includes('token'),
+    'this endpoint takes no authentication, so a token here is a link to any account'
+  );
+
+  // Give the mailer a moment to write its line before reading it back.
+  await new Promise((r) => setTimeout(r, 300));
+  const resetToken = resetLinkToken();
+  check('a reset link reaches the mailer', !!resetToken);
 
   check(
     'a reset token is not accepted as an access token',
@@ -185,6 +204,56 @@ async function run() {
     'the password the replay tried to set was never applied',
     (await call('POST', '/api/auth/login', { body: { email, password: 'attacker chosen password' } })).status === 401
   );
+
+  // ── deleting an account ───────────────────────────────────────────────────
+  const livePassword = 'third passphrase entirely';
+  const sessionToken = finalLogin.body?.token;
+
+  check(
+    'deleting without the password is refused',
+    (await call('DELETE', '/api/users/me', { token: sessionToken, body: {} })).status === 400,
+    'a session left open on a shared machine should not be enough'
+  );
+  check(
+    'deleting with the wrong password is refused',
+    (await call('DELETE', '/api/users/me', { token: sessionToken, body: { password: 'not it' } })).status === 401
+  );
+
+  // Something to confirm is actually removed, not just the login row.
+  await call('POST', '/api/weight-logs', {
+    token: sessionToken,
+    body: { weightKg: 70, date: '2026-09-20' }
+  });
+
+  const deleted = await call('DELETE', '/api/users/me', {
+    token: sessionToken,
+    body: { password: livePassword }
+  });
+  check('deleting with the password succeeds', deleted.status === 200, `status ${deleted.status}`);
+
+  check(
+    'the session dies with the account',
+    (await call('GET', '/api/auth/me', { token: sessionToken })).status === 401
+  );
+  check(
+    'the deleted account cannot log in',
+    (await call('POST', '/api/auth/login', { body: { email, password: livePassword } })).status === 401
+  );
+  check(
+    'the email is free again',
+    (await call('POST', '/api/auth/signup', { body: { email, password: 'a whole new passphrase' } })).status === 201,
+    'a deleted account that still blocks its own address was not really deleted'
+  );
+
+  const reborn = await call('POST', '/api/auth/login', {
+    body: { email, password: 'a whole new passphrase' }
+  });
+  const rebornLogs = await call('GET', '/api/weight-logs', { token: reborn.body?.token });
+  check(
+    'the health data did not survive the deletion',
+    rebornLogs.status === 200 && (rebornLogs.body?.length ?? rebornLogs.body?.logs?.length ?? 0) === 0,
+    'a new account must not inherit the weight history of the deleted one'
+  );
 }
 
 (async () => {
@@ -205,7 +274,6 @@ async function run() {
     stdio: ['ignore', 'pipe', 'pipe']
   });
 
-  const serverLog = [];
   server.stdout.on('data', (d) => serverLog.push(String(d)));
   server.stderr.on('data', (d) => serverLog.push(String(d)));
 

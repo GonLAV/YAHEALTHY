@@ -258,6 +258,42 @@ async function bumpTokenVersion(userId) {
 }
 
 /**
+ * Delete a user and everything held about them.
+ *
+ * Against Supabase this is a single delete: all eleven tables that hold user
+ * data reference users(id) with ON DELETE CASCADE, so the database removes
+ * them atomically. Doing it as eleven separate deletes would leave a person
+ * half-deleted whenever one of them failed.
+ *
+ * Not covered, and deliberately not hidden: whatsapp_messages is keyed by
+ * phone number rather than by account, so it is outside this delete and needs
+ * a retention policy of its own.
+ */
+async function deleteUser(userId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const user = memoryDb.usersById.get(userId);
+    if (!user) return false;
+
+    memoryDb.usersById.delete(userId);
+    memoryDb.usersByEmail.delete(String(user.email || '').toLowerCase());
+
+    // The cascade has to be written out here, because a Map and a handful of
+    // arrays have no foreign keys to do it for us.
+    for (const [key, value] of Object.entries(memoryDb)) {
+      if (Array.isArray(value)) {
+        memoryDb[key] = value.filter((row) => row.user_id !== userId);
+      }
+    }
+    return true;
+  }
+
+  const { error } = await supabase.from('users').delete().eq('id', userId);
+  if (error) throw error;
+  return true;
+}
+
+/**
  * Update user preferences JSON
  */
 // Preferences are stored on the user record; this is the read side of
@@ -1154,6 +1190,7 @@ module.exports = {
   createUser,
   updateUserPasswordHash,
   bumpTokenVersion,
+  deleteUser,
   getUserPreferences,
   updateUserPreferences,
   // Surveys
