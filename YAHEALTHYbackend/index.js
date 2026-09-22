@@ -44,6 +44,7 @@ const {
 
 const auth = require('./utils/auth');
 const db = require('./utils/database');
+const coach = require('./utils/coach');
 
 const { apiLimiter, authLimiter } = require('./middleware/rateLimit');
 const { requestContext } = require('./middleware/requestContext');
@@ -160,6 +161,9 @@ const whatsappRouter = require('./routes/whatsapp');
 app.use('/api/whatsapp/pending', auth.authMiddleware);
 app.use('/api/whatsapp', whatsappRouter);
 app.use('/api/auth', authLimiter);
+
+// Nuri + the chef (WhatsApp via WHAPI) -- see routes/whapi.js
+app.use('/api/whapi', require('./routes/whapi'));
 
 // OpenAPI docs (not authenticated)
 const openApiSpec = buildOpenApiSpec({ version: '2.0' });
@@ -3799,6 +3803,40 @@ app.get('/api/progress/overview', auth.authMiddleware, async (req, res) => {
   }
 });
 
+// ========== AI COACHING (CRM) ==========
+// Rule-based coach grounded in the user's own data (see utils/coach.js).
+// Both endpoints are bilingual: pass ?lang=he or ?lang=en (default: en).
+
+app.get('/api/crm/users/:userId/insights', auth.authMiddleware, async (req, res) => {
+  try {
+    if (req.params.userId !== req.user.userId) {
+      return res.status(403).json({ error: 'You can only access your own insights' });
+    }
+    const { lang = 'en' } = req.query;
+    const insights = await coach.generateInsights(req.user.userId, lang === 'he' ? 'he' : 'en');
+    res.json(insights);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get insights', details: safeErrorDetails(error) });
+  }
+});
+
+app.post('/api/crm/users/:userId/ask', auth.authMiddleware, async (req, res) => {
+  try {
+    if (req.params.userId !== req.user.userId) {
+      return res.status(403).json({ error: 'You can only talk to your own coach' });
+    }
+    const { message } = req.body;
+    if (!message || typeof message !== 'string' || !message.trim()) {
+      return res.status(400).json({ error: 'Message required' });
+    }
+    const { lang = 'en' } = req.query;
+    const response = await coach.answer(req.user.userId, message.trim(), lang === 'he' ? 'he' : 'en');
+    res.json({ response });
+  } catch (error) {
+    res.status(500).json({ error: 'Coach request failed', details: safeErrorDetails(error) });
+  }
+});
+
 // ========== ERROR HANDLING ==========
 
 app.use(notFoundHandler);
@@ -3806,9 +3844,17 @@ app.use(errorHandler);
 
 // ========== SERVER START ==========
 
-app.listen(PORT, () => {
-  console.log(`🚀 YAHEALTHY server running on port ${PORT}`);
-  console.log(`📚 API docs: http://localhost:${PORT}/api/docs`);
-  console.log(`🔐 Authentication enabled with JWT`);
-  console.log(`💾 Database: ${process.env.SUPABASE_URL ? 'Supabase' : 'In-memory (development)'}`);
-});
+// On Vercel, requests reach this app through the exported handler below, not
+// through a bound port -- app.listen() would just occupy a port nothing
+// connects to. Skip it there; everywhere else (local dev, a plain VM) it's
+// how the server actually starts.
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`🚀 YAHEALTHY server running on port ${PORT}`);
+    console.log(`📚 API docs: http://localhost:${PORT}/api/docs`);
+    console.log(`🔐 Authentication enabled with JWT`);
+    console.log(`💾 Database: ${process.env.SUPABASE_URL ? 'Supabase' : 'In-memory (development)'}`);
+  });
+}
+
+module.exports = app;

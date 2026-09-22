@@ -1,0 +1,49 @@
+{
+  "_meta": {
+    "purpose": "Generic (non-branded) reference nutrition values for the deterministic food-calculation engine (utils/food-calculator.js). The LLM never invents these numbers -- it looks up a food_id here and the engine does the arithmetic.",
+    "source_note": "Standard generic reference values (USDA FoodData Central-style, per 100g of the prepared/edible form noted in each item's name). These are starting values for a generic food, not a specific branded product -- see docs/bot/nuri-bot-prompt.md's 'כללי מול ספציפי' rule, which this file is the code-side counterpart of. Flag for dietitian review before treating as clinically authoritative; do not add a branded SKU's numbers here without a verified source (label photo or manufacturer data), per the 'לא ממציאים' rule.",
+    "schema": {
+      "id": "stable key used by the calculation engine, never shown to the user",
+      "name_he": "Hebrew display name",
+      "name_en": "English display name",
+      "category": "protein | carb | vegetable | fruit | fat | dairy | legume",
+      "nutrition_per_100g": "calories, protein_g, carbs_g, fat_g, fiber_g -- always per 100g of the prepared form",
+      "default_serving_g": "a common single-serving size in grams, for when the user gives a count instead of a weight (e.g. '2 eggs')"
+    }
+  },
+  "foods": [
+    { "id": "egg", "name_he": "ביצה", "name_en": "Egg", "category": "protein", "nutrition_per_100g": { "calories": 155, "protein_g": 13, "carbs_g": 1.1, "fat_g": 11, "fiber_g": 0 }, "default_serving_g": 50 },
+    { "id": "egg_white", "name_he": "חלבון ביצה", "name_en": "Egg white", "category": "protein", "nutrition_per_100g": { "calories": 52, "protein_g": 11, "carbs_g": 0.7, "fat_g": 0.2, "fiber_g": 0 }, "default_serving_g": 33 },
+    { "id": "chicken_breast", "name_he": "חזה עוף", "name_en": "Chicken breast (cooked)", "category": "protein", "nutrition_per_100g": { "calories": 165, "protein_g": 31, "carbs_g": 0, "fat_g": 3.6, "fiber_g": 0 }, "default_serving_g": 150 },
+    { "id": "turkey_breast", "name_he": "חזה הודו", "name_en": "Turkey breast (cooked)", "category": "protein", "nutrition_per_100g": { "calories": 135, "protein_g": 30, "carbs_g": 0, "fat_g": 1, "fiber_g": 0 }, "default_serving_g": 150 },
+    { "id": "beef_lean", "name_he": "בקר רזה", "name_en": "Lean beef (cooked)", "category": "protein", "nutrition_per_100g": { "calories": 250, "protein_g": 26, "carbs_g": 0, "fat_g": 15, "fiber_g": 0 }, "default_serving_g": 150 },
+    { "id": "salmon", "name_he": "סלמון", "name_en": "Salmon (cooked)", "category": "protein", "nutrition_per_100g": { "calories": 208, "protein_g": 20, "carbs_g": 0, "fat_g": 13, "fiber_g": 0 }, "default_serving_g": 150 },
+    { "id": "tuna_canned_water", "name_he": "טונה בקופסה (במים)", "name_en": "Canned tuna (in water)", "category": "protein", "nutrition_per_100g": { "calories": 116, "protein_g": 26, "carbs_g": 0, "fat_g": 1, "fiber_g": 0 }, "default_serving_g": 100 },
+    { "id": "cottage_cheese", "name_he": "קוטג'", "name_en": "Cottage cheese, generic", "category": "dairy", "nutrition_per_100g": { "calories": 98, "protein_g": 11, "carbs_g": 3.4, "fat_g": 4.3, "fiber_g": 0 }, "default_serving_g": 100 },
+    { "id": "greek_yogurt", "name_he": "יוגורט יווני", "name_en": "Greek yogurt, generic", "category": "dairy", "nutrition_per_100g": { "calories": 97, "protein_g": 9, "carbs_g": 4, "fat_g": 5, "fiber_g": 0 }, "default_serving_g": 170 },
+    { "id": "yogurt_plain", "name_he": "יוגורט רגיל", "name_en": "Plain yogurt, generic", "category": "dairy", "nutrition_per_100g": { "calories": 61, "protein_g": 3.5, "carbs_g": 4.7, "fat_g": 3.3, "fiber_g": 0 }, "default_serving_g": 150 },
+    { "id": "milk_whole", "name_he": "חלב 3%", "name_en": "Whole milk", "category": "dairy", "nutrition_per_100g": { "calories": 61, "protein_g": 3.2, "carbs_g": 4.8, "fat_g": 3.3, "fiber_g": 0 }, "default_serving_g": 250 },
+    { "id": "milk_low_fat", "name_he": "חלב 1%", "name_en": "Low-fat milk", "category": "dairy", "nutrition_per_100g": { "calories": 42, "protein_g": 3.4, "carbs_g": 5, "fat_g": 1, "fiber_g": 0 }, "default_serving_g": 250 },
+    { "id": "white_rice_cooked", "name_he": "אורז לבן מבושל", "name_en": "White rice (cooked)", "category": "carb", "nutrition_per_100g": { "calories": 130, "protein_g": 2.7, "carbs_g": 28, "fat_g": 0.3, "fiber_g": 0.4 }, "default_serving_g": 150 },
+    { "id": "brown_rice_cooked", "name_he": "אורז מלא מבושל", "name_en": "Brown rice (cooked)", "category": "carb", "nutrition_per_100g": { "calories": 123, "protein_g": 2.6, "carbs_g": 26, "fat_g": 1, "fiber_g": 1.6 }, "default_serving_g": 150 },
+    { "id": "quinoa_cooked", "name_he": "קינואה מבושלת", "name_en": "Quinoa (cooked)", "category": "carb", "nutrition_per_100g": { "calories": 120, "protein_g": 4.4, "carbs_g": 21, "fat_g": 1.9, "fiber_g": 2.8 }, "default_serving_g": 150 },
+    { "id": "oats_dry", "name_he": "שיבולת שועל, יבש", "name_en": "Oats, dry", "category": "carb", "nutrition_per_100g": { "calories": 389, "protein_g": 17, "carbs_g": 66, "fat_g": 7, "fiber_g": 10 }, "default_serving_g": 50 },
+    { "id": "whole_wheat_bread", "name_he": "לחם מלא", "name_en": "Whole wheat bread", "category": "carb", "nutrition_per_100g": { "calories": 247, "protein_g": 13, "carbs_g": 41, "fat_g": 3.4, "fiber_g": 7 }, "default_serving_g": 30 },
+    { "id": "potato_cooked", "name_he": "תפוח אדמה מבושל", "name_en": "Potato (cooked)", "category": "carb", "nutrition_per_100g": { "calories": 87, "protein_g": 1.9, "carbs_g": 20, "fat_g": 0.1, "fiber_g": 1.8 }, "default_serving_g": 150 },
+    { "id": "sweet_potato_cooked", "name_he": "בטטה מבושלת", "name_en": "Sweet potato (cooked)", "category": "carb", "nutrition_per_100g": { "calories": 90, "protein_g": 2, "carbs_g": 21, "fat_g": 0.1, "fiber_g": 3.3 }, "default_serving_g": 150 },
+    { "id": "lentils_cooked", "name_he": "עדשים מבושלות", "name_en": "Lentils (cooked)", "category": "legume", "nutrition_per_100g": { "calories": 116, "protein_g": 9, "carbs_g": 20, "fat_g": 0.4, "fiber_g": 8 }, "default_serving_g": 150 },
+    { "id": "chickpeas_cooked", "name_he": "חומוס גרגירים מבושל", "name_en": "Chickpeas (cooked)", "category": "legume", "nutrition_per_100g": { "calories": 164, "protein_g": 8.9, "carbs_g": 27, "fat_g": 2.6, "fiber_g": 7.6 }, "default_serving_g": 150 },
+    { "id": "hummus", "name_he": "חומוס (ממרח)", "name_en": "Hummus spread", "category": "legume", "nutrition_per_100g": { "calories": 166, "protein_g": 8, "carbs_g": 14, "fat_g": 10, "fiber_g": 6 }, "default_serving_g": 100 },
+    { "id": "cucumber", "name_he": "מלפפון", "name_en": "Cucumber", "category": "vegetable", "nutrition_per_100g": { "calories": 15, "protein_g": 0.65, "carbs_g": 3.6, "fat_g": 0.1, "fiber_g": 0.5 }, "default_serving_g": 100 },
+    { "id": "tomato", "name_he": "עגבנייה", "name_en": "Tomato", "category": "vegetable", "nutrition_per_100g": { "calories": 18, "protein_g": 0.9, "carbs_g": 3.9, "fat_g": 0.2, "fiber_g": 1.2 }, "default_serving_g": 100 },
+    { "id": "bell_pepper", "name_he": "פלפל", "name_en": "Bell pepper", "category": "vegetable", "nutrition_per_100g": { "calories": 31, "protein_g": 1, "carbs_g": 6, "fat_g": 0.3, "fiber_g": 2.1 }, "default_serving_g": 100 },
+    { "id": "lettuce", "name_he": "חסה", "name_en": "Lettuce", "category": "vegetable", "nutrition_per_100g": { "calories": 15, "protein_g": 1.4, "carbs_g": 2.9, "fat_g": 0.2, "fiber_g": 1.3 }, "default_serving_g": 60 },
+    { "id": "mixed_salad_vegetables", "name_he": "סלט ירקות (ממוצע)", "name_en": "Mixed salad vegetables", "category": "vegetable", "nutrition_per_100g": { "calories": 22, "protein_g": 1, "carbs_g": 4.3, "fat_g": 0.2, "fiber_g": 1.4 }, "default_serving_g": 150 },
+    { "id": "avocado", "name_he": "אבוקדו", "name_en": "Avocado", "category": "fat", "nutrition_per_100g": { "calories": 160, "protein_g": 2, "carbs_g": 8.5, "fat_g": 15, "fiber_g": 6.7 }, "default_serving_g": 70 },
+    { "id": "olive_oil", "name_he": "שמן זית", "name_en": "Olive oil", "category": "fat", "nutrition_per_100g": { "calories": 884, "protein_g": 0, "carbs_g": 0, "fat_g": 100, "fiber_g": 0 }, "default_serving_g": 10 },
+    { "id": "tahini", "name_he": "טחינה גולמית", "name_en": "Raw tahini", "category": "fat", "nutrition_per_100g": { "calories": 595, "protein_g": 17, "carbs_g": 21, "fat_g": 54, "fiber_g": 9 }, "default_serving_g": 15 },
+    { "id": "almonds", "name_he": "שקדים", "name_en": "Almonds", "category": "fat", "nutrition_per_100g": { "calories": 579, "protein_g": 21, "carbs_g": 22, "fat_g": 50, "fiber_g": 12.5 }, "default_serving_g": 20 },
+    { "id": "banana", "name_he": "בננה", "name_en": "Banana", "category": "fruit", "nutrition_per_100g": { "calories": 89, "protein_g": 1.1, "carbs_g": 23, "fat_g": 0.3, "fiber_g": 2.6 }, "default_serving_g": 120 },
+    { "id": "apple", "name_he": "תפוח", "name_en": "Apple", "category": "fruit", "nutrition_per_100g": { "calories": 52, "protein_g": 0.3, "carbs_g": 14, "fat_g": 0.2, "fiber_g": 2.4 }, "default_serving_g": 180 }
+  ]
+}
