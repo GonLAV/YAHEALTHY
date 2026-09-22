@@ -240,3 +240,249 @@ create index if not exists whatsapp_messages_chat_idx
 -- 🔴 הודעות מלקוחות עלולות להכיל מידע בריאותי — מישהו כותב "אני בהריון"
 -- לפני שיש לו חשבון. RLS מופעל, בלי policies, כמו שאר הטבלאות.
 alter table public.whatsapp_messages enable row level security;
+
+-- token_version — הופך טוקן חתום לטוקן שאפשר לבטל.
+--
+-- עד כאן JWT היה תקף 7 ימים ואי אפשר היה לעצור אותו: "התנתקות" מחקה
+-- אותו מהדפדפן בלבד, ואיפוס סיסמה לא ניתק את מי שכבר היה בפנים.
+-- המספר הזה נחתם בתוך הטוקן ונבדק מול השורה בכל בקשה. העלאה שלו
+-- באחד מהמצבים הבאים פוסלת מיידית כל טוקן שהונפק קודם:
+--   התנתקות · שינוי סיסמה · איפוס סיסמה
+--
+-- היא גם מה שהופך טוקן איפוס לחד-פעמי: הוא נושא את הערך שהיה בשעת
+-- ההנפקה, והאיפוס עצמו מעלה אותו — כך שאותו טוקן לא יעבוד פעמיים.
+--
+-- נתיב חזרה: alter table public.users drop column token_version;
+
+alter table public.users
+  add column if not exists token_version integer not null default 0;
+
+-- meal_plans — התוכנית השבועית שהלקוח משלם עליה.
+--
+-- עד כאן היא ישבה ב-`const mealPlans = []` בתוך index.js. כלומר: כל restart
+-- של השרת מחק לכל הלקוחות את התוכנית ואת רשימת הקניות שנגזרת ממנה, בלי
+-- שגיאה ובלי דרך לשחזר. אי אפשר לגבות כסף על מוצר שלא שורד אתחול.
+--
+-- rows נמחקות יחד עם המשתמש, כמו כל שאר הטבלאות.
+--
+-- נתיב חזרה: drop table public.meal_plans;
+
+create table if not exists public.meal_plans (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references public.users(id) on delete cascade,
+
+  -- מזהה מתוך data/recipes.json ("recipe_12"), לא מפתח זר: המתכונים הם
+  -- קובץ תוכן ולא טבלה. אם הם יעברו ל-DB, זה הופך ל-references.
+  recipe_id  text not null,
+
+  date       date not null,
+  meal_type  text not null,
+  completed  boolean not null default false,
+  created_at timestamptz not null default now(),
+
+  -- ארוחה אחת לכל סוג ביום. הקוד כבר התנהג כך כשייצר תוכניות אוטומטית,
+  -- אבל שום דבר לא אכף את זה — ויצירה ידנית יכלה לשתול כפילויות שרשימת
+  -- הקניות הייתה סופרת פעמיים.
+  unique (user_id, date, meal_type)
+);
+
+create index if not exists meal_plans_user_date_idx
+  on public.meal_plans (user_id, date);
+
+-- 🔴 תוכנית תזונה אישית היא מידע בריאותי. RLS מופעל, בלי policies,
+-- כמו שאר הטבלאות — ה-backend הוא השוער.
+alter table public.meal_plans enable row level security;
+
+-- מנויים ואירועי תשלום — ADR-007.
+--
+-- שתי טבלאות, שני תפקידים נפרדים:
+--   subscriptions  — מה הלקוח קנה ועד מתי. זה מה שקובע הרשאה.
+--   payment_events — מה PayPlus הודיע לנו. זה מה שמונע חיוב כפול.
+--
+-- ההפרדה חשובה: ספק הסליקה שולח את אותה הודעה יותר מפעם אחת, וטבלת
+-- האירועים היא מה שהופך מסירה חוזרת לחסרת השפעה.
+--
+-- נתיב חזרה: drop table public.payment_events; drop table public.subscriptions;
+
+create table if not exists public.subscriptions (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references public.users(id) on delete cascade,
+
+  -- 'base' — מסלול בסיס · 'chef' — מסלול עם שף אנושי (ADR-007)
+  plan       text not null,
+
+  -- 'active' · 'cancelled' · 'expired'
+  status     text not null default 'active',
+
+  started_at timestamptz not null default now(),
+
+  -- null = ללא תאריך סיום. מי שמבטל לפי זכות הביטול מקבל כאן תאריך,
+  -- והשורה נשמרת — ההיסטוריה היא מה שמוכיח מה נמכר ומתי.
+  ends_at    timestamptz,
+  created_at timestamptz not null default now()
+);
+
+-- מנוי פעיל אחד לכל מסלול. שני מנויים פעילים לאותו אדם לאותו מסלול
+-- הם תמיד תקלה — בדרך כלל מסירה כפולה של webhook.
+create unique index if not exists subscriptions_one_active_per_plan
+  on public.subscriptions (user_id, plan)
+  where status = 'active';
+
+create index if not exists subscriptions_user_idx
+  on public.subscriptions (user_id, status);
+
+create table if not exists public.payment_events (
+  -- המזהה של PayPlus לבקשת התשלום. מפתח ראשי בכוונה: מסירה חוזרת של
+  -- אותו callback נופלת על אילוץ ייחודיות במקום להיבדק ב-if שתי בקשות
+  -- מקבילות יכולות לחמוק ממנו.
+  page_request_uid text primary key,
+
+  user_id     uuid references public.users(id) on delete set null,
+  email       text,
+  plan        text,
+  status      text not null,
+  amount      numeric,
+  currency    text,
+
+  -- ה-payload כפי שהתקבל, אחרי אימות חתימה. נשמר כדי שנוכל להסביר
+  -- חיוב שנוי במחלוקת בלי להסתמך על הזיכרון של מישהו.
+  raw         jsonb,
+  received_at timestamptz not null default now()
+);
+
+create index if not exists payment_events_email_idx
+  on public.payment_events (email, received_at desc);
+
+-- 🔴 מי קנה מה הוא מידע אישי. RLS מופעל, בלי policies, כמו שאר הטבלאות.
+alter table public.subscriptions  enable row level security;
+alter table public.payment_events enable row level security;
+
+-- chef_requests — "נדאג שהשף יצור איתך קשר" כמצב בדאטה, לא כמשפט.
+--
+-- ADR-007: השף הוא אדם. הבטחה שנאמרת ללקוח ולא נרשמת בשום מקום היא
+-- הבטחה שתישבר — אף אחד לא יודע שמישהו מחכה.
+--
+-- נתיב חזרה: drop table public.chef_requests;
+
+create table if not exists public.chef_requests (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid not null references public.users(id) on delete cascade,
+
+  -- 'open' — ממתין · 'contacted' — השף יצר קשר · 'closed' — טופל
+  status       text not null default 'open',
+
+  -- מה הלקוח כתב, אם כתב. 🩺 לא לשים כאן ייעוץ תזונתי — השף מלמד לבשל.
+  note         text,
+
+  requested_at timestamptz not null default now(),
+  contacted_at timestamptz
+);
+
+-- בקשה פתוחה אחת ללקוח. לחיצה כפולה לא יוצרת שתי בקשות ולא שתי שיחות.
+create unique index if not exists chef_requests_one_open_per_user
+  on public.chef_requests (user_id)
+  where status = 'open';
+
+create index if not exists chef_requests_status_idx
+  on public.chef_requests (status, requested_at desc);
+
+alter table public.chef_requests enable row level security;
+
+-- foods — ערכים תזונתיים לכל 100 גרם, עם מקור לכל שורה.
+--
+-- שתי הכרעות שמעצבות את הטבלה:
+--
+-- 1. **הכול ל-100 גרם.** "תפוח" הוא לא כמות. תפוח קטן ותפוח גדול הם אותו
+--    מזון במשקל שונה, וכל חישוב לכמות נגזר מהבסיס הזה.
+--
+-- 2. **אין שורה בלי מקור.** `source` ו-`source_ref` הם NOT NULL בכוונה:
+--    ערך קלורי שאי אפשר להצביע על מקורו הוא ערך שהיועצת לא יכולה להגן
+--    עליו מול לקוחה. שורה בלי מקור פשוט לא נכנסת.
+--
+-- נתיב חזרה: drop table public.foods;
+
+create table if not exists public.foods (
+  id            uuid primary key default gen_random_uuid(),
+
+  name_he       text not null,
+  name_en       text,
+
+  -- ירקות · פירות · חלב · ביצים · בשר · דגים · קטניות · דגנים · שומן · אחר
+  category      text,
+
+  -- נא · מבושל · אפוי · מטוגן · יבש · משומר.
+  -- עדשים יבשות ועדשים מבושלות אינן אותו מזון: ספיחת מים משנה את הערך
+  -- ל-100 גרם פי שלושה. בלי השדה הזה המאגר משקר בלי לשים לב.
+  state         text not null default raw,
+
+  -- כמה גרם יש ביחידה אחת נפוצה - ביצה אחת, כף שמן, פרוסת לחם.
+  -- null = לא ידוע, ואז לא ממירים יחידות לגרמים ולא מנחשים.
+  grams_per_unit numeric,
+  unit_he        text,
+
+  -- ⚠️ הליבה. תמיד ל-100 גרם, תמיד קילו-קלוריות.
+  -- FDC מחזיר לחלק מהרשומות קילו-ג'ול; ההמרה נעשית בטעינה, לא כאן.
+  kcal_per_100g numeric not null check (kcal_per_100g >= 0 and kcal_per_100g <= 900),
+
+  protein_g     numeric,
+  carbs_g       numeric,
+  fat_g         numeric,
+  fiber_g       numeric,
+  sugar_g       numeric,
+  sodium_mg     numeric,
+
+  -- 'usda_fdc' · 'moh_il' · 'manufacturer_label' · 'manual'
+  source        text not null,
+
+  -- מזהה שאפשר לחזור אליו: fdcId, מספר פריט במאגר משרד הבריאות,
+  -- או ברקוד/קישור לתווית יצרן.
+  source_ref    text not null,
+
+  -- 'Foundation' / 'SR Legacy' / 'Branded' ב-FDC. איכות שונה מאוד.
+  source_detail text,
+  retrieved_at  timestamptz not null default now(),
+
+  -- שמות שהלקוח עשוי לכתוב בוואטסאפ. "אכלתי 200 גרם חזה" צריך למצוא
+  -- את חזה העוף. עבודת תרגום, ולכן מותר שמודל ייצר אותה — היא לא מספר.
+  aliases_he    jsonb,
+
+  -- מנות נפוצות עם משקל בגרמים: [{"name_he":"כף","grams":15}].
+  -- ⚠️ נטען מ-foodPortions של FDC כשקיים. משקל שלא הגיע ממקור לא נכנס:
+  -- ניחוש של משקל מנה הוא ניחוש של קלוריות.
+  common_servings jsonb,
+
+  -- טקסט חופשי שהיועצת יכולה לצטט: זן, בישול, חלק אכיל.
+  note_he       text,
+
+  created_at    timestamptz not null default now(),
+
+  -- מזון אחד לכל מקור. טעינה חוזרת מעדכנת, לא מכפילה.
+  unique (source, source_ref, state)
+);
+
+create index if not exists foods_name_he_idx  on public.foods (name_he);
+create index if not exists foods_category_idx on public.foods (category);
+
+-- ingredient_foods — מה שמחבר "עגבניות בשלות" מתוך מתכון לשורה במאגר.
+--
+-- ההתאמה בין שם בעברית לרשומה ב-FDC נעשית על ידי אדם או מודל, והיא עלולה
+-- להיות שגויה. לכן היא יושבת בטבלה נפרדת עם רמת ביטחון — ולא מודבקת
+-- לתוך `foods` כאילו היא חלק מהמדידה.
+create table if not exists public.ingredient_foods (
+  ingredient_he text primary key,
+  food_id       uuid references public.foods(id) on delete set null,
+
+  -- 'exact' — אותו מזון · 'approximate' — קרוב · 'unmapped' — לא נמצא
+  confidence    text not null default 'approximate',
+
+  -- כמה גרם ב"יחידה אחת" של המרכיב הזה. null = לא ידוע, ואז אי אפשר
+  -- להמיר "5 בינוניות" לגרמים, ולא מנחשים.
+  grams_per_unit numeric,
+  unit_he        text,
+
+  mapped_at     timestamptz not null default now(),
+  mapped_by     text
+);
+
+alter table public.foods            enable row level security;
+alter table public.ingredient_foods enable row level security;

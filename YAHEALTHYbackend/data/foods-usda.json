@@ -1,0 +1,6554 @@
+{
+  "_note_he": "נטען אוטומטית מ-USDA FoodData Central. כל שורה נושאת את ה-fdcId שממנו הגיעה, כך שאפשר לבדוק כל מספר. אין כאן ערך שהוזן ביד.",
+  "source": "USDA FoodData Central",
+  "dataTypes": "Foundation,SR Legacy",
+  "count": 218,
+  "foods": [
+    {
+      "name_he": "מלפפון",
+      "name_en": "Cucumber, with peel, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 15.9,
+      "source": "usda_fdc",
+      "source_ref": "2346406",
+      "source_detail": "Foundation",
+      "common_servings": [
+        {
+          "name_en": "1 RACC",
+          "grams": 85
+        }
+      ],
+      "protein_g": 0.6,
+      "carbs_g": 3,
+      "fat_g": 0.2,
+      "fiber_g": null,
+      "sugar_g": null,
+      "sodium_mg": 1.5
+    },
+    {
+      "name_he": "עגבנייה",
+      "name_en": "Tomatoes, red, ripe, raw, year round average",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 18,
+      "source": "usda_fdc",
+      "source_ref": "170457",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 medium whole (2-3/5\" dia)",
+          "grams": 123
+        },
+        {
+          "name_en": "1 slice, medium (1/4\" thick)",
+          "grams": 20
+        },
+        {
+          "name_en": "1 large whole (3\" dia)",
+          "grams": 182
+        },
+        {
+          "name_en": "1 cherry",
+          "grams": 17
+        },
+        {
+          "name_en": "1 Italian tomato",
+          "grams": 62
+        },
+        {
+          "name_en": "1 slice, thin/small",
+          "grams": 15
+        },
+        {
+          "name_en": "1 cup, chopped or sliced",
+          "grams": 180
+        },
+        {
+          "name_en": "1 small whole (2-2/5\" dia)",
+          "grams": 91
+        },
+        {
+          "name_en": "1 slice, thick/large (1/2\" thick)",
+          "grams": 27
+        },
+        {
+          "name_en": "1 cup cherry tomatoes",
+          "grams": 149
+        },
+        {
+          "name_en": "1 wedge (1/4 of medium tomato)",
+          "grams": 31
+        },
+        {
+          "name_en": "1 NLEA serving",
+          "grams": 148
+        },
+        {
+          "name_en": "1 plum tomato",
+          "grams": 62
+        }
+      ],
+      "protein_g": 0.9,
+      "carbs_g": 3.9,
+      "fat_g": 0.2,
+      "fiber_g": 1.2,
+      "sugar_g": 2.6,
+      "sodium_mg": 5
+    },
+    {
+      "name_he": "חסה",
+      "name_en": "Lettuce, cos or romaine, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 17,
+      "source": "usda_fdc",
+      "source_ref": "169247",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup shredded",
+          "grams": 47
+        },
+        {
+          "name_en": "1 leaf inner",
+          "grams": 6
+        },
+        {
+          "name_en": "1 head",
+          "grams": 626
+        },
+        {
+          "name_en": "1 leaf outer",
+          "grams": 28
+        },
+        {
+          "name_en": "1 NLEA serving",
+          "grams": 85
+        }
+      ],
+      "protein_g": 1.2,
+      "carbs_g": 3.3,
+      "fat_g": 0.3,
+      "fiber_g": 2.1,
+      "sugar_g": 1.2,
+      "sodium_mg": 8
+    },
+    {
+      "name_he": "כרוב",
+      "name_en": "Cabbage, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 25,
+      "source": "usda_fdc",
+      "source_ref": "169975",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 leaf, large",
+          "grams": 33
+        },
+        {
+          "name_en": "1 head, medium (about 5-3/4\" dia)",
+          "grams": 908
+        },
+        {
+          "name_en": "1 cup, chopped",
+          "grams": 89
+        },
+        {
+          "name_en": "1 cup, shredded",
+          "grams": 70
+        },
+        {
+          "name_en": "1 leaf, medium",
+          "grams": 23
+        },
+        {
+          "name_en": "1 leaf",
+          "grams": 15
+        },
+        {
+          "name_en": "1 head, large (about 7\" dia)",
+          "grams": 1248
+        },
+        {
+          "name_en": "1 head, small (about 4-1/2\" dia)",
+          "grams": 714
+        }
+      ],
+      "protein_g": 1.3,
+      "carbs_g": 5.8,
+      "fat_g": 0.1,
+      "fiber_g": 2.5,
+      "sugar_g": 3.2,
+      "sodium_mg": 18
+    },
+    {
+      "name_he": "כרוב סגול",
+      "name_en": "Cabbage, red, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 31,
+      "source": "usda_fdc",
+      "source_ref": "169977",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup, shredded",
+          "grams": 70
+        },
+        {
+          "name_en": "1 cup, chopped",
+          "grams": 89
+        },
+        {
+          "name_en": "1 leaf",
+          "grams": 23
+        },
+        {
+          "name_en": "1 head, medium (about 5\" dia)",
+          "grams": 839
+        },
+        {
+          "name_en": "1 head, large (about 5-1/2\" dia)",
+          "grams": 1134
+        },
+        {
+          "name_en": "1 head, small (4\" dia)",
+          "grams": 567
+        }
+      ],
+      "protein_g": 1.4,
+      "carbs_g": 7.4,
+      "fat_g": 0.2,
+      "fiber_g": 2.1,
+      "sugar_g": 3.8,
+      "sodium_mg": 27
+    },
+    {
+      "name_he": "כרובית",
+      "name_en": "Cauliflower, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 27.6,
+      "source": "usda_fdc",
+      "source_ref": "2685573",
+      "source_detail": "Foundation",
+      "common_servings": [
+        {
+          "name_en": "1 RACC",
+          "grams": 85
+        }
+      ],
+      "protein_g": 1.6,
+      "carbs_g": 4.7,
+      "fat_g": 0.2,
+      "fiber_g": 1.9,
+      "sugar_g": null,
+      "sodium_mg": 20
+    },
+    {
+      "name_he": "ברוקולי",
+      "name_en": "Broccoli, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 31,
+      "source": "usda_fdc",
+      "source_ref": "747447",
+      "source_detail": "Foundation",
+      "common_servings": [
+        {
+          "name_en": "1 chopped",
+          "grams": 76
+        },
+        {
+          "name_en": "1 RACC",
+          "grams": 85
+        }
+      ],
+      "protein_g": 2.6,
+      "carbs_g": 6.3,
+      "fat_g": 0.3,
+      "fiber_g": 2.4,
+      "sugar_g": 1.4,
+      "sodium_mg": 36
+    },
+    {
+      "name_he": "קישוא",
+      "name_en": "Squash, summer, zucchini, includes skin, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 17,
+      "source": "usda_fdc",
+      "source_ref": "169291",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 large",
+          "grams": 323
+        },
+        {
+          "name_en": "1 medium",
+          "grams": 196
+        },
+        {
+          "name_en": "1 slice",
+          "grams": 9.9
+        },
+        {
+          "name_en": "1 small",
+          "grams": 118
+        },
+        {
+          "name_en": "1 cup, chopped",
+          "grams": 124
+        },
+        {
+          "name_en": "1 cup, sliced",
+          "grams": 113
+        }
+      ],
+      "protein_g": 1.2,
+      "carbs_g": 3.1,
+      "fat_g": 0.3,
+      "fiber_g": 1,
+      "sugar_g": 2.5,
+      "sodium_mg": 8
+    },
+    {
+      "name_he": "חציל",
+      "name_en": "Eggplant, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 25,
+      "source": "usda_fdc",
+      "source_ref": "169228",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 eggplant, unpeeled (approx 1-1/4 lb)",
+          "grams": 548
+        },
+        {
+          "name_en": "1 eggplant, peeled (yield from 1-1/4 lb)",
+          "grams": 458
+        },
+        {
+          "name_en": "1 cup, cubes",
+          "grams": 82
+        }
+      ],
+      "protein_g": 1,
+      "carbs_g": 5.9,
+      "fat_g": 0.2,
+      "fiber_g": 3,
+      "sugar_g": 3.5,
+      "sodium_mg": 2
+    },
+    {
+      "name_he": "פלפל אדום",
+      "name_en": "Peppers, sweet, red, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 26,
+      "source": "usda_fdc",
+      "source_ref": "170108",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 large (2-1/4 per pound, approx 3-3/4\" long, 3\" dia.)",
+          "grams": 164
+        },
+        {
+          "name_en": "1 tablespoon",
+          "grams": 9.3
+        },
+        {
+          "name_en": "1 cup, sliced",
+          "grams": 92
+        },
+        {
+          "name_en": "1 cup, chopped",
+          "grams": 149
+        },
+        {
+          "name_en": "1 ring (3\" dia., 1/4\" thick)",
+          "grams": 10
+        },
+        {
+          "name_en": "1 medium (approx 2-3/4\" long, 2-1/2 dia.)",
+          "grams": 119
+        },
+        {
+          "name_en": "1 small",
+          "grams": 74
+        }
+      ],
+      "protein_g": 1,
+      "carbs_g": 6,
+      "fat_g": 0.3,
+      "fiber_g": 2.1,
+      "sugar_g": 4.2,
+      "sodium_mg": 4
+    },
+    {
+      "name_he": "פלפל צהוב",
+      "name_en": "Peppers, sweet, yellow, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 27,
+      "source": "usda_fdc",
+      "source_ref": "169383",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "10 strips",
+          "grams": 52
+        },
+        {
+          "name_en": "1 pepper, large (3-3/4\" long, 3\" dia)",
+          "grams": 186
+        }
+      ],
+      "protein_g": 1,
+      "carbs_g": 6.3,
+      "fat_g": 0.2,
+      "fiber_g": 0.9,
+      "sugar_g": null,
+      "sodium_mg": 2
+    },
+    {
+      "name_he": "פלפל ירוק",
+      "name_en": "Peppers, sweet, green, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 20,
+      "source": "usda_fdc",
+      "source_ref": "170427",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup, chopped",
+          "grams": 149
+        },
+        {
+          "name_en": "1 cup, sliced",
+          "grams": 92
+        },
+        {
+          "name_en": "1 ring (3\" dia, 1/4\" thick)",
+          "grams": 10
+        },
+        {
+          "name_en": "10 strips",
+          "grams": 27
+        },
+        {
+          "name_en": "1 large (2-1/4 per lb, approx 3-3/4\" long, 3\" dia)",
+          "grams": 164
+        },
+        {
+          "name_en": "1 medium (approx 2-3/4\" long, 2-1/2\" dia)",
+          "grams": 119
+        },
+        {
+          "name_en": "1 small",
+          "grams": 74
+        },
+        {
+          "name_en": "1 tbsp",
+          "grams": 9.3
+        }
+      ],
+      "protein_g": 0.9,
+      "carbs_g": 4.6,
+      "fat_g": 0.2,
+      "fiber_g": 1.7,
+      "sugar_g": 2.4,
+      "sodium_mg": 3
+    },
+    {
+      "name_he": "גזר",
+      "name_en": "Carrots, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 41,
+      "source": "usda_fdc",
+      "source_ref": "170393",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup grated",
+          "grams": 110
+        },
+        {
+          "name_en": "1 slice",
+          "grams": 3
+        },
+        {
+          "name_en": "1 strip large (3\" long)",
+          "grams": 7
+        },
+        {
+          "name_en": "1 small (5-1/2\" long)",
+          "grams": 50
+        },
+        {
+          "name_en": "1 medium",
+          "grams": 61
+        },
+        {
+          "name_en": "1 large (7-1/4\" to 8-/1/2\" long)",
+          "grams": 72
+        },
+        {
+          "name_en": "1 cup chopped",
+          "grams": 128
+        },
+        {
+          "name_en": "1 strip medium",
+          "grams": 4
+        },
+        {
+          "name_en": "1 cup strips or slices",
+          "grams": 122
+        }
+      ],
+      "protein_g": 0.9,
+      "carbs_g": 9.6,
+      "fat_g": 0.2,
+      "fiber_g": 2.8,
+      "sugar_g": 4.7,
+      "sodium_mg": 69
+    },
+    {
+      "name_he": "צנונית",
+      "name_en": "Radishes, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 16,
+      "source": "usda_fdc",
+      "source_ref": "169276",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 medium (3/4\" to 1\" dia)",
+          "grams": 4.5
+        },
+        {
+          "name_en": "1 small",
+          "grams": 2
+        },
+        {
+          "name_en": "1 cup slices",
+          "grams": 116
+        },
+        {
+          "name_en": "0.5 cup slices",
+          "grams": 58
+        },
+        {
+          "name_en": "1 slice",
+          "grams": 1
+        },
+        {
+          "name_en": "1 large (1\" to 1-1/4\" dia)",
+          "grams": 9
+        }
+      ],
+      "protein_g": 0.7,
+      "carbs_g": 3.4,
+      "fat_g": 0.1,
+      "fiber_g": 1.6,
+      "sugar_g": 1.9,
+      "sodium_mg": 39
+    },
+    {
+      "name_he": "סלרי",
+      "name_en": "Celery, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 16.7,
+      "source": "usda_fdc",
+      "source_ref": "2346405",
+      "source_detail": "Foundation",
+      "common_servings": [
+        {
+          "name_en": "1 RACC",
+          "grams": 85
+        }
+      ],
+      "protein_g": 0.5,
+      "carbs_g": 3.3,
+      "fat_g": 0.2,
+      "fiber_g": null,
+      "sugar_g": null,
+      "sodium_mg": 97.2
+    },
+    {
+      "name_he": "תרד",
+      "name_en": "Spinach, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 23,
+      "source": "usda_fdc",
+      "source_ref": "168462",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 bunch",
+          "grams": 340
+        },
+        {
+          "name_en": "1 leaf",
+          "grams": 10
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 30
+        },
+        {
+          "name_en": "1 package (10 oz)",
+          "grams": 284
+        }
+      ],
+      "protein_g": 2.9,
+      "carbs_g": 3.6,
+      "fat_g": 0.4,
+      "fiber_g": 2.2,
+      "sugar_g": 0.4,
+      "sodium_mg": 79
+    },
+    {
+      "name_he": "מנגולד",
+      "name_en": "Chard, swiss, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 19,
+      "source": "usda_fdc",
+      "source_ref": "169991",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 leaf",
+          "grams": 48
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 36
+        }
+      ],
+      "protein_g": 1.8,
+      "carbs_g": 3.7,
+      "fat_g": 0.2,
+      "fiber_g": 1.6,
+      "sugar_g": 1.1,
+      "sodium_mg": 213
+    },
+    {
+      "name_he": "רוקט",
+      "name_en": "Arugula, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 25,
+      "source": "usda_fdc",
+      "source_ref": "169387",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "0.5 cup",
+          "grams": 10
+        },
+        {
+          "name_en": "1 leaf",
+          "grams": 2
+        }
+      ],
+      "protein_g": 2.6,
+      "carbs_g": 3.7,
+      "fat_g": 0.7,
+      "fiber_g": 1.6,
+      "sugar_g": 2.1,
+      "sodium_mg": 27
+    },
+    {
+      "name_he": "פטריות",
+      "name_en": "Mushrooms, white, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 22,
+      "source": "usda_fdc",
+      "source_ref": "169251",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 small",
+          "grams": 10
+        },
+        {
+          "name_en": "1 cup, pieces or slices",
+          "grams": 70
+        },
+        {
+          "name_en": "1 slice",
+          "grams": 6
+        },
+        {
+          "name_en": "1 cup, whole",
+          "grams": 96
+        },
+        {
+          "name_en": "1 medium",
+          "grams": 18
+        },
+        {
+          "name_en": "1 large",
+          "grams": 23
+        },
+        {
+          "name_en": "0.5 cup pieces",
+          "grams": 35
+        }
+      ],
+      "protein_g": 3.1,
+      "carbs_g": 3.3,
+      "fat_g": 0.3,
+      "fiber_g": 1,
+      "sugar_g": 2,
+      "sodium_mg": 5
+    },
+    {
+      "name_he": "בצל",
+      "name_en": "Onions, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 40,
+      "source": "usda_fdc",
+      "source_ref": "170000",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup, chopped",
+          "grams": 160
+        },
+        {
+          "name_en": "1 slice, medium (1/8\" thick)",
+          "grams": 14
+        },
+        {
+          "name_en": "1 medium (2-1/2\" dia)",
+          "grams": 110
+        },
+        {
+          "name_en": "1 large",
+          "grams": 150
+        },
+        {
+          "name_en": "10 rings",
+          "grams": 60
+        },
+        {
+          "name_en": "1 tbsp chopped",
+          "grams": 10
+        },
+        {
+          "name_en": "1 cup, sliced",
+          "grams": 115
+        },
+        {
+          "name_en": "1 slice, thin",
+          "grams": 9
+        },
+        {
+          "name_en": "1 small",
+          "grams": 70
+        },
+        {
+          "name_en": "1 slice, large (1/4\" thick)",
+          "grams": 38
+        }
+      ],
+      "protein_g": 1.1,
+      "carbs_g": 9.3,
+      "fat_g": 0.1,
+      "fiber_g": 1.7,
+      "sugar_g": 4.2,
+      "sodium_mg": 4
+    },
+    {
+      "name_he": "בצל ירוק",
+      "name_en": "Onions, spring or scallions (includes tops and bulb), raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 32,
+      "source": "usda_fdc",
+      "source_ref": "170005",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 small (3\" long)",
+          "grams": 5
+        },
+        {
+          "name_en": "1 tbsp chopped",
+          "grams": 6
+        },
+        {
+          "name_en": "1 cup, chopped",
+          "grams": 100
+        },
+        {
+          "name_en": "1 medium (4-1/8\" long)",
+          "grams": 15
+        },
+        {
+          "name_en": "1 large",
+          "grams": 25
+        }
+      ],
+      "protein_g": 1.8,
+      "carbs_g": 7.3,
+      "fat_g": 0.2,
+      "fiber_g": 2.6,
+      "sugar_g": 2.3,
+      "sodium_mg": 16
+    },
+    {
+      "name_he": "שום",
+      "name_en": "Garlic, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 143,
+      "source": "usda_fdc",
+      "source_ref": "1104647",
+      "source_detail": "Foundation",
+      "common_servings": [
+        {
+          "name_en": "1 RACC",
+          "grams": 85
+        }
+      ],
+      "protein_g": 6.6,
+      "carbs_g": 28.2,
+      "fat_g": 0.4,
+      "fiber_g": 2.7,
+      "sugar_g": null,
+      "sodium_mg": null
+    },
+    {
+      "name_he": "כרישה",
+      "name_en": "Leeks, (bulb and lower leaf-portion), raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 61,
+      "source": "usda_fdc",
+      "source_ref": "169246",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 89
+        },
+        {
+          "name_en": "1 leek",
+          "grams": 89
+        },
+        {
+          "name_en": "1 slice",
+          "grams": 6
+        }
+      ],
+      "protein_g": 1.5,
+      "carbs_g": 14.2,
+      "fat_g": 0.3,
+      "fiber_g": 1.8,
+      "sugar_g": 3.9,
+      "sodium_mg": 20
+    },
+    {
+      "name_he": "שומר",
+      "name_en": "Fennel, bulb, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 26.9,
+      "source": "usda_fdc",
+      "source_ref": "2747655",
+      "source_detail": "Foundation",
+      "common_servings": [],
+      "protein_g": 0.9,
+      "carbs_g": 5.5,
+      "fat_g": 0.1,
+      "fiber_g": 2,
+      "sugar_g": 3.2,
+      "sodium_mg": 49
+    },
+    {
+      "name_he": "אספרגוס",
+      "name_en": "Asparagus, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 20,
+      "source": "usda_fdc",
+      "source_ref": "168389",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 134
+        },
+        {
+          "name_en": "1 spear, extra large (8-3/4\" to 10\" long)",
+          "grams": 24
+        },
+        {
+          "name_en": "1 spear, large (7-1/4\" to 8-1/2\")",
+          "grams": 20
+        },
+        {
+          "name_en": "1 spear tip (2\" long or less)",
+          "grams": 3.5
+        },
+        {
+          "name_en": "1 spear, medium (5-1/4\" to 7\" long)",
+          "grams": 16
+        },
+        {
+          "name_en": "1 spear, small (5\" long or less)",
+          "grams": 12
+        }
+      ],
+      "protein_g": 2.2,
+      "carbs_g": 3.9,
+      "fat_g": 0.1,
+      "fiber_g": 2.1,
+      "sugar_g": 1.9,
+      "sodium_mg": 2
+    },
+    {
+      "name_he": "שעועית ירוקה",
+      "name_en": "Beans, snap, green, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 40,
+      "source": "usda_fdc",
+      "source_ref": "2346400",
+      "source_detail": "Foundation",
+      "common_servings": [
+        {
+          "name_en": "1 RACC",
+          "grams": 85
+        }
+      ],
+      "protein_g": 2,
+      "carbs_g": 7.4,
+      "fat_g": 0.3,
+      "fiber_g": 3,
+      "sugar_g": 2.3,
+      "sodium_mg": 0
+    },
+    {
+      "name_he": "אפונה ירוקה",
+      "name_en": "Peas, green, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 81,
+      "source": "usda_fdc",
+      "source_ref": "170419",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 145
+        }
+      ],
+      "protein_g": 5.4,
+      "carbs_g": 14.5,
+      "fat_g": 0.4,
+      "fiber_g": 5.7,
+      "sugar_g": 5.7,
+      "sodium_mg": 5
+    },
+    {
+      "name_he": "תירס",
+      "name_en": "Corn, sweet, yellow, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 86,
+      "source": "usda_fdc",
+      "source_ref": "169998",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 ear, medium (6-3/4\" to 7-1/2\" long) yields",
+          "grams": 102
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 145
+        },
+        {
+          "name_en": "1 ear, small (5-1/2\" to 6-1/2\" long)",
+          "grams": 73
+        },
+        {
+          "name_en": "1 ear, large (7-3/4\" to 9\" long) yields",
+          "grams": 143
+        }
+      ],
+      "protein_g": 3.3,
+      "carbs_g": 18.7,
+      "fat_g": 1.4,
+      "fiber_g": 2,
+      "sugar_g": 6.3,
+      "sodium_mg": 15
+    },
+    {
+      "name_he": "במיה",
+      "name_en": "Okra, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 33,
+      "source": "usda_fdc",
+      "source_ref": "169260",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "8 pods (3\" long)",
+          "grams": 95
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 100
+        }
+      ],
+      "protein_g": 1.9,
+      "carbs_g": 7.5,
+      "fat_g": 0.2,
+      "fiber_g": 3.2,
+      "sugar_g": 1.5,
+      "sodium_mg": 7
+    },
+    {
+      "name_he": "ארטישוק",
+      "name_en": "Artichokes, (globe or french), raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 47,
+      "source": "usda_fdc",
+      "source_ref": "169205",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 artichoke, medium",
+          "grams": 128
+        },
+        {
+          "name_en": "1 artichoke, large",
+          "grams": 162
+        }
+      ],
+      "protein_g": 3.3,
+      "carbs_g": 10.5,
+      "fat_g": 0.2,
+      "fiber_g": 5.4,
+      "sugar_g": 1,
+      "sodium_mg": 94
+    },
+    {
+      "name_he": "דלעת",
+      "name_en": "Pumpkin, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 26,
+      "source": "usda_fdc",
+      "source_ref": "168448",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup (1\" cubes)",
+          "grams": 116
+        }
+      ],
+      "protein_g": 1,
+      "carbs_g": 6.5,
+      "fat_g": 0.1,
+      "fiber_g": 0.5,
+      "sugar_g": 2.8,
+      "sodium_mg": 1
+    },
+    {
+      "name_he": "דלורית",
+      "name_en": "Squash, winter, butternut, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 45,
+      "source": "usda_fdc",
+      "source_ref": "169295",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup, cubes",
+          "grams": 140
+        }
+      ],
+      "protein_g": 1,
+      "carbs_g": 11.7,
+      "fat_g": 0.1,
+      "fiber_g": 2,
+      "sugar_g": 2.2,
+      "sodium_mg": 4
+    },
+    {
+      "name_he": "סלק",
+      "name_en": "Beets, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 44.6,
+      "source": "usda_fdc",
+      "source_ref": "2685576",
+      "source_detail": "Foundation",
+      "common_servings": [
+        {
+          "name_en": "1 RACC",
+          "grams": 85
+        }
+      ],
+      "protein_g": 1.7,
+      "carbs_g": 8.8,
+      "fat_g": 0.3,
+      "fiber_g": 3.1,
+      "sugar_g": 5.1,
+      "sodium_mg": 111.6
+    },
+    {
+      "name_he": "לפת",
+      "name_en": "Turnips, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 28,
+      "source": "usda_fdc",
+      "source_ref": "170465",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 medium",
+          "grams": 122
+        },
+        {
+          "name_en": "1 slice",
+          "grams": 15
+        },
+        {
+          "name_en": "1 cup, cubes",
+          "grams": 130
+        },
+        {
+          "name_en": "0.5 cup, cubes",
+          "grams": 65
+        },
+        {
+          "name_en": "1 small",
+          "grams": 61
+        },
+        {
+          "name_en": "1 large",
+          "grams": 183
+        }
+      ],
+      "protein_g": 0.9,
+      "carbs_g": 6.4,
+      "fat_g": 0.1,
+      "fiber_g": 1.8,
+      "sugar_g": 3.8,
+      "sodium_mg": 67
+    },
+    {
+      "name_he": "נבטים",
+      "name_en": "Mung beans, mature seeds, sprouted, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 30,
+      "source": "usda_fdc",
+      "source_ref": "169957",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 104
+        },
+        {
+          "name_en": "1 package (12 oz)",
+          "grams": 340
+        }
+      ],
+      "protein_g": 3,
+      "carbs_g": 5.9,
+      "fat_g": 0.2,
+      "fiber_g": 1.8,
+      "sugar_g": 4.1,
+      "sodium_mg": 6
+    },
+    {
+      "name_he": "כרוב ניצנים",
+      "name_en": "Brussels sprouts, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 59.5,
+      "source": "usda_fdc",
+      "source_ref": "2685575",
+      "source_detail": "Foundation",
+      "common_servings": [
+        {
+          "name_en": "1 RACC",
+          "grams": 85
+        }
+      ],
+      "protein_g": 4,
+      "carbs_g": 9.6,
+      "fat_g": 0.6,
+      "fiber_g": 4.8,
+      "sugar_g": null,
+      "sodium_mg": 25.7
+    },
+    {
+      "name_he": "ארטישוק ירושלמי",
+      "name_en": "Jerusalem-artichokes, raw",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 73,
+      "source": "usda_fdc",
+      "source_ref": "169236",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup slices",
+          "grams": 150
+        }
+      ],
+      "protein_g": 2,
+      "carbs_g": 17.4,
+      "fat_g": 0,
+      "fiber_g": 1.6,
+      "sugar_g": 9.6,
+      "sodium_mg": 4
+    },
+    {
+      "name_he": "לימון",
+      "name_en": "Lemons, raw, without peel",
+      "category": "ירקות",
+      "state": "raw",
+      "kcal_per_100g": 29,
+      "source": "usda_fdc",
+      "source_ref": "167746",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup, sections",
+          "grams": 212
+        },
+        {
+          "name_en": "1 fruit (2-3/8\" dia)",
+          "grams": 84
+        },
+        {
+          "name_en": "1 fruit (2-1/8\" dia)",
+          "grams": 58
+        },
+        {
+          "name_en": "1 NLEA serving",
+          "grams": 58
+        },
+        {
+          "name_en": "1 wedge or slice (1/8 of one 2-1/8\" dia lemon)",
+          "grams": 7
+        }
+      ],
+      "protein_g": 1.1,
+      "carbs_g": 9.3,
+      "fat_g": 0.3,
+      "fiber_g": 2.8,
+      "sugar_g": 2.5,
+      "sodium_mg": 2
+    },
+    {
+      "name_he": "תפוח אדמה",
+      "name_en": "Potatoes, flesh and skin, raw",
+      "category": "ירקות עמילניים",
+      "state": "raw",
+      "kcal_per_100g": 77,
+      "source": "usda_fdc",
+      "source_ref": "170026",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 Potato small (1-3/4\" to 2-1/2\" dia)",
+          "grams": 170
+        },
+        {
+          "name_en": "0.5 cup, diced",
+          "grams": 75
+        },
+        {
+          "name_en": "1 Potato large (3\" to 4-1/4\" dia)",
+          "grams": 369
+        },
+        {
+          "name_en": "1 Potato medium (2-1/4\" to 3-1/4\" dia)",
+          "grams": 213
+        }
+      ],
+      "protein_g": 2.1,
+      "carbs_g": 17.5,
+      "fat_g": 0.1,
+      "fiber_g": 2.1,
+      "sugar_g": 0.8,
+      "sodium_mg": 6
+    },
+    {
+      "name_he": "תפוח אדמה אפוי",
+      "name_en": "Potatoes, baked, flesh and skin, with salt",
+      "category": "ירקות עמילניים",
+      "state": "baked",
+      "kcal_per_100g": 93,
+      "source": "usda_fdc",
+      "source_ref": "170111",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 potato medium (2-1/4\" to 3-1/4\" dia)",
+          "grams": 173
+        },
+        {
+          "name_en": "1 NLEA serving",
+          "grams": 148
+        },
+        {
+          "name_en": "1 potato small (1-3/4\" to 2-1/2\" dia)",
+          "grams": 138
+        },
+        {
+          "name_en": "1 potato large (3\" to 4-1/4\" dia)",
+          "grams": 299
+        },
+        {
+          "name_en": "0.5 cup",
+          "grams": 61
+        }
+      ],
+      "protein_g": 2.5,
+      "carbs_g": 21.2,
+      "fat_g": 0.1,
+      "fiber_g": 2.2,
+      "sugar_g": 1.2,
+      "sodium_mg": 10
+    },
+    {
+      "name_he": "בטטה",
+      "name_en": "Sweet Potato puffs, frozen, unprepared",
+      "category": "ירקות עמילניים",
+      "state": "raw",
+      "kcal_per_100g": 161,
+      "source": "usda_fdc",
+      "source_ref": "168016",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "3 oz",
+          "grams": 85
+        }
+      ],
+      "protein_g": 1.4,
+      "carbs_g": 30.7,
+      "fat_g": 3.6,
+      "fiber_g": 1.9,
+      "sugar_g": 7.7,
+      "sodium_mg": 250
+    },
+    {
+      "name_he": "ערמונים",
+      "name_en": "Nuts, chestnuts, european, raw, peeled",
+      "category": "ירקות עמילניים",
+      "state": "raw",
+      "kcal_per_100g": 196,
+      "source": "usda_fdc",
+      "source_ref": "170575",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 oz",
+          "grams": 28.35
+        }
+      ],
+      "protein_g": 1.6,
+      "carbs_g": 44.2,
+      "fat_g": 1.3,
+      "fiber_g": null,
+      "sugar_g": null,
+      "sodium_mg": 2
+    },
+    {
+      "name_he": "קסאווה",
+      "name_en": "Cassava, raw",
+      "category": "ירקות עמילניים",
+      "state": "raw",
+      "kcal_per_100g": 160,
+      "source": "usda_fdc",
+      "source_ref": "169985",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 206
+        },
+        {
+          "name_en": "1 root",
+          "grams": 408
+        }
+      ],
+      "protein_g": 1.4,
+      "carbs_g": 38.1,
+      "fat_g": 0.3,
+      "fiber_g": 1.8,
+      "sugar_g": 1.7,
+      "sodium_mg": 14
+    },
+    {
+      "name_he": "תפוח",
+      "name_en": "Apples, fuji, with skin, raw",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 64.7,
+      "source": "usda_fdc",
+      "source_ref": "1750340",
+      "source_detail": "Foundation",
+      "common_servings": [
+        {
+          "name_en": "1 RACC",
+          "grams": 140
+        }
+      ],
+      "protein_g": 0.1,
+      "carbs_g": 15.7,
+      "fat_g": 0.2,
+      "fiber_g": 2.1,
+      "sugar_g": 13.3,
+      "sodium_mg": 1
+    },
+    {
+      "name_he": "אגס",
+      "name_en": "Pears, raw",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 57,
+      "source": "usda_fdc",
+      "source_ref": "169118",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 medium",
+          "grams": 178
+        },
+        {
+          "name_en": "1 large",
+          "grams": 230
+        },
+        {
+          "name_en": "1 NLEA serving",
+          "grams": 166
+        },
+        {
+          "name_en": "1 cup, cubes",
+          "grams": 161
+        },
+        {
+          "name_en": "1 small",
+          "grams": 148
+        },
+        {
+          "name_en": "1 cup, slices",
+          "grams": 140
+        }
+      ],
+      "protein_g": 0.4,
+      "carbs_g": 15.2,
+      "fat_g": 0.1,
+      "fiber_g": 3.1,
+      "sugar_g": 9.8,
+      "sodium_mg": 1
+    },
+    {
+      "name_he": "בננה",
+      "name_en": "Bananas, raw",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 89,
+      "source": "usda_fdc",
+      "source_ref": "173944",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 NLEA serving",
+          "grams": 126
+        },
+        {
+          "name_en": "1 extra large (9\" or longer)",
+          "grams": 152
+        },
+        {
+          "name_en": "1 large (8\" to 8-7/8\" long)",
+          "grams": 136
+        },
+        {
+          "name_en": "1 cup, sliced",
+          "grams": 150
+        },
+        {
+          "name_en": "1 small (6\" to 6-7/8\" long)",
+          "grams": 101
+        },
+        {
+          "name_en": "1 extra small (less than 6\" long)",
+          "grams": 81
+        },
+        {
+          "name_en": "1 medium (7\" to 7-7/8\" long)",
+          "grams": 118
+        },
+        {
+          "name_en": "1 cup, mashed",
+          "grams": 225
+        }
+      ],
+      "protein_g": 1.1,
+      "carbs_g": 22.8,
+      "fat_g": 0.3,
+      "fiber_g": 2.6,
+      "sugar_g": 12.2,
+      "sodium_mg": 1
+    },
+    {
+      "name_he": "תפוז",
+      "name_en": "Oranges, raw, all commercial varieties",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 47,
+      "source": "usda_fdc",
+      "source_ref": "169097",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 small (2-3/8\" dia)",
+          "grams": 96
+        },
+        {
+          "name_en": "1 large (3-1/16\" dia)",
+          "grams": 184
+        },
+        {
+          "name_en": "1 cup, sections",
+          "grams": 180
+        },
+        {
+          "name_en": "1 fruit (2-5/8\" dia)",
+          "grams": 131
+        }
+      ],
+      "protein_g": 0.9,
+      "carbs_g": 11.8,
+      "fat_g": 0.1,
+      "fiber_g": 2.4,
+      "sugar_g": 9.4,
+      "sodium_mg": 0
+    },
+    {
+      "name_he": "קלמנטינה",
+      "name_en": "Tangerines, (mandarin oranges), raw",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 53,
+      "source": "usda_fdc",
+      "source_ref": "169105",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 medium (2-1/2\" dia)",
+          "grams": 88
+        },
+        {
+          "name_en": "1 small (2-1/4\" dia)",
+          "grams": 76
+        },
+        {
+          "name_en": "1 large (2-3/4\" dia)",
+          "grams": 120
+        },
+        {
+          "name_en": "1 cup, sections",
+          "grams": 195
+        },
+        {
+          "name_en": "1 NLEA serving",
+          "grams": 109
+        }
+      ],
+      "protein_g": 0.8,
+      "carbs_g": 13.3,
+      "fat_g": 0.3,
+      "fiber_g": 1.8,
+      "sugar_g": 10.6,
+      "sodium_mg": 2
+    },
+    {
+      "name_he": "אשכולית",
+      "name_en": "Grapefruit, raw, pink and red, Florida",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 30,
+      "source": "usda_fdc",
+      "source_ref": "174675",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "0.5 fruit (3-3/4\" dia)",
+          "grams": 123
+        },
+        {
+          "name_en": "1 cup sections, with juice",
+          "grams": 230
+        }
+      ],
+      "protein_g": 0.6,
+      "carbs_g": 7.5,
+      "fat_g": 0.1,
+      "fiber_g": 1.1,
+      "sugar_g": null,
+      "sodium_mg": 0
+    },
+    {
+      "name_he": "ליים",
+      "name_en": "Limes, raw",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 30,
+      "source": "usda_fdc",
+      "source_ref": "168155",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 fruit (2\" dia)",
+          "grams": 67
+        },
+        {
+          "name_en": "1 NLEA serving",
+          "grams": 67
+        }
+      ],
+      "protein_g": 0.7,
+      "carbs_g": 10.5,
+      "fat_g": 0.2,
+      "fiber_g": 2.8,
+      "sugar_g": 1.7,
+      "sodium_mg": 2
+    },
+    {
+      "name_he": "ענבים",
+      "name_en": "Grapes, red, seedless, raw",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 85.9,
+      "source": "usda_fdc",
+      "source_ref": "2346412",
+      "source_detail": "Foundation",
+      "common_servings": [
+        {
+          "name_en": "1 RACC",
+          "grams": 140
+        }
+      ],
+      "protein_g": 0.9,
+      "carbs_g": 20.2,
+      "fat_g": 0.2,
+      "fiber_g": null,
+      "sugar_g": 17.3,
+      "sodium_mg": 7
+    },
+    {
+      "name_he": "תות שדה",
+      "name_en": "Strawberries, raw",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 32,
+      "source": "usda_fdc",
+      "source_ref": "167762",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup, pureed",
+          "grams": 232
+        },
+        {
+          "name_en": "1 large (1-3/8\" dia)",
+          "grams": 18
+        },
+        {
+          "name_en": "1 cup, sliced",
+          "grams": 166
+        },
+        {
+          "name_en": "1 pint as purchased, yields",
+          "grams": 357
+        },
+        {
+          "name_en": "1 cup, halves",
+          "grams": 152
+        },
+        {
+          "name_en": "1 medium (1-1/4\" dia)",
+          "grams": 12
+        },
+        {
+          "name_en": "1 extra large (1-5/8\" dia)",
+          "grams": 27
+        },
+        {
+          "name_en": "1 NLEA serving",
+          "grams": 147
+        },
+        {
+          "name_en": "1 cup, whole",
+          "grams": 144
+        },
+        {
+          "name_en": "1 small (1\" dia)",
+          "grams": 7
+        }
+      ],
+      "protein_g": 0.7,
+      "carbs_g": 7.7,
+      "fat_g": 0.3,
+      "fiber_g": 2,
+      "sugar_g": 4.9,
+      "sodium_mg": 1
+    },
+    {
+      "name_he": "אוכמניות",
+      "name_en": "Blueberries, raw",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 63.9,
+      "source": "usda_fdc",
+      "source_ref": "2346411",
+      "source_detail": "Foundation",
+      "common_servings": [
+        {
+          "name_en": "1 RACC",
+          "grams": 140
+        }
+      ],
+      "protein_g": 0.7,
+      "carbs_g": 14.6,
+      "fat_g": 0.3,
+      "fiber_g": null,
+      "sugar_g": 9.4,
+      "sodium_mg": 0
+    },
+    {
+      "name_he": "פטל",
+      "name_en": "Raspberries, raw",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 57.3,
+      "source": "usda_fdc",
+      "source_ref": "2346410",
+      "source_detail": "Foundation",
+      "common_servings": [
+        {
+          "name_en": "1 RACC",
+          "grams": 140
+        }
+      ],
+      "protein_g": 1,
+      "carbs_g": 12.9,
+      "fat_g": 0.2,
+      "fiber_g": null,
+      "sugar_g": 2.7,
+      "sodium_mg": 0
+    },
+    {
+      "name_he": "פטל שחור",
+      "name_en": "Blackberries, raw",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 43,
+      "source": "usda_fdc",
+      "source_ref": "173946",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 144
+        }
+      ],
+      "protein_g": 1.4,
+      "carbs_g": 9.6,
+      "fat_g": 0.5,
+      "fiber_g": 5.3,
+      "sugar_g": 4.9,
+      "sodium_mg": 1
+    },
+    {
+      "name_he": "דובדבנים",
+      "name_en": "Cherries, sweet, raw",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 63,
+      "source": "usda_fdc",
+      "source_ref": "171719",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup, without pits",
+          "grams": 154
+        },
+        {
+          "name_en": "1 NLEA serving",
+          "grams": 140
+        },
+        {
+          "name_en": "1 cup, with pits, yields",
+          "grams": 138
+        },
+        {
+          "name_en": "1 cherry",
+          "grams": 8.2
+        }
+      ],
+      "protein_g": 1.1,
+      "carbs_g": 16,
+      "fat_g": 0.2,
+      "fiber_g": 2.1,
+      "sugar_g": 12.8,
+      "sodium_mg": 0
+    },
+    {
+      "name_he": "אפרסק",
+      "name_en": "Peaches, yellow, raw",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 42,
+      "source": "usda_fdc",
+      "source_ref": "325430",
+      "source_detail": "Foundation",
+      "common_servings": [
+        {
+          "name_en": "1 small (2-1/2\" dia)",
+          "grams": 147
+        },
+        {
+          "name_en": "1 slices with skin",
+          "grams": 154
+        },
+        {
+          "name_en": "1 large (2-3/4\" dia)",
+          "grams": 173
+        },
+        {
+          "name_en": "1 extra large (3\" dia)",
+          "grams": 225
+        },
+        {
+          "name_en": "1 medium (2-2/3\" dia)",
+          "grams": 161
+        },
+        {
+          "name_en": "1 NLEA",
+          "grams": 147
+        },
+        {
+          "name_en": "1 RACC",
+          "grams": 140
+        }
+      ],
+      "protein_g": 0.9,
+      "carbs_g": 10.1,
+      "fat_g": 0.3,
+      "fiber_g": 1.5,
+      "sugar_g": 8.4,
+      "sodium_mg": 13
+    },
+    {
+      "name_he": "נקטרינה",
+      "name_en": "Nectarines, raw",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 44,
+      "source": "usda_fdc",
+      "source_ref": "169914",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 medium (2-1/2\" dia)",
+          "grams": 142
+        },
+        {
+          "name_en": "1 cup slices",
+          "grams": 143
+        },
+        {
+          "name_en": "1 NLEA serving",
+          "grams": 140
+        },
+        {
+          "name_en": "1 large (2-3/4\" dia)",
+          "grams": 156
+        },
+        {
+          "name_en": "1 small (2-1/3\" dia)",
+          "grams": 129
+        }
+      ],
+      "protein_g": 1.1,
+      "carbs_g": 10.6,
+      "fat_g": 0.3,
+      "fiber_g": 1.7,
+      "sugar_g": 7.9,
+      "sodium_mg": 0
+    },
+    {
+      "name_he": "שזיף",
+      "name_en": "Plums, raw",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 46,
+      "source": "usda_fdc",
+      "source_ref": "169949",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 NLEA serving",
+          "grams": 151
+        },
+        {
+          "name_en": "1 cup, sliced",
+          "grams": 165
+        },
+        {
+          "name_en": "1 fruit (2-1/8\" dia)",
+          "grams": 66
+        }
+      ],
+      "protein_g": 0.7,
+      "carbs_g": 11.4,
+      "fat_g": 0.3,
+      "fiber_g": 1.4,
+      "sugar_g": 9.9,
+      "sodium_mg": 0
+    },
+    {
+      "name_he": "משמש",
+      "name_en": "Apricots, raw",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 48,
+      "source": "usda_fdc",
+      "source_ref": "171697",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 apricot",
+          "grams": 35
+        },
+        {
+          "name_en": "1 cup, halves",
+          "grams": 155
+        },
+        {
+          "name_en": "1 cup, sliced",
+          "grams": 165
+        }
+      ],
+      "protein_g": 1.4,
+      "carbs_g": 11.1,
+      "fat_g": 0.4,
+      "fiber_g": 2,
+      "sugar_g": 9.2,
+      "sodium_mg": 1
+    },
+    {
+      "name_he": "מנגו",
+      "name_en": "Mangos, raw",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 60,
+      "source": "usda_fdc",
+      "source_ref": "169910",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 fruit without refuse",
+          "grams": 336
+        },
+        {
+          "name_en": "1 cup pieces",
+          "grams": 165
+        }
+      ],
+      "protein_g": 0.8,
+      "carbs_g": 15,
+      "fat_g": 0.4,
+      "fiber_g": 1.6,
+      "sugar_g": 13.7,
+      "sodium_mg": 1
+    },
+    {
+      "name_he": "אננס",
+      "name_en": "Pineapple, raw, all varieties",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 50,
+      "source": "usda_fdc",
+      "source_ref": "169124",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 slice, thin (3-1/2\" dia x 1/2\" thick)",
+          "grams": 56
+        },
+        {
+          "name_en": "1 slice (4-2/3\" dia x 3/4\" thick)",
+          "grams": 166
+        },
+        {
+          "name_en": "1 fruit",
+          "grams": 905
+        },
+        {
+          "name_en": "1 cup, chunks",
+          "grams": 165
+        },
+        {
+          "name_en": "1 slice (3-1/2\" dia x 3/4\" thick)",
+          "grams": 84
+        }
+      ],
+      "protein_g": 0.5,
+      "carbs_g": 13.1,
+      "fat_g": 0.1,
+      "fiber_g": 1.4,
+      "sugar_g": 9.9,
+      "sodium_mg": 1
+    },
+    {
+      "name_he": "קיווי",
+      "name_en": "Kiwifruit, green, raw",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 58,
+      "source": "usda_fdc",
+      "source_ref": "327046",
+      "source_detail": "Foundation",
+      "common_servings": [
+        {
+          "name_en": "1 RACC",
+          "grams": 140
+        }
+      ],
+      "protein_g": 1.1,
+      "carbs_g": 14,
+      "fat_g": 0.4,
+      "fiber_g": 3,
+      "sugar_g": 9,
+      "sodium_mg": 5
+    },
+    {
+      "name_he": "אבטיח",
+      "name_en": "Watermelon, raw",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 30,
+      "source": "usda_fdc",
+      "source_ref": "167765",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 NLEA serving",
+          "grams": 280
+        },
+        {
+          "name_en": "1 cup, diced",
+          "grams": 152
+        },
+        {
+          "name_en": "10 watermelon balls",
+          "grams": 122
+        },
+        {
+          "name_en": "1 cup, balls",
+          "grams": 154
+        },
+        {
+          "name_en": "1 wedge (approx 1/16 of melon)",
+          "grams": 286
+        },
+        {
+          "name_en": "1 melon (15\" long x 7-1/2\" dia)",
+          "grams": 4518
+        }
+      ],
+      "protein_g": 0.6,
+      "carbs_g": 7.6,
+      "fat_g": 0.2,
+      "fiber_g": 0.4,
+      "sugar_g": 6.2,
+      "sodium_mg": 1
+    },
+    {
+      "name_he": "מלון",
+      "name_en": "Melons, cantaloupe, raw",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 34,
+      "source": "usda_fdc",
+      "source_ref": "746770",
+      "source_detail": "Foundation",
+      "common_servings": [
+        {
+          "name_en": "1 medium (1/8 of medium melon)",
+          "grams": 69
+        },
+        {
+          "name_en": "1 large (1/8 of large melon)",
+          "grams": 102
+        },
+        {
+          "name_en": "1 small (about 4-1/4\" dia)",
+          "grams": 441
+        },
+        {
+          "name_en": "1 large (about 6-1/2\" dia)",
+          "grams": 814
+        },
+        {
+          "name_en": "1 cubes",
+          "grams": 160
+        },
+        {
+          "name_en": "10 balls",
+          "grams": 138
+        },
+        {
+          "name_en": "1 diced",
+          "grams": 156
+        },
+        {
+          "name_en": "1 medium (about 5\" dia)",
+          "grams": 552
+        },
+        {
+          "name_en": "1 small (1/8 of small melon)",
+          "grams": 55
+        },
+        {
+          "name_en": "1 RACC",
+          "grams": 140
+        }
+      ],
+      "protein_g": 0.8,
+      "carbs_g": 8.2,
+      "fat_g": 0.2,
+      "fiber_g": 0.8,
+      "sugar_g": 7.9,
+      "sodium_mg": 30
+    },
+    {
+      "name_he": "פפאיה",
+      "name_en": "Papayas, raw",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 43,
+      "source": "usda_fdc",
+      "source_ref": "169926",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 fruit, small",
+          "grams": 157
+        },
+        {
+          "name_en": "1 fruit, large",
+          "grams": 781
+        },
+        {
+          "name_en": "1 cup, mashed",
+          "grams": 230
+        },
+        {
+          "name_en": "1 cup 1\" pieces",
+          "grams": 145
+        }
+      ],
+      "protein_g": 0.5,
+      "carbs_g": 10.8,
+      "fat_g": 0.3,
+      "fiber_g": 1.7,
+      "sugar_g": 7.8,
+      "sodium_mg": 8
+    },
+    {
+      "name_he": "רימון",
+      "name_en": "Pomegranates, raw",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 83,
+      "source": "usda_fdc",
+      "source_ref": "169134",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 pomegranate (4\" dia)",
+          "grams": 282
+        },
+        {
+          "name_en": "0.5 cup arils (seed/juice sacs)",
+          "grams": 87
+        }
+      ],
+      "protein_g": 1.7,
+      "carbs_g": 18.7,
+      "fat_g": 1.2,
+      "fiber_g": 4,
+      "sugar_g": 13.7,
+      "sodium_mg": 3
+    },
+    {
+      "name_he": "תאנים טריות",
+      "name_en": "Figs, raw",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 74,
+      "source": "usda_fdc",
+      "source_ref": "173021",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 medium (2-1/4\" dia)",
+          "grams": 50
+        },
+        {
+          "name_en": "1 large (2-1/2\" dia)",
+          "grams": 64
+        },
+        {
+          "name_en": "1 small (1-1/2\" dia)",
+          "grams": 40
+        }
+      ],
+      "protein_g": 0.8,
+      "carbs_g": 19.2,
+      "fat_g": 0.3,
+      "fiber_g": 2.9,
+      "sugar_g": 16.3,
+      "sodium_mg": 1
+    },
+    {
+      "name_he": "פסיפלורה",
+      "name_en": "Passion-fruit juice, purple, raw",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 51,
+      "source": "usda_fdc",
+      "source_ref": "169109",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 fl oz",
+          "grams": 30.9
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 247
+        }
+      ],
+      "protein_g": 0.4,
+      "carbs_g": 13.6,
+      "fat_g": 0.1,
+      "fiber_g": 0.2,
+      "sugar_g": 13.4,
+      "sodium_mg": 6
+    },
+    {
+      "name_he": "גויאבה",
+      "name_en": "Guavas, common, raw",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 68,
+      "source": "usda_fdc",
+      "source_ref": "173044",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 fruit, without refuse",
+          "grams": 55
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 165
+        }
+      ],
+      "protein_g": 2.6,
+      "carbs_g": 14.3,
+      "fat_g": 1,
+      "fiber_g": 5.4,
+      "sugar_g": 8.9,
+      "sodium_mg": 2
+    },
+    {
+      "name_he": "ליצ'י",
+      "name_en": "Litchis, raw",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 66,
+      "source": "usda_fdc",
+      "source_ref": "169086",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 190
+        },
+        {
+          "name_en": "1 fruit without refuse",
+          "grams": 9.6
+        }
+      ],
+      "protein_g": 0.8,
+      "carbs_g": 16.5,
+      "fat_g": 0.4,
+      "fiber_g": 1.3,
+      "sugar_g": 15.2,
+      "sodium_mg": 1
+    },
+    {
+      "name_he": "קוקוס טרי",
+      "name_en": "Nuts, coconut meat, raw",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 354,
+      "source": "usda_fdc",
+      "source_ref": "170169",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup, shredded",
+          "grams": 80
+        },
+        {
+          "name_en": "1 medium",
+          "grams": 397
+        },
+        {
+          "name_en": "1 piece (2\" x 2\" x 1/2\")",
+          "grams": 45
+        }
+      ],
+      "protein_g": 3.3,
+      "carbs_g": 15.2,
+      "fat_g": 33.5,
+      "fiber_g": 9,
+      "sugar_g": 6.2,
+      "sodium_mg": 20
+    },
+    {
+      "name_he": "אבוקדו",
+      "name_en": "Avocados, raw, all commercial varieties",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 160,
+      "source": "usda_fdc",
+      "source_ref": "171705",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup, pureed",
+          "grams": 230
+        },
+        {
+          "name_en": "1 cup, cubes",
+          "grams": 150
+        },
+        {
+          "name_en": "1 cup, sliced",
+          "grams": 146
+        },
+        {
+          "name_en": "1 NLEA Serving",
+          "grams": 50
+        },
+        {
+          "name_en": "1 avocado, NS as to Florida or California",
+          "grams": 201
+        }
+      ],
+      "protein_g": 2,
+      "carbs_g": 8.5,
+      "fat_g": 14.7,
+      "fiber_g": 6.7,
+      "sugar_g": 0.7,
+      "sodium_mg": 7
+    },
+    {
+      "name_he": "חמוציות טריות",
+      "name_en": "Cranberries, raw",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 46,
+      "source": "usda_fdc",
+      "source_ref": "171722",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup, chopped",
+          "grams": 110
+        },
+        {
+          "name_en": "1 cup, whole",
+          "grams": 100
+        }
+      ],
+      "protein_g": 0.5,
+      "carbs_g": 12,
+      "fat_g": 0.1,
+      "fiber_g": 3.6,
+      "sugar_g": 4.3,
+      "sodium_mg": 2
+    },
+    {
+      "name_he": "פומלה",
+      "name_en": "Pummelo, raw",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 38,
+      "source": "usda_fdc",
+      "source_ref": "167754",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup, sections",
+          "grams": 190
+        },
+        {
+          "name_en": "1 fruit without refuse",
+          "grams": 609
+        }
+      ],
+      "protein_g": 0.8,
+      "carbs_g": 9.6,
+      "fat_g": 0,
+      "fiber_g": 1,
+      "sugar_g": null,
+      "sodium_mg": 1
+    },
+    {
+      "name_he": "אפרסמון",
+      "name_en": "Persimmons, japanese, raw",
+      "category": "פירות",
+      "state": "raw",
+      "kcal_per_100g": 70,
+      "source": "usda_fdc",
+      "source_ref": "169941",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 fruit (2-1/2\" dia)",
+          "grams": 168
+        }
+      ],
+      "protein_g": 0.6,
+      "carbs_g": 18.6,
+      "fat_g": 0.2,
+      "fiber_g": 3.6,
+      "sugar_g": 12.5,
+      "sodium_mg": 1
+    },
+    {
+      "name_he": "חלב 1%",
+      "name_en": "Milk, lowfat, fluid, 1% milkfat, with added vitamin A and vitamin D",
+      "category": "חלב",
+      "state": "raw",
+      "kcal_per_100g": 43,
+      "source": "usda_fdc",
+      "source_ref": "746772",
+      "source_detail": "Foundation",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 246
+        }
+      ],
+      "protein_g": 3.4,
+      "carbs_g": 5.2,
+      "fat_g": 1,
+      "fiber_g": null,
+      "sugar_g": 5,
+      "sodium_mg": 39
+    },
+    {
+      "name_he": "חלב 3%",
+      "name_en": "Milk, whole, 3.25% milkfat, with added vitamin D",
+      "category": "חלב",
+      "state": "raw",
+      "kcal_per_100g": 60,
+      "source": "usda_fdc",
+      "source_ref": "746782",
+      "source_detail": "Foundation",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 249
+        }
+      ],
+      "protein_g": 3.3,
+      "carbs_g": 4.6,
+      "fat_g": 3.2,
+      "fiber_g": null,
+      "sugar_g": 4.8,
+      "sodium_mg": 38
+    },
+    {
+      "name_he": "חלב 3.6%",
+      "name_en": "Milk, whole, 3.25% milkfat, with added vitamin D",
+      "category": "חלב",
+      "state": "raw",
+      "kcal_per_100g": 60,
+      "source": "usda_fdc",
+      "source_ref": "746782",
+      "source_detail": "Foundation",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 249
+        }
+      ],
+      "protein_g": 3.3,
+      "carbs_g": 4.6,
+      "fat_g": 3.2,
+      "fiber_g": null,
+      "sugar_g": 4.8,
+      "sodium_mg": 38
+    },
+    {
+      "name_he": "יוגורט טבעי 1.5%",
+      "name_en": "Yogurt, plain, low fat",
+      "category": "חלב",
+      "state": "raw",
+      "kcal_per_100g": 63,
+      "source": "usda_fdc",
+      "source_ref": "170886",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 container (8 oz)",
+          "grams": 227
+        },
+        {
+          "name_en": "0.5 container (4 oz)",
+          "grams": 113
+        },
+        {
+          "name_en": "1 cup (8 fl oz)",
+          "grams": 245
+        },
+        {
+          "name_en": "1 container (6 oz)",
+          "grams": 170
+        }
+      ],
+      "protein_g": 5.3,
+      "carbs_g": 7,
+      "fat_g": 1.6,
+      "fiber_g": 0,
+      "sugar_g": 7,
+      "sodium_mg": 70
+    },
+    {
+      "name_he": "יוגורט טבעי 3%",
+      "name_en": "Yogurt, plain, whole milk",
+      "category": "חלב",
+      "state": "raw",
+      "kcal_per_100g": 61,
+      "source": "usda_fdc",
+      "source_ref": "171284",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 container (8 oz)",
+          "grams": 227
+        },
+        {
+          "name_en": "1 container (6 oz)",
+          "grams": 170
+        },
+        {
+          "name_en": "0.5 container (4 oz)",
+          "grams": 113
+        },
+        {
+          "name_en": "1 cup (8 fl oz)",
+          "grams": 245
+        }
+      ],
+      "protein_g": 3.5,
+      "carbs_g": 4.7,
+      "fat_g": 3.3,
+      "fiber_g": 0,
+      "sugar_g": 4.7,
+      "sodium_mg": 46
+    },
+    {
+      "name_he": "יוגורט יווני 0%",
+      "name_en": "Yogurt, Greek, plain, nonfat",
+      "category": "חלב",
+      "state": "raw",
+      "kcal_per_100g": 61,
+      "source": "usda_fdc",
+      "source_ref": "330137",
+      "source_detail": "Foundation",
+      "common_servings": [
+        {
+          "name_en": "1 container",
+          "grams": 156
+        },
+        {
+          "name_en": "1 RACC",
+          "grams": 170
+        }
+      ],
+      "protein_g": 10.3,
+      "carbs_g": 3.6,
+      "fat_g": 0.4,
+      "fiber_g": null,
+      "sugar_g": 3.3,
+      "sodium_mg": 36
+    },
+    {
+      "name_he": "יוגורט יווני 5%",
+      "name_en": "Yogurt, Greek, plain, whole milk",
+      "category": "חלב",
+      "state": "raw",
+      "kcal_per_100g": 93.7,
+      "source": "usda_fdc",
+      "source_ref": "2259794",
+      "source_detail": "Foundation",
+      "common_servings": [
+        {
+          "name_en": "1 RACC",
+          "grams": 170
+        }
+      ],
+      "protein_g": 8.8,
+      "carbs_g": 4.8,
+      "fat_g": 4.4,
+      "fiber_g": null,
+      "sugar_g": 3.2,
+      "sodium_mg": 33.8
+    },
+    {
+      "name_he": "גבינת שמנת 30%",
+      "name_en": "Cheese, cream",
+      "category": "חלב",
+      "state": "raw",
+      "kcal_per_100g": 350,
+      "source": "usda_fdc",
+      "source_ref": "173418",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cubic inch",
+          "grams": 16
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 232
+        },
+        {
+          "name_en": "1 tbsp, whipped",
+          "grams": 10
+        },
+        {
+          "name_en": "1 package, small (3 oz)",
+          "grams": 85
+        },
+        {
+          "name_en": "1 tbsp",
+          "grams": 14.5
+        },
+        {
+          "name_en": "1 oz",
+          "grams": 28.35
+        }
+      ],
+      "protein_g": 6.2,
+      "carbs_g": 5.5,
+      "fat_g": 34.4,
+      "fiber_g": 0,
+      "sugar_g": 3.8,
+      "sodium_mg": 314
+    },
+    {
+      "name_he": "מוצרלה",
+      "name_en": "Cheese, mozzarella, whole milk",
+      "category": "חלב",
+      "state": "raw",
+      "kcal_per_100g": 299,
+      "source": "usda_fdc",
+      "source_ref": "170845",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 oz",
+          "grams": 28.35
+        },
+        {
+          "name_en": "1 cup, shredded",
+          "grams": 112
+        },
+        {
+          "name_en": "6 slices",
+          "grams": 170
+        }
+      ],
+      "protein_g": 22.2,
+      "carbs_g": 2.4,
+      "fat_g": 22.1,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 486
+    },
+    {
+      "name_he": "פטה 16%",
+      "name_en": "Cheese, feta",
+      "category": "חלב",
+      "state": "raw",
+      "kcal_per_100g": 265,
+      "source": "usda_fdc",
+      "source_ref": "173420",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup, crumbled",
+          "grams": 150
+        },
+        {
+          "name_en": "1 oz",
+          "grams": 28.35
+        },
+        {
+          "name_en": "1 cubic inch",
+          "grams": 17
+        },
+        {
+          "name_en": "1 wedge (1.33 oz)",
+          "grams": 38
+        }
+      ],
+      "protein_g": 14.2,
+      "carbs_g": 3.9,
+      "fat_g": 21.5,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 1139
+    },
+    {
+      "name_he": "פרמזן",
+      "name_en": "Cheese, parmesan, hard",
+      "category": "חלב",
+      "state": "raw",
+      "kcal_per_100g": 392,
+      "source": "usda_fdc",
+      "source_ref": "170848",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cubic inch",
+          "grams": 10.3
+        },
+        {
+          "name_en": "5 package (5 oz)",
+          "grams": 142
+        },
+        {
+          "name_en": "1 oz",
+          "grams": 28.35
+        }
+      ],
+      "protein_g": 35.8,
+      "carbs_g": 3.2,
+      "fat_g": 25,
+      "fiber_g": 0,
+      "sugar_g": 0.1,
+      "sodium_mg": 1175
+    },
+    {
+      "name_he": "ריקוטה",
+      "name_en": "Cheese, ricotta, whole milk",
+      "category": "חלב",
+      "state": "raw",
+      "kcal_per_100g": 157,
+      "source": "usda_fdc",
+      "source_ref": "746766",
+      "source_detail": "Foundation",
+      "common_servings": [
+        {
+          "name_en": "0.2 cup",
+          "grams": 64.6
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 258
+        },
+        {
+          "name_en": "0.5 cup",
+          "grams": 129
+        },
+        {
+          "name_en": "1 RACC",
+          "grams": 55
+        }
+      ],
+      "protein_g": 7.8,
+      "carbs_g": 6.9,
+      "fat_g": 11,
+      "fiber_g": null,
+      "sugar_g": null,
+      "sodium_mg": 105
+    },
+    {
+      "name_he": "שמנת חמוצה 15%",
+      "name_en": "Cream, sour, cultured",
+      "category": "חלב",
+      "state": "raw",
+      "kcal_per_100g": 198,
+      "source": "usda_fdc",
+      "source_ref": "171257",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 tbsp",
+          "grams": 12
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 230
+        }
+      ],
+      "protein_g": 2.4,
+      "carbs_g": 4.6,
+      "fat_g": 19.4,
+      "fiber_g": 0,
+      "sugar_g": 3.4,
+      "sodium_mg": 31
+    },
+    {
+      "name_he": "שמנת מתוקה 32%",
+      "name_en": "Cream, fluid, heavy whipping",
+      "category": "חלב",
+      "state": "raw",
+      "kcal_per_100g": 340,
+      "source": "usda_fdc",
+      "source_ref": "170859",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup, whipped",
+          "grams": 120
+        },
+        {
+          "name_en": "1 cup, fluid (yields 2 cups whipped)",
+          "grams": 238
+        },
+        {
+          "name_en": "1 tbsp",
+          "grams": 15
+        },
+        {
+          "name_en": "1 fl oz",
+          "grams": 29.8
+        }
+      ],
+      "protein_g": 2.8,
+      "carbs_g": 2.8,
+      "fat_g": 36.1,
+      "fiber_g": 0,
+      "sugar_g": 2.9,
+      "sodium_mg": 27
+    },
+    {
+      "name_he": "חמאה",
+      "name_en": "Butter, without salt",
+      "category": "חלב",
+      "state": "raw",
+      "kcal_per_100g": 717,
+      "source": "usda_fdc",
+      "source_ref": "173430",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 pat (1\" sq, 1/3\" high)",
+          "grams": 5
+        },
+        {
+          "name_en": "1 tbsp",
+          "grams": 14.2
+        },
+        {
+          "name_en": "1 stick",
+          "grams": 113
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 227
+        }
+      ],
+      "protein_g": 0.9,
+      "carbs_g": 0.1,
+      "fat_g": 81.1,
+      "fiber_g": 0,
+      "sugar_g": 0.1,
+      "sodium_mg": 11
+    },
+    {
+      "name_he": "ביצה שלמה",
+      "name_en": "Egg, whole, raw, fresh",
+      "category": "ביצים",
+      "state": "raw",
+      "kcal_per_100g": 143,
+      "source": "usda_fdc",
+      "source_ref": "171287",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup (4.86 large eggs)",
+          "grams": 243
+        },
+        {
+          "name_en": "1 medium",
+          "grams": 44
+        },
+        {
+          "name_en": "1 extra large",
+          "grams": 56
+        },
+        {
+          "name_en": "1 small",
+          "grams": 38
+        },
+        {
+          "name_en": "1 jumbo",
+          "grams": 63
+        },
+        {
+          "name_en": "1 large",
+          "grams": 50
+        }
+      ],
+      "protein_g": 12.6,
+      "carbs_g": 0.7,
+      "fat_g": 9.5,
+      "fiber_g": 0,
+      "sugar_g": 0.4,
+      "sodium_mg": 142
+    },
+    {
+      "name_he": "חלבון ביצה",
+      "name_en": "Egg, white, raw, fresh",
+      "category": "ביצים",
+      "state": "raw",
+      "kcal_per_100g": 52,
+      "source": "usda_fdc",
+      "source_ref": "172183",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 243
+        },
+        {
+          "name_en": "1 large",
+          "grams": 33
+        }
+      ],
+      "protein_g": 10.9,
+      "carbs_g": 0.7,
+      "fat_g": 0.2,
+      "fiber_g": 0,
+      "sugar_g": 0.7,
+      "sodium_mg": 166
+    },
+    {
+      "name_he": "חלמון",
+      "name_en": "Egg, yolk, raw, fresh",
+      "category": "ביצים",
+      "state": "raw",
+      "kcal_per_100g": 322,
+      "source": "usda_fdc",
+      "source_ref": "172184",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 large",
+          "grams": 17
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 243
+        }
+      ],
+      "protein_g": 15.9,
+      "carbs_g": 3.6,
+      "fat_g": 26.5,
+      "fiber_g": 0,
+      "sugar_g": 0.6,
+      "sodium_mg": 48
+    },
+    {
+      "name_he": "ביצת שליו",
+      "name_en": "Egg, quail, whole, fresh, raw",
+      "category": "ביצים",
+      "state": "raw",
+      "kcal_per_100g": 158,
+      "source": "usda_fdc",
+      "source_ref": "172191",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 egg",
+          "grams": 9
+        }
+      ],
+      "protein_g": 13.1,
+      "carbs_g": 0.4,
+      "fat_g": 11.1,
+      "fiber_g": 0,
+      "sugar_g": 0.4,
+      "sodium_mg": 141
+    },
+    {
+      "name_he": "ביצה קשה",
+      "name_en": "Egg, whole, cooked, hard-boiled",
+      "category": "ביצים",
+      "state": "cooked",
+      "kcal_per_100g": 155,
+      "source": "usda_fdc",
+      "source_ref": "173424",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 tbsp",
+          "grams": 8.5
+        },
+        {
+          "name_en": "1 cup, chopped",
+          "grams": 136
+        },
+        {
+          "name_en": "1 large",
+          "grams": 50
+        }
+      ],
+      "protein_g": 12.6,
+      "carbs_g": 1.1,
+      "fat_g": 10.6,
+      "fiber_g": 0,
+      "sugar_g": 1.1,
+      "sodium_mg": 124
+    },
+    {
+      "name_he": "ביצה מטוגנת",
+      "name_en": "Egg, whole, cooked, fried",
+      "category": "ביצים",
+      "state": "fried",
+      "kcal_per_100g": 196,
+      "source": "usda_fdc",
+      "source_ref": "173423",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 large",
+          "grams": 46
+        }
+      ],
+      "protein_g": 13.6,
+      "carbs_g": 0.8,
+      "fat_g": 14.8,
+      "fiber_g": 0,
+      "sugar_g": 0.4,
+      "sodium_mg": 207
+    },
+    {
+      "name_he": "חביתה",
+      "name_en": "Egg, whole, cooked, omelet",
+      "category": "ביצים",
+      "state": "cooked",
+      "kcal_per_100g": 154,
+      "source": "usda_fdc",
+      "source_ref": "172185",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 large",
+          "grams": 61
+        },
+        {
+          "name_en": "1 tbsp",
+          "grams": 15
+        }
+      ],
+      "protein_g": 10.6,
+      "carbs_g": 0.6,
+      "fat_g": 11.7,
+      "fiber_g": 0,
+      "sugar_g": 0.3,
+      "sodium_mg": 155
+    },
+    {
+      "name_he": "חזה עוף",
+      "name_en": "Chicken, broilers or fryers, meat only, raw",
+      "category": "בשר",
+      "state": "raw",
+      "kcal_per_100g": 119,
+      "source": "usda_fdc",
+      "source_ref": "171052",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "4 oz",
+          "grams": 113
+        },
+        {
+          "name_en": "1 unit (yield from 1 lb ready-to-cook chicken)",
+          "grams": 197
+        },
+        {
+          "name_en": "0.5 chicken, bone and skin removed",
+          "grams": 329
+        }
+      ],
+      "protein_g": 21.4,
+      "carbs_g": 0,
+      "fat_g": 3.1,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 77
+    },
+    {
+      "name_he": "שוק עוף",
+      "name_en": "Chicken, broilers or fryers, dark meat, thigh, meat only, raw",
+      "category": "בשר",
+      "state": "raw",
+      "kcal_per_100g": 121,
+      "source": "usda_fdc",
+      "source_ref": "173627",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "4 oz",
+          "grams": 113
+        },
+        {
+          "name_en": "1 thigh without skin",
+          "grams": 149
+        }
+      ],
+      "protein_g": 19.7,
+      "carbs_g": 0,
+      "fat_g": 4.1,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 95
+    },
+    {
+      "name_he": "כנף עוף",
+      "name_en": "Chicken, broilers or fryers, wing, meat and skin, raw",
+      "category": "בשר",
+      "state": "raw",
+      "kcal_per_100g": 191,
+      "source": "usda_fdc",
+      "source_ref": "172390",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 package",
+          "grams": 1150
+        },
+        {
+          "name_en": "4 oz",
+          "grams": 113
+        },
+        {
+          "name_en": "1 piece",
+          "grams": 107
+        }
+      ],
+      "protein_g": 17.5,
+      "carbs_g": 0,
+      "fat_g": 12.9,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 84
+    },
+    {
+      "name_he": "פרגית",
+      "name_en": "Chicken, broilers or fryers, thigh, meat and skin, raw",
+      "category": "בשר",
+      "state": "raw",
+      "kcal_per_100g": 221,
+      "source": "usda_fdc",
+      "source_ref": "172385",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "4 oz",
+          "grams": 113
+        },
+        {
+          "name_en": "1 thigh with skin",
+          "grams": 193
+        }
+      ],
+      "protein_g": 16.5,
+      "carbs_g": 0.3,
+      "fat_g": 16.6,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 81
+    },
+    {
+      "name_he": "הודו חזה",
+      "name_en": "Turkey, whole, breast, meat only, raw",
+      "category": "בשר",
+      "state": "raw",
+      "kcal_per_100g": 114,
+      "source": "usda_fdc",
+      "source_ref": "171098",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 breast",
+          "grams": 1769
+        },
+        {
+          "name_en": "4 oz",
+          "grams": 113
+        }
+      ],
+      "protein_g": 23.7,
+      "carbs_g": 0.1,
+      "fat_g": 1.5,
+      "fiber_g": 0,
+      "sugar_g": 0.1,
+      "sodium_mg": 113
+    },
+    {
+      "name_he": "הודו טחון",
+      "name_en": "Turkey, Ground, raw",
+      "category": "בשר",
+      "state": "raw",
+      "kcal_per_100g": 148,
+      "source": "usda_fdc",
+      "source_ref": "171505",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 lb",
+          "grams": 453.6
+        },
+        {
+          "name_en": "1 patty, 4 oz",
+          "grams": 114
+        },
+        {
+          "name_en": "4 oz",
+          "grams": 113
+        }
+      ],
+      "protein_g": 19.7,
+      "carbs_g": 0,
+      "fat_g": 7.7,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 58
+    },
+    {
+      "name_he": "סינטה",
+      "name_en": "Beef, top sirloin steak, raw",
+      "category": "בשר",
+      "state": "raw",
+      "kcal_per_100g": 140.1,
+      "source": "usda_fdc",
+      "source_ref": "2727574",
+      "source_detail": "Foundation",
+      "common_servings": [
+        {
+          "name_en": "1 RACC",
+          "grams": 114
+        }
+      ],
+      "protein_g": 22,
+      "carbs_g": 0.2,
+      "fat_g": 5.7,
+      "fiber_g": null,
+      "sugar_g": null,
+      "sodium_mg": 42.9
+    },
+    {
+      "name_he": "פילה בקר",
+      "name_en": "Beef, tenderloin steak, raw",
+      "category": "בשר",
+      "state": "raw",
+      "kcal_per_100g": 143.2,
+      "source": "usda_fdc",
+      "source_ref": "2727573",
+      "source_detail": "Foundation",
+      "common_servings": [
+        {
+          "name_en": "1 RACC",
+          "grams": 114
+        }
+      ],
+      "protein_g": 21.1,
+      "carbs_g": 0.2,
+      "fat_g": 6.5,
+      "fiber_g": null,
+      "sugar_g": null,
+      "sodium_mg": 44.9
+    },
+    {
+      "name_he": "אנטריקוט",
+      "name_en": "Beef, rib eye steak, boneless, lip off, separable lean and fat, trimmed to 0\" fat, choice, raw",
+      "category": "בשר",
+      "state": "raw",
+      "kcal_per_100g": 241,
+      "source": "usda_fdc",
+      "source_ref": "173403",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 steak",
+          "grams": 316
+        },
+        {
+          "name_en": "4 oz",
+          "grams": 113
+        }
+      ],
+      "protein_g": 18.7,
+      "carbs_g": 0.2,
+      "fat_g": 18.4,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 51
+    },
+    {
+      "name_he": "כתף בקר",
+      "name_en": "Beef, chuck, shoulder clod, shoulder tender, medallion, separable lean and fat, trimmed to 0\" fat, choice, raw",
+      "category": "בשר",
+      "state": "raw",
+      "kcal_per_100g": 145,
+      "source": "usda_fdc",
+      "source_ref": "172122",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 medallion",
+          "grams": 40
+        },
+        {
+          "name_en": "4 oz",
+          "grams": 113
+        }
+      ],
+      "protein_g": 20.5,
+      "carbs_g": 0,
+      "fat_g": 6.4,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 59
+    },
+    {
+      "name_he": "צלעות בקר",
+      "name_en": "Beef, chuck, short ribs, boneless, separable lean and fat, trimmed to 0\" fat, choice, raw",
+      "category": "בשר",
+      "state": "raw",
+      "kcal_per_100g": 240,
+      "source": "usda_fdc",
+      "source_ref": "170827",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 piece",
+          "grams": 434
+        },
+        {
+          "name_en": "4 oz",
+          "grams": 113
+        }
+      ],
+      "protein_g": 17.2,
+      "carbs_g": 0,
+      "fat_g": 19,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 75
+    },
+    {
+      "name_he": "כבד בקר",
+      "name_en": "Beef, variety meats and by-products, liver, raw",
+      "category": "בשר",
+      "state": "raw",
+      "kcal_per_100g": 135,
+      "source": "usda_fdc",
+      "source_ref": "169451",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "4 oz",
+          "grams": 113
+        }
+      ],
+      "protein_g": 20.4,
+      "carbs_g": 3.9,
+      "fat_g": 3.6,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 69
+    },
+    {
+      "name_he": "כבד עוף",
+      "name_en": "Chicken, liver, all classes, raw",
+      "category": "בשר",
+      "state": "raw",
+      "kcal_per_100g": 119,
+      "source": "usda_fdc",
+      "source_ref": "171060",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 liver",
+          "grams": 44
+        },
+        {
+          "name_en": "4 oz",
+          "grams": 113
+        }
+      ],
+      "protein_g": 16.9,
+      "carbs_g": 0.7,
+      "fat_g": 4.8,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 71
+    },
+    {
+      "name_he": "קורקבנים",
+      "name_en": "Chicken, gizzard, all classes, raw",
+      "category": "בשר",
+      "state": "raw",
+      "kcal_per_100g": 94,
+      "source": "usda_fdc",
+      "source_ref": "171456",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 lb",
+          "grams": 453
+        },
+        {
+          "name_en": "4 oz",
+          "grams": 113
+        }
+      ],
+      "protein_g": 17.7,
+      "carbs_g": 0,
+      "fat_g": 2.1,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 69
+    },
+    {
+      "name_he": "טונה במים",
+      "name_en": "Fish, tuna, light, canned in water, drained solids",
+      "category": "דגים",
+      "state": "canned",
+      "kcal_per_100g": 90,
+      "source": "usda_fdc",
+      "source_ref": "334194",
+      "source_detail": "Foundation",
+      "common_servings": [
+        {
+          "name_en": "1 total can contents",
+          "grams": 142
+        },
+        {
+          "name_en": "1 drained solids",
+          "grams": 107
+        },
+        {
+          "name_en": "1 RACC",
+          "grams": 85
+        }
+      ],
+      "protein_g": 19,
+      "carbs_g": 0.1,
+      "fat_g": 0.9,
+      "fiber_g": null,
+      "sugar_g": 0,
+      "sodium_mg": 219
+    },
+    {
+      "name_he": "טונה בשמן",
+      "name_en": "Fish, tuna, light, canned in oil, drained solids",
+      "category": "דגים",
+      "state": "canned",
+      "kcal_per_100g": 198,
+      "source": "usda_fdc",
+      "source_ref": "173708",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 oz",
+          "grams": 28.35
+        },
+        {
+          "name_en": "3 oz",
+          "grams": 85
+        },
+        {
+          "name_en": "1 can (12.5 oz), drained",
+          "grams": 321
+        },
+        {
+          "name_en": "1 can",
+          "grams": 171
+        },
+        {
+          "name_en": "1 cup, solid or chunks",
+          "grams": 146
+        }
+      ],
+      "protein_g": 29.1,
+      "carbs_g": 0,
+      "fat_g": 8.2,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 416
+    },
+    {
+      "name_he": "סלמון",
+      "name_en": "Fish, salmon, Atlantic, farmed, raw",
+      "category": "דגים",
+      "state": "raw",
+      "kcal_per_100g": 208,
+      "source": "usda_fdc",
+      "source_ref": "175167",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "3 oz",
+          "grams": 85
+        },
+        {
+          "name_en": "0.5 fillet",
+          "grams": 198
+        }
+      ],
+      "protein_g": 20.4,
+      "carbs_g": 0,
+      "fat_g": 13.4,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 59
+    },
+    {
+      "name_he": "סלמון מעושן",
+      "name_en": "Fish, salmon, chinook, smoked",
+      "category": "דגים",
+      "state": "smoked",
+      "kcal_per_100g": 117,
+      "source": "usda_fdc",
+      "source_ref": "173687",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "3 oz",
+          "grams": 85
+        },
+        {
+          "name_en": "1 cubic inch, boneless",
+          "grams": 17
+        },
+        {
+          "name_en": "1 oz, boneless",
+          "grams": 28.35
+        },
+        {
+          "name_en": "1 cup, cooked",
+          "grams": 136
+        }
+      ],
+      "protein_g": 18.3,
+      "carbs_g": 0,
+      "fat_g": 4.3,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 672
+    },
+    {
+      "name_he": "דניס",
+      "name_en": "Fish, sea bass, mixed species, raw",
+      "category": "דגים",
+      "state": "raw",
+      "kcal_per_100g": 97,
+      "source": "usda_fdc",
+      "source_ref": "175142",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "3 oz",
+          "grams": 85
+        },
+        {
+          "name_en": "1 fillet",
+          "grams": 129
+        }
+      ],
+      "protein_g": 18.4,
+      "carbs_g": 0,
+      "fat_g": 2,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 68
+    },
+    {
+      "name_he": "לברק",
+      "name_en": "Fish, bass, striped, raw",
+      "category": "דגים",
+      "state": "raw",
+      "kcal_per_100g": 97,
+      "source": "usda_fdc",
+      "source_ref": "171948",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 fillet",
+          "grams": 159
+        },
+        {
+          "name_en": "3 oz",
+          "grams": 85
+        }
+      ],
+      "protein_g": 17.7,
+      "carbs_g": 0,
+      "fat_g": 2.3,
+      "fiber_g": 0,
+      "sugar_g": null,
+      "sodium_mg": 69
+    },
+    {
+      "name_he": "אמנון",
+      "name_en": "Fish, tilapia, raw",
+      "category": "דגים",
+      "state": "raw",
+      "kcal_per_100g": 96,
+      "source": "usda_fdc",
+      "source_ref": "175176",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 fillet",
+          "grams": 116
+        }
+      ],
+      "protein_g": 20.1,
+      "carbs_g": 0,
+      "fat_g": 1.7,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 52
+    },
+    {
+      "name_he": "בקלה",
+      "name_en": "Fish, cod, Atlantic, raw",
+      "category": "דגים",
+      "state": "raw",
+      "kcal_per_100g": 82,
+      "source": "usda_fdc",
+      "source_ref": "171955",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 fillet",
+          "grams": 231
+        },
+        {
+          "name_en": "3 oz",
+          "grams": 85
+        }
+      ],
+      "protein_g": 17.8,
+      "carbs_g": 0,
+      "fat_g": 0.7,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 54
+    },
+    {
+      "name_he": "מושט",
+      "name_en": "Fish, tilapia, raw",
+      "category": "דגים",
+      "state": "raw",
+      "kcal_per_100g": 96,
+      "source": "usda_fdc",
+      "source_ref": "175176",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 fillet",
+          "grams": 116
+        }
+      ],
+      "protein_g": 20.1,
+      "carbs_g": 0,
+      "fat_g": 1.7,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 52
+    },
+    {
+      "name_he": "סרדינים",
+      "name_en": "Fish, sardine, Atlantic, canned in oil, drained solids with bone",
+      "category": "דגים",
+      "state": "canned",
+      "kcal_per_100g": 208,
+      "source": "usda_fdc",
+      "source_ref": "175139",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 small (2-2/3\" x 1/2\" x 1/4\")",
+          "grams": 12
+        },
+        {
+          "name_en": "1 can (3.75 oz)",
+          "grams": 92
+        },
+        {
+          "name_en": "1 cup, drained",
+          "grams": 149
+        },
+        {
+          "name_en": "2 sardines",
+          "grams": 24
+        },
+        {
+          "name_en": "1 cubic inch",
+          "grams": 16
+        },
+        {
+          "name_en": "1 oz",
+          "grams": 28.35
+        }
+      ],
+      "protein_g": 24.6,
+      "carbs_g": 0,
+      "fat_g": 11.5,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 307
+    },
+    {
+      "name_he": "מקרל",
+      "name_en": "Fish, mackerel, Atlantic, raw",
+      "category": "דגים",
+      "state": "raw",
+      "kcal_per_100g": 205,
+      "source": "usda_fdc",
+      "source_ref": "175119",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "3 oz",
+          "grams": 85
+        },
+        {
+          "name_en": "1 fillet",
+          "grams": 112
+        }
+      ],
+      "protein_g": 18.6,
+      "carbs_g": 0,
+      "fat_g": 13.9,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 90
+    },
+    {
+      "name_he": "פורל",
+      "name_en": "Fish, trout, rainbow, farmed, raw",
+      "category": "דגים",
+      "state": "raw",
+      "kcal_per_100g": 141,
+      "source": "usda_fdc",
+      "source_ref": "173717",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 fillet",
+          "grams": 79
+        },
+        {
+          "name_en": "3 oz",
+          "grams": 85
+        }
+      ],
+      "protein_g": 19.9,
+      "carbs_g": 0,
+      "fat_g": 6.2,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 51
+    },
+    {
+      "name_he": "קרפיון",
+      "name_en": "Fish, carp, raw",
+      "category": "דגים",
+      "state": "raw",
+      "kcal_per_100g": 127,
+      "source": "usda_fdc",
+      "source_ref": "171952",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 fillet",
+          "grams": 218
+        },
+        {
+          "name_en": "3 oz",
+          "grams": 85
+        }
+      ],
+      "protein_g": 17.8,
+      "carbs_g": 0,
+      "fat_g": 5.6,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 49
+    },
+    {
+      "name_he": "נסיכת הנילוס",
+      "name_en": "Fish, tilapia, raw",
+      "category": "דגים",
+      "state": "raw",
+      "kcal_per_100g": 96,
+      "source": "usda_fdc",
+      "source_ref": "175176",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 fillet",
+          "grams": 116
+        }
+      ],
+      "protein_g": 20.1,
+      "carbs_g": 0,
+      "fat_g": 1.7,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 52
+    },
+    {
+      "name_he": "שרימפס",
+      "name_en": "Crustaceans, shrimp, raw",
+      "category": "דגים",
+      "state": "raw",
+      "kcal_per_100g": 85,
+      "source": "usda_fdc",
+      "source_ref": "175179",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "3 oz",
+          "grams": 85
+        }
+      ],
+      "protein_g": 20.1,
+      "carbs_g": 0,
+      "fat_g": 0.5,
+      "fiber_g": null,
+      "sugar_g": null,
+      "sodium_mg": 119
+    },
+    {
+      "name_he": "קלמרי",
+      "name_en": "Mollusks, squid, mixed species, raw",
+      "category": "דגים",
+      "state": "raw",
+      "kcal_per_100g": 92,
+      "source": "usda_fdc",
+      "source_ref": "174223",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 oz, boneless",
+          "grams": 28.35
+        },
+        {
+          "name_en": "3 oz",
+          "grams": 85
+        }
+      ],
+      "protein_g": 15.6,
+      "carbs_g": 3.1,
+      "fat_g": 1.4,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 44
+    },
+    {
+      "name_he": "עדשים מבושלות",
+      "name_en": "Lentils, mature seeds, cooked, boiled, without salt",
+      "category": "קטניות",
+      "state": "cooked",
+      "kcal_per_100g": 116,
+      "source": "usda_fdc",
+      "source_ref": "172421",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 198
+        },
+        {
+          "name_en": "1 tbsp",
+          "grams": 12.3
+        }
+      ],
+      "protein_g": 9,
+      "carbs_g": 20.1,
+      "fat_g": 0.4,
+      "fiber_g": 7.9,
+      "sugar_g": 1.8,
+      "sodium_mg": 2
+    },
+    {
+      "name_he": "עדשים יבשות",
+      "name_en": "Lentils, raw",
+      "category": "קטניות",
+      "state": "dry",
+      "kcal_per_100g": 352,
+      "source": "usda_fdc",
+      "source_ref": "172420",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 tablespoon",
+          "grams": 12
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 192
+        }
+      ],
+      "protein_g": 24.6,
+      "carbs_g": 63.4,
+      "fat_g": 1.1,
+      "fiber_g": 10.7,
+      "sugar_g": 2,
+      "sodium_mg": 6
+    },
+    {
+      "name_he": "שעועית לבנה מבושלת",
+      "name_en": "Beans, white, mature seeds, cooked, boiled, with salt",
+      "category": "קטניות",
+      "state": "cooked",
+      "kcal_per_100g": 139,
+      "source": "usda_fdc",
+      "source_ref": "175249",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 179
+        }
+      ],
+      "protein_g": 9.7,
+      "carbs_g": 25.1,
+      "fat_g": 0.4,
+      "fiber_g": 6.3,
+      "sugar_g": 0.3,
+      "sodium_mg": 242
+    },
+    {
+      "name_he": "שעועית אדומה מבושלת",
+      "name_en": "Beans, kidney, red, mature seeds, cooked, boiled, with salt",
+      "category": "קטניות",
+      "state": "cooked",
+      "kcal_per_100g": 127,
+      "source": "usda_fdc",
+      "source_ref": "175242",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 177
+        }
+      ],
+      "protein_g": 8.7,
+      "carbs_g": 22.8,
+      "fat_g": 0.5,
+      "fiber_g": 7.4,
+      "sugar_g": 0.3,
+      "sodium_mg": 238
+    },
+    {
+      "name_he": "שעועית שחורה מבושלת",
+      "name_en": "Beans, black, mature seeds, cooked, boiled, with salt",
+      "category": "קטניות",
+      "state": "cooked",
+      "kcal_per_100g": 132,
+      "source": "usda_fdc",
+      "source_ref": "175237",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 172
+        }
+      ],
+      "protein_g": 8.9,
+      "carbs_g": 23.7,
+      "fat_g": 0.5,
+      "fiber_g": 8.7,
+      "sugar_g": 0.3,
+      "sodium_mg": 237
+    },
+    {
+      "name_he": "שעועית יבשה",
+      "name_en": "Beans, kidney, red, mature seeds, raw",
+      "category": "קטניות",
+      "state": "dry",
+      "kcal_per_100g": 337,
+      "source": "usda_fdc",
+      "source_ref": "173744",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 184
+        },
+        {
+          "name_en": "1 tbsp",
+          "grams": 12.2
+        }
+      ],
+      "protein_g": 22.5,
+      "carbs_g": 61.3,
+      "fat_g": 1.1,
+      "fiber_g": 15.2,
+      "sugar_g": 2.1,
+      "sodium_mg": 12
+    },
+    {
+      "name_he": "חומוס מבושל",
+      "name_en": "Lentils, mature seeds, cooked, boiled, without salt",
+      "category": "קטניות",
+      "state": "cooked",
+      "kcal_per_100g": 116,
+      "source": "usda_fdc",
+      "source_ref": "172421",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 198
+        },
+        {
+          "name_en": "1 tbsp",
+          "grams": 12.3
+        }
+      ],
+      "protein_g": 9,
+      "carbs_g": 20.1,
+      "fat_g": 0.4,
+      "fiber_g": 7.9,
+      "sugar_g": 1.8,
+      "sodium_mg": 2
+    },
+    {
+      "name_he": "חומוס יבש",
+      "name_en": "Chickpeas (garbanzo beans, bengal gram), mature seeds, raw",
+      "category": "קטניות",
+      "state": "dry",
+      "kcal_per_100g": 378,
+      "source": "usda_fdc",
+      "source_ref": "173756",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 tbsp",
+          "grams": 12.5
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 200
+        }
+      ],
+      "protein_g": 20.5,
+      "carbs_g": 63,
+      "fat_g": 6,
+      "fiber_g": 12.2,
+      "sugar_g": 10.7,
+      "sodium_mg": 24
+    },
+    {
+      "name_he": "פול מבושל",
+      "name_en": "Broadbeans (fava beans), mature seeds, cooked, boiled, with salt",
+      "category": "קטניות",
+      "state": "cooked",
+      "kcal_per_100g": 110,
+      "source": "usda_fdc",
+      "source_ref": "173798",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 170
+        }
+      ],
+      "protein_g": 7.6,
+      "carbs_g": 19.7,
+      "fat_g": 0.4,
+      "fiber_g": 5.4,
+      "sugar_g": 1.8,
+      "sodium_mg": 241
+    },
+    {
+      "name_he": "אפונה מבושלת",
+      "name_en": "Peas, split, mature seeds, cooked, boiled, with salt",
+      "category": "קטניות",
+      "state": "cooked",
+      "kcal_per_100g": 116,
+      "source": "usda_fdc",
+      "source_ref": "175257",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 196
+        }
+      ],
+      "protein_g": 8.3,
+      "carbs_g": 20.5,
+      "fat_g": 0.4,
+      "fiber_g": 8.3,
+      "sugar_g": 2.9,
+      "sodium_mg": 238
+    },
+    {
+      "name_he": "סויה מבושלת",
+      "name_en": "Soybeans, mature seeds, cooked, boiled, with salt",
+      "category": "קטניות",
+      "state": "cooked",
+      "kcal_per_100g": 172,
+      "source": "usda_fdc",
+      "source_ref": "174299",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 172
+        }
+      ],
+      "protein_g": 18.2,
+      "carbs_g": 8.4,
+      "fat_g": 9,
+      "fiber_g": 6,
+      "sugar_g": 2.4,
+      "sodium_mg": 237
+    },
+    {
+      "name_he": "אדממה",
+      "name_en": "Edamame, frozen, prepared",
+      "category": "קטניות",
+      "state": "cooked",
+      "kcal_per_100g": 121,
+      "source": "usda_fdc",
+      "source_ref": "168411",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 155
+        }
+      ],
+      "protein_g": 11.9,
+      "carbs_g": 8.9,
+      "fat_g": 5.2,
+      "fiber_g": 5.2,
+      "sugar_g": 2.2,
+      "sodium_mg": 6
+    },
+    {
+      "name_he": "אורז לבן מבושל",
+      "name_en": "Rice, white, long-grain, regular, enriched, cooked",
+      "category": "דגנים",
+      "state": "cooked",
+      "kcal_per_100g": 130,
+      "source": "usda_fdc",
+      "source_ref": "168878",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 158
+        }
+      ],
+      "protein_g": 2.7,
+      "carbs_g": 28.2,
+      "fat_g": 0.3,
+      "fiber_g": 0.4,
+      "sugar_g": 0.1,
+      "sodium_mg": 1
+    },
+    {
+      "name_he": "אורז מלא מבושל",
+      "name_en": "Rice, brown, long grain, unenriched, raw",
+      "category": "דגנים",
+      "state": "cooked",
+      "kcal_per_100g": 365.5,
+      "source": "usda_fdc",
+      "source_ref": "2512380",
+      "source_detail": "Foundation",
+      "common_servings": [
+        {
+          "name_en": "1 RACC",
+          "grams": 45
+        }
+      ],
+      "protein_g": 7.3,
+      "carbs_g": 76.7,
+      "fat_g": 3.3,
+      "fiber_g": 3,
+      "sugar_g": null,
+      "sodium_mg": 0
+    },
+    {
+      "name_he": "אורז יבש",
+      "name_en": "Rice, white, long-grain, regular, raw, enriched",
+      "category": "דגנים",
+      "state": "dry",
+      "kcal_per_100g": 365,
+      "source": "usda_fdc",
+      "source_ref": "168877",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 185
+        }
+      ],
+      "protein_g": 7.1,
+      "carbs_g": 80,
+      "fat_g": 0.7,
+      "fiber_g": 1.3,
+      "sugar_g": 0.1,
+      "sodium_mg": 5
+    },
+    {
+      "name_he": "קוסקוס מבושל",
+      "name_en": "Couscous, cooked",
+      "category": "דגנים",
+      "state": "cooked",
+      "kcal_per_100g": 112,
+      "source": "usda_fdc",
+      "source_ref": "169700",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup, dry, yields",
+          "grams": 528
+        },
+        {
+          "name_en": "1 cup, cooked",
+          "grams": 157
+        },
+        {
+          "name_en": "1 oz, dry, yields",
+          "grams": 86
+        }
+      ],
+      "protein_g": 3.8,
+      "carbs_g": 23.2,
+      "fat_g": 0.2,
+      "fiber_g": 1.4,
+      "sugar_g": 0.1,
+      "sodium_mg": 5
+    },
+    {
+      "name_he": "בורגול מבושל",
+      "name_en": "Bulgur, cooked",
+      "category": "דגנים",
+      "state": "cooked",
+      "kcal_per_100g": 83,
+      "source": "usda_fdc",
+      "source_ref": "170287",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 182
+        },
+        {
+          "name_en": "1 tbsp",
+          "grams": 8.4
+        }
+      ],
+      "protein_g": 3.1,
+      "carbs_g": 18.6,
+      "fat_g": 0.2,
+      "fiber_g": 4.5,
+      "sugar_g": 0.1,
+      "sodium_mg": 5
+    },
+    {
+      "name_he": "קינואה מבושלת",
+      "name_en": "Quinoa, cooked",
+      "category": "דגנים",
+      "state": "cooked",
+      "kcal_per_100g": 120,
+      "source": "usda_fdc",
+      "source_ref": "168917",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 185
+        }
+      ],
+      "protein_g": 4.4,
+      "carbs_g": 21.3,
+      "fat_g": 1.9,
+      "fiber_g": 2.8,
+      "sugar_g": 0.9,
+      "sodium_mg": 7
+    },
+    {
+      "name_he": "שיבולת שועל",
+      "name_en": "Oat bran, raw",
+      "category": "דגנים",
+      "state": "dry",
+      "kcal_per_100g": 246,
+      "source": "usda_fdc",
+      "source_ref": "168872",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 94
+        }
+      ],
+      "protein_g": 17.3,
+      "carbs_g": 66.2,
+      "fat_g": 7,
+      "fiber_g": 15.4,
+      "sugar_g": 1.5,
+      "sodium_mg": 4
+    },
+    {
+      "name_he": "שיבולת שועל מבושלת",
+      "name_en": "Cereals, oats, regular and quick, not fortified, dry",
+      "category": "דגנים",
+      "state": "cooked",
+      "kcal_per_100g": 379,
+      "source": "usda_fdc",
+      "source_ref": "173904",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 81
+        },
+        {
+          "name_en": "0.33 cup",
+          "grams": 27
+        }
+      ],
+      "protein_g": 13.2,
+      "carbs_g": 67.7,
+      "fat_g": 6.5,
+      "fiber_g": 10.1,
+      "sugar_g": 1,
+      "sodium_mg": 6
+    },
+    {
+      "name_he": "כוסמת מבושלת",
+      "name_en": "Buckwheat groats, roasted, cooked",
+      "category": "דגנים",
+      "state": "cooked",
+      "kcal_per_100g": 92,
+      "source": "usda_fdc",
+      "source_ref": "170686",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 168
+        }
+      ],
+      "protein_g": 3.4,
+      "carbs_g": 19.9,
+      "fat_g": 0.6,
+      "fiber_g": 2.7,
+      "sugar_g": 0.9,
+      "sodium_mg": 4
+    },
+    {
+      "name_he": "גריסים מבושלים",
+      "name_en": "Barley, pearled, cooked",
+      "category": "דגנים",
+      "state": "cooked",
+      "kcal_per_100g": 123,
+      "source": "usda_fdc",
+      "source_ref": "170285",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 157
+        }
+      ],
+      "protein_g": 2.3,
+      "carbs_g": 28.2,
+      "fat_g": 0.4,
+      "fiber_g": 3.8,
+      "sugar_g": 0.3,
+      "sodium_mg": 3
+    },
+    {
+      "name_he": "פסטה מבושלת",
+      "name_en": "Pasta, cooked, enriched, with added salt",
+      "category": "דגנים",
+      "state": "cooked",
+      "kcal_per_100g": 157,
+      "source": "usda_fdc",
+      "source_ref": "169751",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup rotini",
+          "grams": 107
+        },
+        {
+          "name_en": "1 cup shells",
+          "grams": 105
+        },
+        {
+          "name_en": "1 cup penne",
+          "grams": 107
+        },
+        {
+          "name_en": "1 cup farfalle",
+          "grams": 107
+        },
+        {
+          "name_en": "1 cup spaghetti not packed",
+          "grams": 124
+        },
+        {
+          "name_en": "1 cup packed",
+          "grams": 151
+        },
+        {
+          "name_en": "1 cup lasagne",
+          "grams": 116
+        },
+        {
+          "name_en": "1 cup elbows packed",
+          "grams": 132
+        },
+        {
+          "name_en": "1 cup elbows not packed",
+          "grams": 120
+        }
+      ],
+      "protein_g": 5.8,
+      "carbs_g": 30.6,
+      "fat_g": 0.9,
+      "fiber_g": 1.8,
+      "sugar_g": 0.6,
+      "sodium_mg": 131
+    },
+    {
+      "name_he": "פסטה מחיטה מלאה",
+      "name_en": "Pasta, whole grain, 51% whole wheat, remaining unenriched semolina, cooked",
+      "category": "דגנים",
+      "state": "cooked",
+      "kcal_per_100g": 159,
+      "source": "usda_fdc",
+      "source_ref": "168916",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup farfalle",
+          "grams": 107
+        },
+        {
+          "name_en": "1 cup rotini",
+          "grams": 107
+        },
+        {
+          "name_en": "1 cup elbows not packed",
+          "grams": 117
+        },
+        {
+          "name_en": "1 cup spaghetti packed",
+          "grams": 151
+        },
+        {
+          "name_en": "1 cup shells",
+          "grams": 105
+        },
+        {
+          "name_en": "1 cup penne",
+          "grams": 97
+        },
+        {
+          "name_en": "1 cup lasagne",
+          "grams": 116
+        },
+        {
+          "name_en": "1 cup spaghetti not packed",
+          "grams": 116
+        }
+      ],
+      "protein_g": 5.8,
+      "carbs_g": 31.5,
+      "fat_g": 1.5,
+      "fiber_g": 4.6,
+      "sugar_g": 0.9,
+      "sodium_mg": 6
+    },
+    {
+      "name_he": "קורנפלקס",
+      "name_en": "Cereals ready-to-eat, RALSTON Corn Flakes",
+      "category": "דגנים",
+      "state": "dry",
+      "kcal_per_100g": 384,
+      "source": "usda_fdc",
+      "source_ref": "174648",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup (1 NLEA serving)",
+          "grams": 28
+        }
+      ],
+      "protein_g": 5.9,
+      "carbs_g": 88,
+      "fat_g": 0.9,
+      "fiber_g": 2.7,
+      "sugar_g": 7.8,
+      "sodium_mg": 571
+    },
+    {
+      "name_he": "גרנולה",
+      "name_en": "Cereals ready-to-eat, granola, homemade",
+      "category": "דגנים",
+      "state": "dry",
+      "kcal_per_100g": 489,
+      "source": "usda_fdc",
+      "source_ref": "171646",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 oz",
+          "grams": 28.35
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 122
+        }
+      ],
+      "protein_g": 13.7,
+      "carbs_g": 53.9,
+      "fat_g": 24.3,
+      "fiber_g": 8.9,
+      "sugar_g": 19.8,
+      "sodium_mg": 26
+    },
+    {
+      "name_he": "לחם לבן",
+      "name_en": "Bread, white, commercially prepared, toasted",
+      "category": "לחמים",
+      "state": "baked",
+      "kcal_per_100g": 290,
+      "source": "usda_fdc",
+      "source_ref": "174925",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 slice, thin",
+          "grams": 17
+        },
+        {
+          "name_en": "1 slice crust not eaten",
+          "grams": 11
+        },
+        {
+          "name_en": "1 cup, cubes",
+          "grams": 42
+        },
+        {
+          "name_en": "1 oz",
+          "grams": 28.35
+        },
+        {
+          "name_en": "1 slice, large",
+          "grams": 27
+        },
+        {
+          "name_en": "1 slice",
+          "grams": 22
+        },
+        {
+          "name_en": "1 cup, crumbs",
+          "grams": 45
+        },
+        {
+          "name_en": "1 slice, very thin",
+          "grams": 13
+        },
+        {
+          "name_en": "1 slice thin, crust not eaten",
+          "grams": 8
+        }
+      ],
+      "protein_g": 9,
+      "carbs_g": 54.5,
+      "fat_g": 4,
+      "fiber_g": 2.9,
+      "sugar_g": 6.2,
+      "sodium_mg": 537
+    },
+    {
+      "name_he": "לחם מלא",
+      "name_en": "Bread, whole-wheat, commercially prepared",
+      "category": "לחמים",
+      "state": "baked",
+      "kcal_per_100g": 252,
+      "source": "usda_fdc",
+      "source_ref": "172688",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 oz",
+          "grams": 28.35
+        },
+        {
+          "name_en": "1 slice",
+          "grams": 32
+        }
+      ],
+      "protein_g": 12.5,
+      "carbs_g": 42.7,
+      "fat_g": 3.5,
+      "fiber_g": 6,
+      "sugar_g": 4.3,
+      "sodium_mg": 455
+    },
+    {
+      "name_he": "לחם שיפון",
+      "name_en": "Bread, rye",
+      "category": "לחמים",
+      "state": "baked",
+      "kcal_per_100g": 259,
+      "source": "usda_fdc",
+      "source_ref": "172684",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 slice, snack-size",
+          "grams": 7
+        },
+        {
+          "name_en": "1 slice, thin",
+          "grams": 25
+        },
+        {
+          "name_en": "1 oz",
+          "grams": 28.35
+        },
+        {
+          "name_en": "1 slice, regular",
+          "grams": 32
+        }
+      ],
+      "protein_g": 8.5,
+      "carbs_g": 48.3,
+      "fat_g": 3.3,
+      "fiber_g": 5.8,
+      "sugar_g": 3.9,
+      "sodium_mg": 603
+    },
+    {
+      "name_he": "פיתה",
+      "name_en": "Bread, pita, white, enriched",
+      "category": "לחמים",
+      "state": "baked",
+      "kcal_per_100g": 275,
+      "source": "usda_fdc",
+      "source_ref": "174915",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 pita, small  (4\" dia)",
+          "grams": 28
+        },
+        {
+          "name_en": "1 pita, large (6-1/2\" dia)",
+          "grams": 60
+        }
+      ],
+      "protein_g": 9.1,
+      "carbs_g": 55.7,
+      "fat_g": 1.2,
+      "fiber_g": 2.2,
+      "sugar_g": 1.3,
+      "sodium_mg": 536
+    },
+    {
+      "name_he": "טורטייה",
+      "name_en": "Puff pastry, frozen, ready-to-bake, baked",
+      "category": "לחמים",
+      "state": "baked",
+      "kcal_per_100g": 558,
+      "source": "usda_fdc",
+      "source_ref": "172738",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 oz",
+          "grams": 28.35
+        },
+        {
+          "name_en": "1 shell",
+          "grams": 40
+        },
+        {
+          "name_en": "1 sheet",
+          "grams": 245
+        }
+      ],
+      "protein_g": 7.4,
+      "carbs_g": 45.7,
+      "fat_g": 38.5,
+      "fiber_g": 1.5,
+      "sugar_g": 0.8,
+      "sodium_mg": 253
+    },
+    {
+      "name_he": "לחמנייה",
+      "name_en": "Rolls, dinner, plain, commercially prepared (includes brown-and-serve)",
+      "category": "לחמים",
+      "state": "baked",
+      "kcal_per_100g": 310,
+      "source": "usda_fdc",
+      "source_ref": "172793",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 each (pan, dinner, or small roll) (2\" square, 2\" high)",
+          "grams": 25
+        },
+        {
+          "name_en": "1 roll (foot long frankfurter roll)",
+          "grams": 86
+        },
+        {
+          "name_en": "1 roll (hamburger, frankfurter, onion roll, bun, large roll)",
+          "grams": 43
+        },
+        {
+          "name_en": "1 roll (1 oz)",
+          "grams": 28
+        }
+      ],
+      "protein_g": 10.9,
+      "carbs_g": 52,
+      "fat_g": 6.5,
+      "fiber_g": 2,
+      "sugar_g": 5.6,
+      "sodium_mg": 467
+    },
+    {
+      "name_he": "בייגל",
+      "name_en": "Bagels, plain, enriched, with calcium propionate (includes onion, poppy, sesame)",
+      "category": "לחמים",
+      "state": "baked",
+      "kcal_per_100g": 264,
+      "source": "usda_fdc",
+      "source_ref": "174899",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 medium bagel (3-1/2\" to 4\" dia)",
+          "grams": 105
+        },
+        {
+          "name_en": "1 oz",
+          "grams": 28.35
+        },
+        {
+          "name_en": "1 large bagel (4-1/2\")",
+          "grams": 131
+        },
+        {
+          "name_en": "1 mini bagel (2-1/2\" dia)",
+          "grams": 26
+        },
+        {
+          "name_en": "1 small bagel (3\" dia)",
+          "grams": 69
+        },
+        {
+          "name_en": "1 bagel",
+          "grams": 99
+        }
+      ],
+      "protein_g": 10.6,
+      "carbs_g": 52.4,
+      "fat_g": 1.3,
+      "fiber_g": 1.6,
+      "sugar_g": 8.4,
+      "sodium_mg": 422
+    },
+    {
+      "name_he": "קרקר",
+      "name_en": "Crackers, saltines (includes oyster, soda, soup)",
+      "category": "לחמים",
+      "state": "baked",
+      "kcal_per_100g": 418,
+      "source": "usda_fdc",
+      "source_ref": "172746",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cracker square",
+          "grams": 3
+        },
+        {
+          "name_en": "1 cup oyster crackers",
+          "grams": 45
+        },
+        {
+          "name_en": "5 crackers",
+          "grams": 14.9
+        },
+        {
+          "name_en": "1 cup, crushed",
+          "grams": 70
+        },
+        {
+          "name_en": "5 crackers square (1 serving)",
+          "grams": 15
+        },
+        {
+          "name_en": "1 cracker, round large",
+          "grams": 10
+        },
+        {
+          "name_en": "0.5 oz",
+          "grams": 14.2
+        },
+        {
+          "name_en": "1 cracker, oyster",
+          "grams": 1
+        },
+        {
+          "name_en": "1 cracker, rectangle",
+          "grams": 6
+        }
+      ],
+      "protein_g": 9.5,
+      "carbs_g": 74.1,
+      "fat_g": 8.6,
+      "fiber_g": 2.8,
+      "sugar_g": 1.3,
+      "sodium_mg": 941
+    },
+    {
+      "name_he": "מצה",
+      "name_en": "Crackers, matzo, plain",
+      "category": "לחמים",
+      "state": "baked",
+      "kcal_per_100g": 395,
+      "source": "usda_fdc",
+      "source_ref": "172740",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 matzo",
+          "grams": 28
+        },
+        {
+          "name_en": "0.5 oz",
+          "grams": 14.2
+        }
+      ],
+      "protein_g": 10,
+      "carbs_g": 83.7,
+      "fat_g": 1.4,
+      "fiber_g": 3,
+      "sugar_g": 0.3,
+      "sodium_mg": 0
+    },
+    {
+      "name_he": "פירורי לחם",
+      "name_en": "Bread, crumbs, dry, grated, plain",
+      "category": "לחמים",
+      "state": "dry",
+      "kcal_per_100g": 395,
+      "source": "usda_fdc",
+      "source_ref": "174928",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 108
+        },
+        {
+          "name_en": "1 oz",
+          "grams": 28.35
+        }
+      ],
+      "protein_g": 13.4,
+      "carbs_g": 72,
+      "fat_g": 5.3,
+      "fiber_g": 4.5,
+      "sugar_g": 6.2,
+      "sodium_mg": 732
+    },
+    {
+      "name_he": "שקדים",
+      "name_en": "Nuts, almonds",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "kcal_per_100g": 579,
+      "source": "usda_fdc",
+      "source_ref": "170567",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 oz (23 whole kernels)",
+          "grams": 28.35
+        },
+        {
+          "name_en": "1 almond",
+          "grams": 1.2
+        },
+        {
+          "name_en": "1 cup, whole",
+          "grams": 143
+        },
+        {
+          "name_en": "1 cup, slivered",
+          "grams": 108
+        },
+        {
+          "name_en": "1 cup, ground",
+          "grams": 95
+        },
+        {
+          "name_en": "1 cup, sliced",
+          "grams": 92
+        }
+      ],
+      "protein_g": 21.2,
+      "carbs_g": 21.6,
+      "fat_g": 49.9,
+      "fiber_g": 12.5,
+      "sugar_g": 4.4,
+      "sodium_mg": 1
+    },
+    {
+      "name_he": "אגוזי מלך",
+      "name_en": "Nuts, walnuts, english",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "kcal_per_100g": 654,
+      "source": "usda_fdc",
+      "source_ref": "170187",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup, ground",
+          "grams": 80
+        },
+        {
+          "name_en": "1 cup, chopped",
+          "grams": 117
+        },
+        {
+          "name_en": "1 cup, in shell, edible yield (7 nuts)",
+          "grams": 28
+        },
+        {
+          "name_en": "1 cup pieces or chips",
+          "grams": 120
+        },
+        {
+          "name_en": "1 cup shelled (50 halves)",
+          "grams": 100
+        },
+        {
+          "name_en": "1 oz (14 halves)",
+          "grams": 28.35
+        }
+      ],
+      "protein_g": 15.2,
+      "carbs_g": 13.7,
+      "fat_g": 65.2,
+      "fiber_g": 6.7,
+      "sugar_g": 2.6,
+      "sodium_mg": 2
+    },
+    {
+      "name_he": "אגוזי קשיו",
+      "name_en": "Nuts, cashew nuts, raw",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "kcal_per_100g": 564.7,
+      "source": "usda_fdc",
+      "source_ref": "2515374",
+      "source_detail": "Foundation",
+      "common_servings": [
+        {
+          "name_en": "1 RACC",
+          "grams": 30
+        }
+      ],
+      "protein_g": 17.4,
+      "carbs_g": 36.3,
+      "fat_g": 38.9,
+      "fiber_g": 4.1,
+      "sugar_g": null,
+      "sodium_mg": 4.8
+    },
+    {
+      "name_he": "פיסטוקים",
+      "name_en": "Nuts, pistachio nuts, raw",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "kcal_per_100g": 560,
+      "source": "usda_fdc",
+      "source_ref": "170184",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 oz (49 kernels)",
+          "grams": 28.35
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 123
+        },
+        {
+          "name_en": "1 kernel",
+          "grams": 0.7
+        }
+      ],
+      "protein_g": 20.2,
+      "carbs_g": 27.2,
+      "fat_g": 45.3,
+      "fiber_g": 10.6,
+      "sugar_g": 7.7,
+      "sodium_mg": 1
+    },
+    {
+      "name_he": "אגוזי לוז",
+      "name_en": "Nuts, hazelnuts or filberts",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "kcal_per_100g": 628,
+      "source": "usda_fdc",
+      "source_ref": "170581",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup, chopped",
+          "grams": 115
+        },
+        {
+          "name_en": "10 nuts",
+          "grams": 14
+        },
+        {
+          "name_en": "1 cup, whole",
+          "grams": 135
+        },
+        {
+          "name_en": "1 cup, ground",
+          "grams": 75
+        },
+        {
+          "name_en": "1 oz (21 whole kernels)",
+          "grams": 28.35
+        }
+      ],
+      "protein_g": 15,
+      "carbs_g": 16.7,
+      "fat_g": 60.8,
+      "fiber_g": 9.7,
+      "sugar_g": 4.3,
+      "sodium_mg": 0
+    },
+    {
+      "name_he": "בוטנים",
+      "name_en": "Peanuts, all types, raw",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "kcal_per_100g": 567,
+      "source": "usda_fdc",
+      "source_ref": "172430",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 oz",
+          "grams": 28.35
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 146
+        }
+      ],
+      "protein_g": 25.8,
+      "carbs_g": 16.1,
+      "fat_g": 49.2,
+      "fiber_g": 8.5,
+      "sugar_g": 4.7,
+      "sodium_mg": 18
+    },
+    {
+      "name_he": "אגוזי פקאן",
+      "name_en": "Nuts, pecans",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "kcal_per_100g": 691,
+      "source": "usda_fdc",
+      "source_ref": "170182",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 oz (19 halves)",
+          "grams": 28.35
+        },
+        {
+          "name_en": "1 cup, chopped",
+          "grams": 109
+        },
+        {
+          "name_en": "1 cup, halves",
+          "grams": 99
+        }
+      ],
+      "protein_g": 9.2,
+      "carbs_g": 13.9,
+      "fat_g": 72,
+      "fiber_g": 9.6,
+      "sugar_g": 4,
+      "sodium_mg": 0
+    },
+    {
+      "name_he": "מקדמיה",
+      "name_en": "Nuts, macadamia nuts, raw",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "kcal_per_100g": 718,
+      "source": "usda_fdc",
+      "source_ref": "170178",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup, whole or halves",
+          "grams": 134
+        },
+        {
+          "name_en": "1 oz (10-12 kernels)",
+          "grams": 28.35
+        }
+      ],
+      "protein_g": 7.9,
+      "carbs_g": 13.8,
+      "fat_g": 75.8,
+      "fiber_g": 8.6,
+      "sugar_g": 4.6,
+      "sodium_mg": 5
+    },
+    {
+      "name_he": "גרעיני חמנייה",
+      "name_en": "Seeds, sunflower seed kernels, dried",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "kcal_per_100g": 584,
+      "source": "usda_fdc",
+      "source_ref": "170562",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 140
+        },
+        {
+          "name_en": "1 cup, with hulls, edible yield",
+          "grams": 46
+        }
+      ],
+      "protein_g": 20.8,
+      "carbs_g": 20,
+      "fat_g": 51.5,
+      "fiber_g": 8.6,
+      "sugar_g": 2.6,
+      "sodium_mg": 9
+    },
+    {
+      "name_he": "גרעיני דלעת",
+      "name_en": "Seeds, pumpkin and squash seed kernels, dried",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "kcal_per_100g": 559,
+      "source": "usda_fdc",
+      "source_ref": "170556",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 129
+        },
+        {
+          "name_en": "1 oz",
+          "grams": 28.35
+        }
+      ],
+      "protein_g": 30.2,
+      "carbs_g": 10.7,
+      "fat_g": 49.1,
+      "fiber_g": 6,
+      "sugar_g": 1.4,
+      "sodium_mg": 7
+    },
+    {
+      "name_he": "שומשום",
+      "name_en": "Seeds, sesame seeds, whole, dried",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "kcal_per_100g": 573,
+      "source": "usda_fdc",
+      "source_ref": "170150",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 144
+        },
+        {
+          "name_en": "1 tbsp",
+          "grams": 9
+        }
+      ],
+      "protein_g": 17.7,
+      "carbs_g": 23.5,
+      "fat_g": 49.7,
+      "fiber_g": 11.8,
+      "sugar_g": 0.3,
+      "sodium_mg": 11
+    },
+    {
+      "name_he": "צ'יה",
+      "name_en": "Seeds, chia seeds, dried",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "kcal_per_100g": 486,
+      "source": "usda_fdc",
+      "source_ref": "170554",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 oz",
+          "grams": 28.35
+        }
+      ],
+      "protein_g": 16.5,
+      "carbs_g": 42.1,
+      "fat_g": 30.7,
+      "fiber_g": 34.4,
+      "sugar_g": null,
+      "sodium_mg": 16
+    },
+    {
+      "name_he": "פשתן",
+      "name_en": "Seeds, flaxseed",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "kcal_per_100g": 534,
+      "source": "usda_fdc",
+      "source_ref": "169414",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 tsp, ground",
+          "grams": 2.5
+        },
+        {
+          "name_en": "1 tbsp, ground",
+          "grams": 7
+        },
+        {
+          "name_en": "1 cup, whole",
+          "grams": 168
+        },
+        {
+          "name_en": "1 tbsp, whole",
+          "grams": 10.3
+        },
+        {
+          "name_en": "1 tsp, whole",
+          "grams": 3.4
+        }
+      ],
+      "protein_g": 18.3,
+      "carbs_g": 28.9,
+      "fat_g": 42.2,
+      "fiber_g": 27.3,
+      "sugar_g": 1.6,
+      "sodium_mg": 30
+    },
+    {
+      "name_he": "חמאת בוטנים",
+      "name_en": "Peanut butter, smooth style, without salt",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "kcal_per_100g": 598,
+      "source": "usda_fdc",
+      "source_ref": "172470",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 258
+        },
+        {
+          "name_en": "2 tbsp",
+          "grams": 32
+        }
+      ],
+      "protein_g": 22.2,
+      "carbs_g": 22.3,
+      "fat_g": 51.4,
+      "fiber_g": 5,
+      "sugar_g": 10.5,
+      "sodium_mg": 17
+    },
+    {
+      "name_he": "חמאת שקדים",
+      "name_en": "Nuts, almond butter, plain, with salt added",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "kcal_per_100g": 614,
+      "source": "usda_fdc",
+      "source_ref": "168603",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 tbsp",
+          "grams": 16
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 250
+        }
+      ],
+      "protein_g": 21,
+      "carbs_g": 18.8,
+      "fat_g": 55.5,
+      "fiber_g": 10.3,
+      "sugar_g": 6.3,
+      "sodium_mg": 227
+    },
+    {
+      "name_he": "טחינה גולמית",
+      "name_en": "Seeds, sesame butter, tahini, type of kernels unspecified",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "kcal_per_100g": 592,
+      "source": "usda_fdc",
+      "source_ref": "168604",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 tbsp",
+          "grams": 15
+        }
+      ],
+      "protein_g": 17.4,
+      "carbs_g": 21.5,
+      "fat_g": 53,
+      "fiber_g": 4.7,
+      "sugar_g": null,
+      "sodium_mg": 35
+    },
+    {
+      "name_he": "שמן זית",
+      "name_en": "Oil, olive, salad or cooking",
+      "category": "שמנים",
+      "state": "raw",
+      "kcal_per_100g": 884,
+      "source": "usda_fdc",
+      "source_ref": "171413",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 tablespoon",
+          "grams": 13.5
+        },
+        {
+          "name_en": "1 tsp",
+          "grams": 4.5
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 216
+        }
+      ],
+      "protein_g": 0,
+      "carbs_g": 0,
+      "fat_g": 100,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 2
+    },
+    {
+      "name_he": "שמן אבוקדו",
+      "name_en": "Oil, avocado",
+      "category": "שמנים",
+      "state": "raw",
+      "kcal_per_100g": 884,
+      "source": "usda_fdc",
+      "source_ref": "173573",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 tsp",
+          "grams": 4.5
+        },
+        {
+          "name_en": "1 tbsp",
+          "grams": 14
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 218
+        }
+      ],
+      "protein_g": 0,
+      "carbs_g": 0,
+      "fat_g": 100,
+      "fiber_g": 0,
+      "sugar_g": null,
+      "sodium_mg": 0
+    },
+    {
+      "name_he": "שמן קוקוס",
+      "name_en": "Oil, coconut",
+      "category": "שמנים",
+      "state": "raw",
+      "kcal_per_100g": 892,
+      "source": "usda_fdc",
+      "source_ref": "171412",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 218
+        },
+        {
+          "name_en": "1 tsp",
+          "grams": 4.5
+        },
+        {
+          "name_en": "1 tbsp",
+          "grams": 13.6
+        }
+      ],
+      "protein_g": 0,
+      "carbs_g": 0,
+      "fat_g": 99.1,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 0
+    },
+    {
+      "name_he": "מרגרינה",
+      "name_en": "Margarine, regular, 80% fat, composite, stick, with salt",
+      "category": "שמנים",
+      "state": "raw",
+      "kcal_per_100g": 717,
+      "source": "usda_fdc",
+      "source_ref": "172346",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 tbsp",
+          "grams": 14
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 227
+        },
+        {
+          "name_en": "1 stick",
+          "grams": 113
+        },
+        {
+          "name_en": "1 tsp",
+          "grams": 4.7
+        },
+        {
+          "name_en": "1 pat (1\" sq, 1/3\" high)",
+          "grams": 5
+        }
+      ],
+      "protein_g": 0.2,
+      "carbs_g": 0.7,
+      "fat_g": 80.7,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 751
+    },
+    {
+      "name_he": "סוכר לבן",
+      "name_en": "Sugars, granulated",
+      "category": "סוכרים",
+      "state": "raw",
+      "kcal_per_100g": 385,
+      "source": "usda_fdc",
+      "source_ref": "746784",
+      "source_detail": "Foundation",
+      "common_servings": [
+        {
+          "name_en": "1 teaspoon",
+          "grams": 4
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 188
+        },
+        {
+          "name_en": "1 RACC",
+          "grams": 8
+        }
+      ],
+      "protein_g": 0,
+      "carbs_g": 99.6,
+      "fat_g": 0.3,
+      "fiber_g": null,
+      "sugar_g": 99.8,
+      "sodium_mg": 1
+    },
+    {
+      "name_he": "סוכר חום",
+      "name_en": "Sugars, brown",
+      "category": "סוכרים",
+      "state": "raw",
+      "kcal_per_100g": 380,
+      "source": "usda_fdc",
+      "source_ref": "168833",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup packed",
+          "grams": 220
+        },
+        {
+          "name_en": "1 tsp packed",
+          "grams": 4.6
+        },
+        {
+          "name_en": "1 cup unpacked",
+          "grams": 145
+        },
+        {
+          "name_en": "1 tsp unpacked",
+          "grams": 3
+        },
+        {
+          "name_en": "1 tsp brownulated",
+          "grams": 3.2
+        }
+      ],
+      "protein_g": 0.1,
+      "carbs_g": 98.1,
+      "fat_g": 0,
+      "fiber_g": 0,
+      "sugar_g": 97,
+      "sodium_mg": 28
+    },
+    {
+      "name_he": "דבש",
+      "name_en": "Honey",
+      "category": "סוכרים",
+      "state": "raw",
+      "kcal_per_100g": 304,
+      "source": "usda_fdc",
+      "source_ref": "169640",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 339
+        },
+        {
+          "name_en": "1 tbsp",
+          "grams": 21
+        },
+        {
+          "name_en": "1 packet (0.5 oz)",
+          "grams": 14
+        }
+      ],
+      "protein_g": 0.3,
+      "carbs_g": 82.4,
+      "fat_g": 0,
+      "fiber_g": 0.2,
+      "sugar_g": 82.1,
+      "sodium_mg": 4
+    },
+    {
+      "name_he": "מייפל",
+      "name_en": "Syrups, maple",
+      "category": "סוכרים",
+      "state": "raw",
+      "kcal_per_100g": 260,
+      "source": "usda_fdc",
+      "source_ref": "169661",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 tbsp",
+          "grams": 20
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 315
+        },
+        {
+          "name_en": "1 serving 1/4 cup",
+          "grams": 83
+        }
+      ],
+      "protein_g": 0,
+      "carbs_g": 67,
+      "fat_g": 0.1,
+      "fiber_g": 0,
+      "sugar_g": 60.5,
+      "sodium_mg": 12
+    },
+    {
+      "name_he": "שוקולד חלב",
+      "name_en": "Candies, milk chocolate",
+      "category": "סוכרים",
+      "state": "raw",
+      "kcal_per_100g": 535,
+      "source": "usda_fdc",
+      "source_ref": "167587",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 bar, miniature",
+          "grams": 7
+        },
+        {
+          "name_en": "1 cup chips",
+          "grams": 168
+        },
+        {
+          "name_en": "1 bar (1.55 oz)",
+          "grams": 44
+        }
+      ],
+      "protein_g": 7.7,
+      "carbs_g": 59.4,
+      "fat_g": 29.7,
+      "fiber_g": 3.4,
+      "sugar_g": 51.5,
+      "sodium_mg": 79
+    },
+    {
+      "name_he": "שוקולד מריר 70%",
+      "name_en": "Chocolate, dark, 70-85% cacao solids",
+      "category": "סוכרים",
+      "state": "raw",
+      "kcal_per_100g": 598,
+      "source": "usda_fdc",
+      "source_ref": "170273",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 oz",
+          "grams": 28.35
+        },
+        {
+          "name_en": "1 bar",
+          "grams": 101
+        }
+      ],
+      "protein_g": 7.8,
+      "carbs_g": 45.9,
+      "fat_g": 42.6,
+      "fiber_g": 10.9,
+      "sugar_g": 24,
+      "sodium_mg": 20
+    },
+    {
+      "name_he": "שוקולד לבן",
+      "name_en": "Candies, white chocolate",
+      "category": "סוכרים",
+      "state": "raw",
+      "kcal_per_100g": 539,
+      "source": "usda_fdc",
+      "source_ref": "167571",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 bar (3 oz)",
+          "grams": 85
+        },
+        {
+          "name_en": "1 tbsp",
+          "grams": 14
+        },
+        {
+          "name_en": "1 cup chips",
+          "grams": 170
+        }
+      ],
+      "protein_g": 5.9,
+      "carbs_g": 59.2,
+      "fat_g": 32.1,
+      "fiber_g": 0.2,
+      "sugar_g": 59,
+      "sodium_mg": 90
+    },
+    {
+      "name_he": "קקאו ללא סוכר",
+      "name_en": "Cocoa, dry powder, unsweetened",
+      "category": "סוכרים",
+      "state": "raw",
+      "kcal_per_100g": 228,
+      "source": "usda_fdc",
+      "source_ref": "169593",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 tbsp",
+          "grams": 5.4
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 86
+        }
+      ],
+      "protein_g": 19.6,
+      "carbs_g": 57.9,
+      "fat_g": 13.7,
+      "fiber_g": 37,
+      "sugar_g": 1.8,
+      "sodium_mg": 21
+    },
+    {
+      "name_he": "קטשופ",
+      "name_en": "Catsup",
+      "category": "רטבים",
+      "state": "raw",
+      "kcal_per_100g": 101,
+      "source": "usda_fdc",
+      "source_ref": "168556",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 packet",
+          "grams": 9
+        },
+        {
+          "name_en": "1 tbsp",
+          "grams": 17
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 240
+        }
+      ],
+      "protein_g": 1,
+      "carbs_g": 27.4,
+      "fat_g": 0.1,
+      "fiber_g": 0.3,
+      "sugar_g": 21.3,
+      "sodium_mg": 907
+    },
+    {
+      "name_he": "מיונז",
+      "name_en": "Salad dressing, mayonnaise, regular",
+      "category": "רטבים",
+      "state": "raw",
+      "kcal_per_100g": 680,
+      "source": "usda_fdc",
+      "source_ref": "171009",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 tbsp",
+          "grams": 13.8
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 220
+        },
+        {
+          "name_en": "1 packet",
+          "grams": 10
+        }
+      ],
+      "protein_g": 1,
+      "carbs_g": 0.6,
+      "fat_g": 74.9,
+      "fiber_g": 0,
+      "sugar_g": 0.6,
+      "sodium_mg": 635
+    },
+    {
+      "name_he": "חרדל",
+      "name_en": "Mustard, prepared, yellow",
+      "category": "רטבים",
+      "state": "raw",
+      "kcal_per_100g": 61,
+      "source": "usda_fdc",
+      "source_ref": "326698",
+      "source_detail": "Foundation",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 249
+        },
+        {
+          "name_en": "1 teaspoon",
+          "grams": 6
+        }
+      ],
+      "protein_g": 4.3,
+      "carbs_g": 5.3,
+      "fat_g": 3.4,
+      "fiber_g": 4.3,
+      "sugar_g": 1.4,
+      "sodium_mg": 1100
+    },
+    {
+      "name_he": "פסטו",
+      "name_en": "Sauce, pesto, ready-to-serve, refrigerated",
+      "category": "רטבים",
+      "state": "raw",
+      "kcal_per_100g": 418,
+      "source": "usda_fdc",
+      "source_ref": "171579",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "0.25 cup",
+          "grams": 63
+        }
+      ],
+      "protein_g": 9.8,
+      "carbs_g": 10.1,
+      "fat_g": 37.6,
+      "fiber_g": 1.8,
+      "sugar_g": 6.3,
+      "sodium_mg": 603
+    },
+    {
+      "name_he": "חומוס (ממרח)",
+      "name_en": "Hummus, commercial",
+      "category": "רטבים",
+      "state": "raw",
+      "kcal_per_100g": 237,
+      "source": "usda_fdc",
+      "source_ref": "174289",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 tbsp",
+          "grams": 15
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 246
+        }
+      ],
+      "protein_g": 7.8,
+      "carbs_g": 15,
+      "fat_g": 17.8,
+      "fiber_g": 5.5,
+      "sugar_g": 0.6,
+      "sodium_mg": 426
+    },
+    {
+      "name_he": "רוטב טריאקי",
+      "name_en": "Sauce, teriyaki, ready-to-serve",
+      "category": "רטבים",
+      "state": "raw",
+      "kcal_per_100g": 89,
+      "source": "usda_fdc",
+      "source_ref": "171167",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 tbsp",
+          "grams": 18
+        },
+        {
+          "name_en": "1 fl oz",
+          "grams": 36
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 288
+        }
+      ],
+      "protein_g": 5.9,
+      "carbs_g": 15.6,
+      "fat_g": 0,
+      "fiber_g": 0.1,
+      "sugar_g": 14.1,
+      "sodium_mg": 3833
+    },
+    {
+      "name_he": "פופקורן ללא שמן",
+      "name_en": "Snacks, popcorn, air-popped",
+      "category": "מוכן ומעובד",
+      "state": "cooked",
+      "kcal_per_100g": 387,
+      "source": "usda_fdc",
+      "source_ref": "167959",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup",
+          "grams": 8
+        },
+        {
+          "name_en": "1 oz",
+          "grams": 28.35
+        }
+      ],
+      "protein_g": 12.9,
+      "carbs_g": 77.8,
+      "fat_g": 4.5,
+      "fiber_g": 14.5,
+      "sugar_g": 0.9,
+      "sodium_mg": 8
+    },
+    {
+      "name_he": "צ'יפס",
+      "name_en": "Potatoes, french fried, steak fries, salt added in processing, frozen, oven-heated",
+      "category": "מוכן ומעובד",
+      "state": "fried",
+      "kcal_per_100g": 148,
+      "source": "usda_fdc",
+      "source_ref": "168445",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "10 strip",
+          "grams": 133
+        }
+      ],
+      "protein_g": 2.6,
+      "carbs_g": 27,
+      "fat_g": 3.8,
+      "fiber_g": 2.6,
+      "sugar_g": 0.3,
+      "sodium_mg": 373
+    },
+    {
+      "name_he": "תפוצ'יפס",
+      "name_en": "Snacks, potato chips, plain, salted",
+      "category": "מוכן ומעובד",
+      "state": "fried",
+      "kcal_per_100g": 532,
+      "source": "usda_fdc",
+      "source_ref": "169677",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 bag (8 oz)",
+          "grams": 227
+        },
+        {
+          "name_en": "1 oz",
+          "grams": 28.35
+        },
+        {
+          "name_en": "1 oz",
+          "grams": 28
+        },
+        {
+          "name_en": "22 chips",
+          "grams": 28
+        }
+      ],
+      "protein_g": 6.4,
+      "carbs_g": 53.8,
+      "fat_g": 34,
+      "fiber_g": 3.1,
+      "sugar_g": 0.3,
+      "sodium_mg": 527
+    },
+    {
+      "name_he": "גלידה",
+      "name_en": "Ice creams, vanilla",
+      "category": "מוכן ומעובד",
+      "state": "raw",
+      "kcal_per_100g": 207,
+      "source": "usda_fdc",
+      "source_ref": "167575",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 serving 1/2 cup",
+          "grams": 66
+        }
+      ],
+      "protein_g": 3.5,
+      "carbs_g": 23.6,
+      "fat_g": 11,
+      "fiber_g": 0.7,
+      "sugar_g": 21.2,
+      "sodium_mg": 80
+    },
+    {
+      "name_he": "פיצה",
+      "name_en": "Pizza, cheese topping, regular crust, frozen, cooked",
+      "category": "מוכן ומעובד",
+      "state": "baked",
+      "kcal_per_100g": 268,
+      "source": "usda_fdc",
+      "source_ref": "170317",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 serving 9 servings per 24 oz package",
+          "grams": 81
+        },
+        {
+          "name_en": "1 serving 3 servings per 15.1 oz package",
+          "grams": 151
+        },
+        {
+          "name_en": "1 package 15.1 oz pizza",
+          "grams": 452
+        },
+        {
+          "name_en": "1 package 24 oz pizza",
+          "grams": 727
+        },
+        {
+          "name_en": "1 package 9.8 oz pizza",
+          "grams": 293
+        },
+        {
+          "name_en": "1 serving 2 servings per 9.8 oz package",
+          "grams": 146
+        },
+        {
+          "name_en": "1 serving 1 serving per 8 oz box",
+          "grams": 199
+        },
+        {
+          "name_en": "1 package 8 oz pizza",
+          "grams": 199
+        }
+      ],
+      "protein_g": 10.4,
+      "carbs_g": 29,
+      "fat_g": 12.3,
+      "fiber_g": 2.2,
+      "sugar_g": 3.6,
+      "sodium_mg": 447
+    },
+    {
+      "name_he": "פלאפל",
+      "name_en": "Falafel, home-prepared",
+      "category": "מוכן ומעובד",
+      "state": "fried",
+      "kcal_per_100g": 333,
+      "source": "usda_fdc",
+      "source_ref": "172455",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 patty (approx 2-1/4\" dia)",
+          "grams": 17
+        }
+      ],
+      "protein_g": 13.3,
+      "carbs_g": 31.8,
+      "fat_g": 17.8,
+      "fiber_g": null,
+      "sugar_g": null,
+      "sodium_mg": 294
+    },
+    {
+      "name_he": "עוגיות",
+      "name_en": "Cookies, brownies, commercially prepared",
+      "category": "מוכן ומעובד",
+      "state": "baked",
+      "kcal_per_100g": 405,
+      "source": "usda_fdc",
+      "source_ref": "172713",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 package, Little Debbie (twin wrapped)",
+          "grams": 61
+        },
+        {
+          "name_en": "1 square, large (2-3/4\" sq x 7/8\")",
+          "grams": 56
+        },
+        {
+          "name_en": "1 oz",
+          "grams": 28.35
+        }
+      ],
+      "protein_g": 4.8,
+      "carbs_g": 63.9,
+      "fat_g": 16.3,
+      "fiber_g": 2.1,
+      "sugar_g": 36.6,
+      "sodium_mg": 286
+    },
+    {
+      "name_he": "עוגת שוקולד",
+      "name_en": "Cake, angelfood, commercially prepared",
+      "category": "מוכן ומעובד",
+      "state": "baked",
+      "kcal_per_100g": 258,
+      "source": "usda_fdc",
+      "source_ref": "172694",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 piece (1/12 of 12 oz cake)",
+          "grams": 28
+        },
+        {
+          "name_en": "1 cake (9\" dia x 4\")",
+          "grams": 340
+        }
+      ],
+      "protein_g": 5.9,
+      "carbs_g": 57.8,
+      "fat_g": 0.8,
+      "fiber_g": 1.5,
+      "sugar_g": null,
+      "sodium_mg": 749
+    },
+    {
+      "name_he": "מים",
+      "name_en": "Beverages, water, tap, drinking",
+      "category": "משקאות",
+      "state": "raw",
+      "kcal_per_100g": 0,
+      "source": "usda_fdc",
+      "source_ref": "173647",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 liter",
+          "grams": 1000
+        },
+        {
+          "name_en": "1 serving 8 fl oz",
+          "grams": 237
+        },
+        {
+          "name_en": "1 fl oz",
+          "grams": 29.6
+        }
+      ],
+      "protein_g": 0,
+      "carbs_g": 0,
+      "fat_g": 0,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 4
+    },
+    {
+      "name_he": "קפה שחור",
+      "name_en": "Beverages, coffee, brewed, prepared with tap water",
+      "category": "משקאות",
+      "state": "raw",
+      "kcal_per_100g": 1,
+      "source": "usda_fdc",
+      "source_ref": "171890",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 cup (8 fl oz)",
+          "grams": 237
+        },
+        {
+          "name_en": "1 fl oz",
+          "grams": 29.6
+        },
+        {
+          "name_en": "6 fl oz",
+          "grams": 178
+        }
+      ],
+      "protein_g": 0.1,
+      "carbs_g": 0,
+      "fat_g": 0,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 2
+    },
+    {
+      "name_he": "תה ללא סוכר",
+      "name_en": "Beverages, tea, black, brewed, prepared with tap water",
+      "category": "משקאות",
+      "state": "raw",
+      "kcal_per_100g": 1,
+      "source": "usda_fdc",
+      "source_ref": "173227",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 fl oz",
+          "grams": 29.6
+        },
+        {
+          "name_en": "6 fl oz",
+          "grams": 178
+        },
+        {
+          "name_en": "1 cup (8 fl oz)",
+          "grams": 237
+        }
+      ],
+      "protein_g": 0,
+      "carbs_g": 0.3,
+      "fat_g": 0,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 3
+    },
+    {
+      "name_he": "מיץ תפוזים",
+      "name_en": "Orange peel, raw",
+      "category": "משקאות",
+      "state": "raw",
+      "kcal_per_100g": 97,
+      "source": "usda_fdc",
+      "source_ref": "169103",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 tbsp",
+          "grams": 6
+        },
+        {
+          "name_en": "1 tsp",
+          "grams": 2
+        }
+      ],
+      "protein_g": 1.5,
+      "carbs_g": 25,
+      "fat_g": 0.2,
+      "fiber_g": 10.6,
+      "sugar_g": null,
+      "sodium_mg": 3
+    },
+    {
+      "name_he": "קולה",
+      "name_en": "Beverages, carbonated, cola, regular",
+      "category": "משקאות",
+      "state": "raw",
+      "kcal_per_100g": 42,
+      "source": "usda_fdc",
+      "source_ref": "174852",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 drink, small (16 fl oz)",
+          "grams": 492
+        },
+        {
+          "name_en": "1 drink, extra large (44 fl oz)",
+          "grams": 1353
+        },
+        {
+          "name_en": "1 fl oz",
+          "grams": 30.7
+        },
+        {
+          "name_en": "1 can or bottle (12 fl oz)",
+          "grams": 370
+        },
+        {
+          "name_en": "1 drink, large (32 fl oz)",
+          "grams": 984
+        },
+        {
+          "name_en": "1 drink, medium (22 fl oz)",
+          "grams": 676
+        },
+        {
+          "name_en": "1 can or bottle (16 fl oz)",
+          "grams": 492
+        }
+      ],
+      "protein_g": 0,
+      "carbs_g": 10.4,
+      "fat_g": 0.3,
+      "fiber_g": 0,
+      "sugar_g": 9.9,
+      "sodium_mg": 3
+    },
+    {
+      "name_he": "ספרייט",
+      "name_en": "Beverages, carbonated, lemon-lime soda, no caffeine",
+      "category": "משקאות",
+      "state": "raw",
+      "kcal_per_100g": 41,
+      "source": "usda_fdc",
+      "source_ref": "173205",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 drink, large (32 fl oz)",
+          "grams": 982
+        },
+        {
+          "name_en": "1 drink, medium (22 fl oz)",
+          "grams": 675
+        },
+        {
+          "name_en": "1 drink, small (16 fl oz)",
+          "grams": 491
+        },
+        {
+          "name_en": "1 drink, extra large (44 fl oz)",
+          "grams": 1351
+        },
+        {
+          "name_en": "1 fl oz",
+          "grams": 30.8
+        },
+        {
+          "name_en": "1 drink (12 fl oz)",
+          "grams": 368
+        }
+      ],
+      "protein_g": 0.1,
+      "carbs_g": 10.4,
+      "fat_g": 0,
+      "fiber_g": 0,
+      "sugar_g": 10.4,
+      "sodium_mg": 10
+    },
+    {
+      "name_he": "בקר טחון 5%",
+      "name_en": "Beef, ground, 95% lean meat / 5% fat, raw",
+      "category": "בשר",
+      "state": "raw",
+      "kcal_per_100g": 137,
+      "source": "usda_fdc",
+      "source_ref": "171790",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "4 oz",
+          "grams": 113
+        }
+      ],
+      "aliases_he": [
+        "בשר טחון רזה",
+        "טחון 5"
+      ],
+      "protein_g": 21.4,
+      "carbs_g": 0,
+      "fat_g": 5,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 66
+    },
+    {
+      "name_he": "בקר טחון 10%",
+      "name_en": "Beef, ground, 90% lean meat / 10% fat, raw",
+      "category": "בשר",
+      "state": "raw",
+      "kcal_per_100g": 176,
+      "source": "usda_fdc",
+      "source_ref": "174030",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "4 oz",
+          "grams": 113
+        }
+      ],
+      "aliases_he": [
+        "בשר טחון",
+        "טחון 10"
+      ],
+      "protein_g": 20,
+      "carbs_g": 0,
+      "fat_g": 10,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 66
+    },
+    {
+      "name_he": "בקר טחון 20%",
+      "name_en": "Beef, ground, 80% lean meat / 20% fat, raw",
+      "category": "בשר",
+      "state": "raw",
+      "kcal_per_100g": 254,
+      "source": "usda_fdc",
+      "source_ref": "174036",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "4 oz",
+          "grams": 113
+        }
+      ],
+      "aliases_he": [
+        "טחון שמן",
+        "טחון 20"
+      ],
+      "protein_g": 17.2,
+      "carbs_g": 0,
+      "fat_g": 20,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 66
+    },
+    {
+      "name_he": "רוטב סויה",
+      "name_en": "Soy sauce made from soy and wheat (shoyu)",
+      "category": "רטבים",
+      "state": "raw",
+      "kcal_per_100g": 53,
+      "source": "usda_fdc",
+      "source_ref": "174277",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 individual packet",
+          "grams": 8.9
+        },
+        {
+          "name_en": "1 tbsp",
+          "grams": 16
+        },
+        {
+          "name_en": "1 tsp",
+          "grams": 5.3
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 255
+        }
+      ],
+      "aliases_he": null,
+      "protein_g": 8.1,
+      "carbs_g": 4.9,
+      "fat_g": 0.6,
+      "fiber_g": 0.8,
+      "sugar_g": 0.4,
+      "sodium_mg": 5493
+    },
+    {
+      "name_he": "שמן קנולה",
+      "name_en": "Oil, canola",
+      "category": "שמנים",
+      "state": "raw",
+      "kcal_per_100g": 884,
+      "source": "usda_fdc",
+      "source_ref": "172336",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 tsp",
+          "grams": 4.5
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 218
+        },
+        {
+          "name_en": "1 tbsp",
+          "grams": 14
+        }
+      ],
+      "aliases_he": null,
+      "protein_g": 0,
+      "carbs_g": 0,
+      "fat_g": 100,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 0
+    },
+    {
+      "name_he": "שמן חמניות",
+      "name_en": "Oil, sunflower, linoleic, (approx. 65%)",
+      "category": "שמנים",
+      "state": "raw",
+      "kcal_per_100g": 884,
+      "source": "usda_fdc",
+      "source_ref": "171025",
+      "source_detail": "SR Legacy",
+      "common_servings": [
+        {
+          "name_en": "1 tbsp",
+          "grams": 13.6
+        },
+        {
+          "name_en": "1 cup",
+          "grams": 218
+        },
+        {
+          "name_en": "1 tsp",
+          "grams": 4.5
+        }
+      ],
+      "aliases_he": null,
+      "protein_g": 0,
+      "carbs_g": 0,
+      "fat_g": 100,
+      "fiber_g": 0,
+      "sugar_g": 0,
+      "sodium_mg": 0
+    }
+  ]
+}

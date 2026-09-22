@@ -1,6 +1,8 @@
 
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const mailer = require('./utils/mailer');
 const dotenv = require('dotenv');
 // Must run before any module that reads process.env at load time — utils/database.js
 // and utils/auth.js both do. This used to sit below those requires, so .env never
@@ -66,14 +68,92 @@ function safeErrorDetails(error) {
 }
 const PORT = process.env.PORT || 5000;
 
+// Applies when a password is being set, not when one is being checked, so
+// accounts created under the old six-character rule keep signing in.
+const MIN_PASSWORD_LENGTH = 10;
+
 // Middleware
-app.use(cors());
+
+// Which sites may call this API from a browser. Anything not named here is
+// refused, because the previous `cors()` with no arguments answered every
+// origin on the internet.
+//
+// Production must say so explicitly: an allowlist that quietly defaults to
+// something permissive is the same hole with more steps, so a missing value
+// stops the server instead of guessing. Development falls back to the Vite
+// dev server, which is where the frontend actually runs.
+const CORS_ORIGINS = (() => {
+  const configured = (process.env.CORS_ORIGINS || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  if (configured.length) return configured;
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'CORS_ORIGINS is required in production. Refusing to start: without it the ' +
+      'API would have to either answer every origin or none.'
+    );
+  }
+
+  return ['http://localhost:5173', 'http://127.0.0.1:5173'];
+})();
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      // No Origin header at all is a server-to-server call, curl, or a health
+      // probe — not a browser acting for some other site, so it is allowed.
+      // The header is what a browser attaches, and it is not forgeable by the
+      // page making the request.
+      if (!origin) return callback(null, true);
+      if (CORS_ORIGINS.includes(origin)) return callback(null, true);
+      return callback(null, false);
+    }
+  })
+);
+
+// Security headers. Content-Security-Policy is deliberately left off for now:
+// public/login.html and public/index.html carry inline scripts and 38 inline
+// style attributes, so a default policy would break the pages this server
+// serves. Turning CSP on means giving those pages nonces first, and that is
+// its own change with its own testing — not a flag flipped in passing.
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(requestContext);
-app.use(express.json());
+app.use(
+  express.json({
+    verify(req, res, buf) {
+      // Only where it is needed. Holding a second copy of every request body
+      // in memory to serve one route would be a poor trade.
+      if (req.originalUrl.startsWith('/api/payments/callback')) {
+        req.rawBody = buf;
+      }
+    }
+  })
+);
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
+
+// Payments. The callback is deliberately mounted before the rate limiter:
+// every PayPlus callback arrives from the same IP, so a shared per-IP budget
+// would start refusing payment confirmations under load and customers who had
+// already paid would never get access. Its protection is the signature check,
+// which does not weaken under traffic the way a counter does.
+const { callbackRouter, checkoutRouter } = require('./routes/payments');
+app.use('/api/payments', callbackRouter);
 
 // Rate limiting
 app.use('/api', apiLimiter);
+
+app.use('/api/payments', checkoutRouter);
+
+// The chef track. Both gates — a paid plan, and a week already planned — are
+// enforced inside this router, not by whichever screen or bot happens to call it.
+app.use('/api/chef', require('./routes/chef'));
+
+// Food values. Lookup and arithmetic over sourced numbers — never a guess,
+// and never advice about what anyone should eat.
+app.use('/api/foods', require('./routes/foods'));
 
 // WhatsApp inbound. The webhook is public (guarded by a path secret); the
 // listing endpoint underneath it requires auth because it returns message text.
@@ -155,7 +235,7 @@ app.post('/api/auth/signup', async (req, res) => {
   try {
     const signupSchema = z.object({
       email: z.string().email(),
-      password: z.string().min(6),
+      password: z.string().min(MIN_PASSWORD_LENGTH),
       name: z.string().min(1).optional()
     });
     const { email, password, name } = signupSchema.parse(req.body);
@@ -165,8 +245,10 @@ app.post('/api/auth/signup', async (req, res) => {
       return res.status(400).json({ error: 'Email and password required' });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({
+        error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`
+      });
     }
 
     // Check if user exists
@@ -180,7 +262,7 @@ app.post('/api/auth/signup', async (req, res) => {
     const user = await db.createUser(email, passwordHash, name);
 
     // Generate token
-    const token = auth.generateToken(user.id, user.email);
+    const token = auth.generateToken(user.id, user.email, user.token_version || 0);
 
     res.status(201).json({
       id: user.id,
@@ -223,7 +305,7 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    const token = auth.generateToken(user.id, user.email);
+    const token = auth.generateToken(user.id, user.email, user.token_version || 0);
 
     res.json({
       id: user.id,
@@ -259,6 +341,30 @@ app.get('/api/auth/me', auth.authMiddleware, async (req, res) => {
 });
 
 /**
+ * POST /api/auth/logout
+ *
+ * Signing out has to happen on the server. Dropping the token from the browser
+ * leaves it valid for the rest of its seven days, which is no help at all to
+ * someone signing out on a shared machine. Raising the token version refuses
+ * every token already issued to this user.
+ *
+ * This ends sessions on every device, because there is nothing yet that tells
+ * one device from another. Per-device sign-out needs a session record, and that
+ * is a later step, not a silent half-measure now.
+ */
+app.post('/api/auth/logout', auth.authMiddleware, async (req, res) => {
+  try {
+    const version = await db.bumpTokenVersion(req.user.userId);
+    if (version === null) {
+      return res.status(404).json({ error: 'User not found', requestId: req.id });
+    }
+    return res.json({ status: 'ok', message: 'All sessions for this account have been ended.' });
+  } catch (error) {
+    return res.status(500).json({ error: 'Logout failed', details: safeErrorDetails(error), requestId: req.id });
+  }
+});
+
+/**
  * POST /api/auth/change-password
  * Change password for the current user
  */
@@ -266,7 +372,7 @@ app.post('/api/auth/change-password', auth.authMiddleware, async (req, res) => {
   try {
     const schema = z.object({
       oldPassword: z.string().min(1),
-      newPassword: z.string().min(6)
+      newPassword: z.string().min(MIN_PASSWORD_LENGTH)
     });
     const { oldPassword, newPassword } = schema.parse(req.body);
 
@@ -282,7 +388,15 @@ app.post('/api/auth/change-password', auth.authMiddleware, async (req, res) => {
 
     const passwordHash = await auth.hashPassword(newPassword);
     await db.updateUserPasswordHash(user.id, passwordHash);
-    return res.json({ status: 'ok' });
+
+    // Someone who changes their password expects the old one to stop working
+    // everywhere, which has to include sessions opened with it. Everything is
+    // cut, then this caller gets a fresh token so the act of securing the
+    // account does not also sign them out of it.
+    const version = await db.bumpTokenVersion(user.id);
+    const token = auth.generateToken(user.id, user.email, version);
+
+    return res.json({ status: 'ok', token });
   } catch (error) {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
@@ -301,15 +415,31 @@ app.post('/api/auth/request-password-reset', async (req, res) => {
     const { email } = schema.parse(req.body);
 
     const user = await db.getUserByEmail(email);
-    const response = {
-      message: 'If an account exists for that email, password reset instructions were sent.'
-    };
 
-    if (user && process.env.NODE_ENV !== 'production') {
-      response.resetToken = auth.generatePasswordResetToken(user.id, user.email);
+    if (user) {
+      const resetToken = auth.generatePasswordResetToken(
+        user.id,
+        user.email,
+        user.token_version || 0
+      );
+
+      try {
+        await mailer.sendPasswordResetEmail(user.email, resetToken);
+      } catch (mailError) {
+        // The reply stays the same either way. Telling the caller that sending
+        // failed for this address would confirm the address exists, which is
+        // the thing this endpoint is careful not to reveal.
+        console.error('[auth] could not send password reset mail:', mailError && mailError.message);
+      }
     }
 
-    return res.json(response);
+    // Always the same answer, whether or not the address is registered. The
+    // token itself is never in this response: this endpoint takes no
+    // authentication, so returning it would hand anyone a working reset link
+    // for any address they can name.
+    return res.json({
+      message: 'If an account exists for that email, password reset instructions were sent.'
+    });
   } catch (error) {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
@@ -326,7 +456,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
   try {
     const schema = z.object({
       token: z.string().min(1),
-      newPassword: z.string().min(6)
+      newPassword: z.string().min(MIN_PASSWORD_LENGTH)
     });
     const { token, newPassword } = schema.parse(req.body);
 
@@ -335,11 +465,26 @@ app.post('/api/auth/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'Invalid or expired reset token', requestId: req.id });
     }
 
+    // The link carries the token version that was current when it was issued,
+    // and the reset below raises that version. So the same link stops working
+    // the moment it is used, and a link issued before an earlier reset is
+    // already dead — a reset token is single use without needing a table to
+    // remember which ones were spent.
+    const user = await db.getUser(decoded.userId);
+    if (!user || typeof decoded.tv !== 'number' || (user.token_version || 0) !== decoded.tv) {
+      return res.status(400).json({ error: 'Invalid or expired reset token', requestId: req.id });
+    }
+
     const passwordHash = await auth.hashPassword(newPassword);
     const updated = await db.updateUserPasswordHash(decoded.userId, passwordHash);
     if (!updated) {
       return res.status(404).json({ error: 'User not found', requestId: req.id });
     }
+
+    // Whoever set this password holds the account from here. Sessions opened
+    // before this moment are cut — including one an attacker was sitting on,
+    // which is the entire reason a person resets their password.
+    await db.bumpTokenVersion(decoded.userId);
 
     return res.json({ status: 'ok' });
   } catch (error) {
@@ -351,6 +496,55 @@ app.post('/api/auth/reset-password', async (req, res) => {
 });
 
 // ========== USER PREFERENCES ==========
+
+/**
+ * DELETE /api/users/me
+ *
+ * Deleting an account is irreversible and takes a person's health history with
+ * it, so it asks for the password again rather than accepting a session that
+ * might have been left open on a shared machine.
+ *
+ * The user row is the anchor: every one of the eleven tables holding their data
+ * references it with ON DELETE CASCADE, so removing it removes the rest in the
+ * same statement rather than depending on eleven deletes all succeeding.
+ */
+app.delete('/api/users/me', auth.authMiddleware, async (req, res) => {
+  try {
+    const schema = z.object({ password: z.string().min(1) });
+    const { password } = schema.parse(req.body);
+
+    const user = await db.getUser(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found', requestId: req.id });
+    }
+
+    const ok = await auth.comparePassword(password, user.password_hash);
+    if (!ok) {
+      return res.status(401).json({ error: 'Invalid password', requestId: req.id });
+    }
+
+    await db.deleteUser(user.id);
+
+    // No identifying detail in the log line. The point of the request was to
+    // stop holding this person's data.
+    console.info('[users] account deleted');
+
+    return res.json({
+      status: 'ok',
+      message: 'Your account and its data have been deleted.',
+      // Said plainly rather than left for someone to discover: inbound
+      // WhatsApp messages are stored against a phone number, not an account,
+      // so they are not reached by this delete. Clearing them needs its own
+      // retention policy.
+      note: 'WhatsApp conversation history is held separately and is not covered by this deletion.'
+    });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Password is required to delete an account', requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Account deletion failed', details: safeErrorDetails(error), requestId: req.id });
+  }
+});
 
 /**
  * GET /api/users/me/preferences
@@ -1050,8 +1244,6 @@ app.get('/api/recipes/:id/share', auth.authMiddleware, (req, res) => {
 
 // ========== MEAL PLAN ENDPOINTS ==========
 
-const mealPlans = [];
-
 function parseISODate(dateStr) {
   const d = new Date(dateStr);
   if (Number.isNaN(d.getTime())) return null;
@@ -1091,34 +1283,63 @@ function daysBetweenUTC(start, end) {
 /**
  * GET /api/meal-plans
  */
-app.get('/api/meal-plans', auth.authMiddleware, (req, res) => {
-  const userId = req.user.userId;
-  res.json(mealPlans.filter(p => p.user_id === userId));
+app.get('/api/meal-plans', auth.authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const plans = await db.getMealPlans(userId, {
+      start: req.query.start || null,
+      end: req.query.end || null
+    });
+    return res.json(plans);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to get meal plans', details: safeErrorDetails(error), requestId: req.id });
+  }
 });
 
 /**
  * POST /api/meal-plans
  */
-app.post('/api/meal-plans', auth.authMiddleware, (req, res) => {
-  const { recipeId, date, mealType } = req.body;
-  const userId = req.user.userId;
-  const plan = {
-    id: generateId(),
-    user_id: userId,
-    recipe_id: recipeId,
-    date,
-    meal_type: mealType,
-    completed: false
-  };
-  mealPlans.push(plan);
-  res.status(201).json(plan);
+app.post('/api/meal-plans', auth.authMiddleware, async (req, res) => {
+  try {
+    const schema = z.object({
+      recipeId: z.string().min(1),
+      date: z.string().min(1),
+      mealType: z.string().min(1)
+    });
+    const { recipeId, date, mealType } = schema.parse(req.body);
+
+    if (!parseISODate(date)) {
+      return res.status(400).json({ error: 'Invalid date', requestId: req.id });
+    }
+    if (!recipes.some((recipe) => recipe.id === recipeId)) {
+      return res.status(400).json({ error: 'Unknown recipe', requestId: req.id });
+    }
+
+    const { created, skipped } = await db.createMealPlans(req.user.userId, [
+      { recipe_id: recipeId, date, meal_type: mealType }
+    ]);
+
+    if (skipped) {
+      return res.status(409).json({
+        error: 'A meal is already planned for that slot',
+        requestId: req.id
+      });
+    }
+
+    return res.status(201).json(created[0]);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to create meal plan', details: safeErrorDetails(error), requestId: req.id });
+  }
 });
 
 /**
  * POST /api/meal-plans/generate
  * Auto-generate meal plans for a date range.
  */
-app.post('/api/meal-plans/generate', auth.authMiddleware, (req, res) => {
+app.post('/api/meal-plans/generate', auth.authMiddleware, async (req, res) => {
   const userId = req.user.userId;
 
   const schema = z.object({
@@ -1158,47 +1379,43 @@ app.post('/api/meal-plans/generate', auth.authMiddleware, (req, res) => {
     return res.status(400).json({ error: 'Date range too large (max 31 days)', requestId: req.id });
   }
 
-  const created = [];
-  let skipped = 0;
+  const rangeStart = formatDateYYYYMMDD(startDate);
+  const rangeEnd = formatDateYYYYMMDD(endDate);
+
   let deleted = 0;
+  let created = [];
+  let skipped = 0;
 
-  if (overwrite) {
-    for (let i = mealPlans.length - 1; i >= 0; i -= 1) {
-      const p = mealPlans[i];
-      if (p.user_id !== userId) continue;
-      if (!isDateInRange(p.date, startDate, endDate)) continue;
-      if (!mealTypes.includes(p.meal_type)) continue;
-      mealPlans.splice(i, 1);
-      deleted += 1;
+  try {
+    if (overwrite) {
+      deleted = await db.deleteMealPlansInRange(userId, {
+        start: rangeStart,
+        end: rangeEnd,
+        mealTypes
+      });
     }
-  }
 
-  for (let dayOffset = 0; dayOffset <= rangeDays; dayOffset += 1) {
-    const date = formatDateYYYYMMDD(addDaysUTC(startDate, dayOffset));
-    for (const mealType of mealTypes) {
-      const exists = mealPlans.some(p => p.user_id === userId && p.date === date && p.meal_type === mealType);
-      if (exists) {
-        skipped += 1;
-        continue;
+    const wanted = [];
+    for (let dayOffset = 0; dayOffset <= rangeDays; dayOffset += 1) {
+      const date = formatDateYYYYMMDD(addDaysUTC(startDate, dayOffset));
+      for (const mealType of mealTypes) {
+        const recipe = recipes[Math.floor(Math.random() * recipes.length)];
+        if (!recipe) {
+          skipped += 1;
+          continue;
+        }
+        wanted.push({ recipe_id: recipe.id, date, meal_type: mealType });
       }
-
-      const recipe = recipes[Math.floor(Math.random() * recipes.length)];
-      if (!recipe) {
-        skipped += 1;
-        continue;
-      }
-
-      const plan = {
-        id: generateId(),
-        user_id: userId,
-        recipe_id: recipe.id,
-        date,
-        meal_type: mealType,
-        completed: false
-      };
-      mealPlans.push(plan);
-      created.push(plan);
     }
+
+    // Slots that are already planned come back as skips. The unique
+    // constraint decides, rather than a read followed by a write that another
+    // request could slip between.
+    const result = await db.createMealPlans(userId, wanted);
+    created = result.created;
+    skipped += result.skipped;
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to generate meal plans', details: safeErrorDetails(error), requestId: req.id });
   }
 
   return res.status(201).json({
@@ -1216,34 +1433,60 @@ app.post('/api/meal-plans/generate', auth.authMiddleware, (req, res) => {
 /**
  * PUT /api/meal-plans/:id
  */
-app.put('/api/meal-plans/:id', auth.authMiddleware, (req, res) => {
-  const userId = req.user.userId;
-  const plan = mealPlans.find(p => p.id === req.params.id && p.user_id === userId);
-  if (!plan) {
-    return res.status(404).json({ error: 'Meal plan not found' });
+app.put('/api/meal-plans/:id', auth.authMiddleware, async (req, res) => {
+  try {
+    const schema = z.object({
+      completed: z.boolean().optional(),
+      recipeId: z.string().min(1).optional()
+    });
+    const parsed = schema.parse(req.body);
+
+    const changes = {};
+    if (parsed.completed !== undefined) changes.completed = parsed.completed;
+    if (parsed.recipeId !== undefined) {
+      if (!recipes.some((recipe) => recipe.id === parsed.recipeId)) {
+        return res.status(400).json({ error: 'Unknown recipe', requestId: req.id });
+      }
+      changes.recipe_id = parsed.recipeId;
+    }
+
+    if (!Object.keys(changes).length) {
+      return res.status(400).json({ error: 'Nothing to update', requestId: req.id });
+    }
+
+    const plan = await db.updateMealPlan(req.params.id, req.user.userId, changes);
+    if (!plan) {
+      return res.status(404).json({ error: 'Meal plan not found', requestId: req.id });
+    }
+    return res.json(plan);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to update meal plan', details: safeErrorDetails(error), requestId: req.id });
   }
-  Object.assign(plan, req.body);
-  res.json(plan);
 });
 
 /**
  * DELETE /api/meal-plans/:id
  */
-app.delete('/api/meal-plans/:id', auth.authMiddleware, (req, res) => {
-  const userId = req.user.userId;
-  const index = mealPlans.findIndex(p => p.id === req.params.id && p.user_id === userId);
-  if (index === -1) {
-    return res.status(404).json({ error: 'Meal plan not found' });
+app.delete('/api/meal-plans/:id', auth.authMiddleware, async (req, res) => {
+  try {
+    const deleted = await db.deleteMealPlan(req.params.id, req.user.userId);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Meal plan not found', requestId: req.id });
+    }
+    return res.json(deleted);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to delete meal plan', details: safeErrorDetails(error), requestId: req.id });
   }
-  const deleted = mealPlans.splice(index, 1);
-  res.json(deleted[0]);
 });
 
 /**
  * GET /api/grocery-list
  * Build a grocery list from the user's meal plans (optional date range)
  */
-app.get('/api/grocery-list', auth.authMiddleware, (req, res) => {
+app.get('/api/grocery-list', auth.authMiddleware, async (req, res) => {
   const userId = req.user.userId;
 
   const querySchema = z.object({
@@ -1275,31 +1518,58 @@ app.get('/api/grocery-list', auth.authMiddleware, (req, res) => {
     return res.status(400).json({ error: 'Invalid query', requestId: req.id });
   }
 
-  const plans = mealPlans
-    .filter(p => p.user_id === userId)
-    .filter(p => {
-      if (!startDate && !endDate) return true;
-      return isDateInRange(p.date, startDate, endDate);
+  let plans;
+  try {
+    plans = await db.getMealPlans(userId, {
+      start: startDate ? formatDateYYYYMMDD(startDate) : null,
+      end: endDate ? formatDateYYYYMMDD(endDate) : null
     });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to build grocery list', details: safeErrorDetails(error), requestId: req.id });
+  }
 
-  const counts = new Map();
+  // Ingredients in data/recipes.json are objects — { item, amount, category } —
+  // and the previous String(ingredient) turned every one of them into the
+  // literal text "[object Object]", so the shopping list a paying customer got
+  // was one meaningless row. Older entries are plain strings, so both shapes
+  // are handled.
+  const byItem = new Map();
   const recipeIds = new Set();
 
   for (const plan of plans) {
     recipeIds.add(plan.recipe_id);
     const recipe = recipes.find(r => r.id === plan.recipe_id);
     if (!recipe || !Array.isArray(recipe.ingredients)) continue;
+
     for (const ingredient of recipe.ingredients) {
-      const key = String(ingredient).trim().toLowerCase();
-      if (!key) continue;
-      const prev = counts.get(key) || 0;
-      counts.set(key, prev + 1);
+      const isObject = ingredient && typeof ingredient === 'object';
+      const name = String(isObject ? ingredient.item ?? '' : ingredient ?? '').trim();
+      if (!name) continue;
+
+      const key = name.toLowerCase();
+      const entry = byItem.get(key) || {
+        item: name,
+        category: isObject ? ingredient.category ?? null : null,
+        count: 0,
+        amounts: []
+      };
+
+      entry.count += 1;
+
+      // Quantities are free text in Hebrew — "5 בינוניות, או קופסה 400 גרם
+      // מרוסקות". Adding those together would mean inventing a number, so each
+      // recipe's requirement is listed as written and the shopper adds up. A
+      // structured quantity needs structured source data, which is its own job.
+      const amount = isObject && ingredient.amount ? String(ingredient.amount).trim() : null;
+      if (amount && !entry.amounts.includes(amount)) entry.amounts.push(amount);
+
+      byItem.set(key, entry);
     }
   }
 
-  const items = [...counts.entries()]
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .map(([item, count]) => ({ item, count }));
+  const items = [...byItem.values()].sort(
+    (a, b) => b.count - a.count || a.item.localeCompare(b.item, 'he')
+  );
 
   return res.json({
     start: req.query.start || null,
@@ -3574,9 +3844,17 @@ app.use(errorHandler);
 
 // ========== SERVER START ==========
 
-app.listen(PORT, () => {
-  console.log(`🚀 YAHEALTHY server running on port ${PORT}`);
-  console.log(`📚 API docs: http://localhost:${PORT}/api/docs`);
-  console.log(`🔐 Authentication enabled with JWT`);
-  console.log(`💾 Database: ${process.env.SUPABASE_URL ? 'Supabase' : 'In-memory (development)'}`);
-});
+// On Vercel, requests reach this app through the exported handler below, not
+// through a bound port -- app.listen() would just occupy a port nothing
+// connects to. Skip it there; everywhere else (local dev, a plain VM) it's
+// how the server actually starts.
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`🚀 YAHEALTHY server running on port ${PORT}`);
+    console.log(`📚 API docs: http://localhost:${PORT}/api/docs`);
+    console.log(`🔐 Authentication enabled with JWT`);
+    console.log(`💾 Database: ${process.env.SUPABASE_URL ? 'Supabase' : 'In-memory (development)'}`);
+  });
+}
+
+module.exports = app;
