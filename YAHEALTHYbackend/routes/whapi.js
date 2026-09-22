@@ -89,55 +89,83 @@ async function handleIncomingMessage(message) {
   const phone = message.chat_id || message.from;
   if (!phone) return;
 
-  const existingConversation = await db.getWhapiConversation(phone);
-  const isNewConversation = !existingConversation;
-  const conversation = existingConversation || (await db.upsertWhapiConversation(phone, 'adi'));
+  // Everything below can throw for reasons the customer has no way to see:
+  // a DB error, the Claude call failing (rate limit/timeout/5xx), or WHAPI
+  // itself rejecting the send. Today that's three separate confirmed
+  // failure modes in this exact spot, and each one used to mean the customer
+  // texts in and simply never hears back, with only a console.error to show
+  // for it. Catch anything unhandled and at least try to say *something*,
+  // then rethrow so the existing per-message logging in the caller is
+  // unchanged.
+  try {
+    const existingConversation = await db.getWhapiConversation(phone);
+    const isNewConversation = !existingConversation;
+    const conversation = existingConversation || (await db.upsertWhapiConversation(phone, 'adi'));
 
-  const rawText = (message.text?.body || message.image?.caption || '').trim();
-  const switchTo = SWITCH_COMMANDS[rawText.toLowerCase()];
-  if (switchTo) {
-    await db.upsertWhapiConversation(phone, switchTo);
-    await sendWithTyping(
-      phone,
-      switchTo === 'chef' ? 'עברנו לשף. מה מבשלים היום?' : 'עברנו לעדי. שלחו תמונת תווית או שאלת מזון.'
-    );
-    return;
-  }
-
-  if (isNewConversation) {
-    await sendWithTyping(phone, WELCOME);
-  }
-
-  let imageBase64 = null;
-  let imageMediaType = null;
-  if (message.type === 'image' && message.image?.link) {
-    try {
-      const media = await whapi.downloadMediaAsBase64(message.image.link);
-      imageBase64 = media.base64;
-      imageMediaType = media.mimeType;
-    } catch (err) {
-      console.error('[whapi] failed to download image:', err);
-      await whapi.sendText(phone, 'לא הצלחתי לפתוח את התמונה — אפשר לשלוח שוב?');
+    const rawText = (message.text?.body || message.image?.caption || '').trim();
+    const switchTo = SWITCH_COMMANDS[rawText.toLowerCase()];
+    if (switchTo) {
+      await db.upsertWhapiConversation(phone, switchTo);
+      await sendWithTyping(
+        phone,
+        switchTo === 'chef' ? 'עברנו לשף. מה מבשלים היום?' : 'עברנו לעדי. שלחו תמונת תווית או שאלת מזון.'
+      );
       return;
     }
+
+    if (isNewConversation) {
+      await sendWithTyping(phone, WELCOME);
+    }
+
+    let imageBase64 = null;
+    let imageMediaType = null;
+    if (message.type === 'image' && message.image?.link) {
+      try {
+        const media = await whapi.downloadMediaAsBase64(message.image.link);
+        imageBase64 = media.base64;
+        imageMediaType = media.mimeType;
+      } catch (err) {
+        console.error('[whapi] failed to download image:', err);
+        await whapi.sendText(phone, 'לא הצלחתי לפתוח את התמונה — אפשר לשלוח שוב?');
+        return;
+      }
+    }
+
+    if (!rawText && !imageBase64) return; // nothing usable to respond to
+
+    await whapi.sendTyping(phone);
+
+    const history = await db.getRecentWhapiMessages(phone, 20);
+    const reply = await brain.generateReply({
+      activeBot: conversation.active_bot,
+      history,
+      userText: rawText,
+      imageBase64,
+      imageMediaType
+    });
+
+    await db.logWhapiMessage(phone, 'user', rawText || '[תמונה]');
+    await db.logWhapiMessage(phone, 'assistant', reply);
+    await sendReplyInChunks(phone, reply);
+  } catch (err) {
+    await sendFallbackReply(phone);
+    throw err;
   }
+}
 
-  if (!rawText && !imageBase64) return; // nothing usable to respond to
-
-  await whapi.sendTyping(phone);
-
-  const history = await db.getRecentWhapiMessages(phone, 20);
-  const reply = await brain.generateReply({
-    activeBot: conversation.active_bot,
-    history,
-    userText: rawText,
-    imageBase64,
-    imageMediaType
-  });
-
-  await db.logWhapiMessage(phone, 'user', rawText || '[תמונה]');
-  await db.logWhapiMessage(phone, 'assistant', reply);
-  await sendReplyInChunks(phone, reply);
+// Last-resort, deliberately generic reply for any failure caught above --
+// on purpose the same message regardless of which step failed (AI call vs.
+// delivery vs. a chunk mid-sendReplyInChunks): the customer's experience is
+// identical silence either way, and guessing at a cause here risks leaking
+// internals. Best-effort only: if this send also fails (plausibly because
+// WHAPI itself is the thing that's down), log and move on -- the caller
+// above still logs the original error.
+async function sendFallbackReply(phone) {
+  try {
+    await whapi.sendText(phone, 'משהו השתבש, נסה שוב בעוד רגע.');
+  } catch (fallbackErr) {
+    console.error('[whapi] fallback reply also failed:', phone, fallbackErr);
+  }
 }
 
 module.exports = router;

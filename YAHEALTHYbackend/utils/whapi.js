@@ -11,20 +11,39 @@ async function whapiFetch(path, options = {}) {
   if (!WHAPI_TOKEN) {
     throw new Error('WHAPI_TOKEN is not set -- cannot talk to WHAPI.');
   }
-  const res = await fetch(`${WHAPI_API_URL}${path}`, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${WHAPI_TOKEN}`,
-      'Content-Type': 'application/json',
-      ...(options.headers || {})
+
+  const attemptOnce = async () => {
+    const res = await fetch(`${WHAPI_API_URL}${path}`, {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${WHAPI_TOKEN}`,
+        'Content-Type': 'application/json',
+        ...(options.headers || {})
+      }
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const message = data?.error?.message || res.statusText;
+      const err = new Error(`WHAPI ${path} failed (${res.status}): ${message}`);
+      err.status = res.status;
+      throw err;
     }
-  });
-  const data = await res.json().catch(() => null);
-  if (!res.ok) {
-    const message = data?.error?.message || res.statusText;
-    throw new Error(`WHAPI ${path} failed (${res.status}): ${message}`);
+    return data;
+  };
+
+  // One retry with a short backoff on a transient failure: a network-level
+  // error (fetch itself threw -- DNS, timeout, connection reset) or a 5xx
+  // from WHAPI. Not for 4xx -- a bad request or bad auth fails the exact
+  // same way again immediately, so retrying it only adds latency. This bot's
+  // whole pitch is feeling like texting a real person, so one dropped
+  // connection shouldn't be the difference between a reply and silence.
+  try {
+    return await attemptOnce();
+  } catch (err) {
+    if (err.status && err.status < 500) throw err;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    return attemptOnce();
   }
-  return data;
 }
 
 async function sendText(to, body) {
