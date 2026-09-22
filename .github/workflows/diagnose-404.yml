@@ -1,88 +1,48 @@
-name: One-off - Diagnose production 404
+name: One-off - Fix Vercel project Root Directory
 
-# v2: the first version's project-info call used a `teamId` param that
-# doesn't apply to a personal-scope account and got back an unhelpful `{}` --
-# this version drops it, prints HTTP status codes, and (this is the part
-# that actually matters) lists the project's recent deployments with their
-# source and target, to check a specific theory: our own CI's deploy at
-# 15:49:21 UTC logged "Aliased https://yahealthy.vercel.app" and that exact
-# per-deploy URL still returns 200 right now -- so the deployment itself is
-# fine and the alias briefly worked. Something un-aliased the custom domain
-# afterward with no new deploy.yml run in between. The leading suspect is
-# Vercel's own Git integration deploying independently of this repo's CI
-# (using the dashboard's Root Directory setting, not --cwd) on the very next
-# push and re-claiming the production alias with a broken build. No secret
-# values are printed. Delete once the cause is found.
+# ROOT CAUSE CONFIRMED (see git history / PR discussion): this Vercel
+# project has its OWN native GitHub integration (project.link.type ==
+# "github", productionBranch "main"), completely separate from this repo's
+# deploy.yml. It auto-deploys AND auto-promotes to production on every push
+# to main, using the dashboard's Root Directory setting -- which the API
+# shows as null (repo root). A repo-root build has no api/ directory, so
+# every one of those deployments 404s on every route, and because it's a
+# `source: "git"` deployment that lands after our own `source: "cli"`
+# deploy (which correctly uses --cwd YAHEALTHYbackend), it wins the
+# production alias race and silently reverts every fix. Confirmed via
+# `GET /v6/deployments?projectId=...&target=production`: the git-sourced
+# deployment for commit 06b91fb (which touched nothing under
+# YAHEALTHYbackend/) still redeployed and re-aliased yahealthy.vercel.app,
+# 404ing it, less than a minute after our CI's deploy had correctly aliased
+# it with a working build.
+#
+# Fix: set the project's rootDirectory to YAHEALTHYbackend via the Vercel
+# API, so BOTH deploy paths (Vercel's own git integration and this repo's
+# CI) build from the same place and produce the same working output. This
+# changes a project setting only -- it does not itself deploy anything.
 on:
   workflow_dispatch: {}
 
 jobs:
-  diagnose:
+  fix:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Project info (no teamId -- this looks like a personal-scope account)
+      - name: Show current rootDirectory (before)
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          curl -s -w "\nHTTP %{http_code}\n" -H "Authorization: Bearer $VERCEL_TOKEN" \
+          curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
             "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID" \
-            | node -e "
-              let d='';
-              process.stdin.on('data', c => d += c);
-              process.stdin.on('end', () => {
-                const parts = d.split(/\nHTTP (\d+)\n$/);
-                let body = parts[0];
-                try { body = JSON.parse(body); } catch (e) {}
-                if (body && body.id) {
-                  console.log(JSON.stringify({
-                    id: body.id, name: body.name, rootDirectory: body.rootDirectory,
-                    link: body.link && { type: body.link.type, repo: body.link.repo, productionBranch: body.link.productionBranch },
-                    targets: body.targets && Object.keys(body.targets)
-                  }, null, 2));
-                } else {
-                  console.log('non-project response:', JSON.stringify(body));
-                }
-                console.log('HTTP', parts[1]);
-              });
-            "
+            | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{const p=JSON.parse(d);console.log('before rootDirectory:', p.rootDirectory)})"
 
-      - name: Recent deployments for this project (production target)
+      - name: Set rootDirectory to YAHEALTHYbackend
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          curl -s -w "\nHTTP %{http_code}\n" -H "Authorization: Bearer $VERCEL_TOKEN" \
-            "https://api.vercel.com/v6/deployments?projectId=$VERCEL_PROJECT_ID&target=production&limit=8" \
-            | node -e "
-              let d='';
-              process.stdin.on('data', c => d += c);
-              process.stdin.on('end', () => {
-                const parts = d.split(/\nHTTP (\d+)\n$/);
-                let body = parts[0];
-                try { body = JSON.parse(body); } catch (e) {}
-                if (body && body.deployments) {
-                  for (const dep of body.deployments) {
-                    console.log(JSON.stringify({
-                      url: dep.url,
-                      createdAt: new Date(dep.createdAt || dep.created).toISOString(),
-                      readyState: dep.readyState || dep.state,
-                      source: dep.source,
-                      creator: dep.creator && dep.creator.username,
-                      meta_githubCommitSha: dep.meta && dep.meta.githubCommitSha
-                    }));
-                  }
-                } else {
-                  console.log('non-list response:', JSON.stringify(body));
-                }
-                console.log('HTTP', parts[1]);
-              });
-            "
-
-      - name: Domain config for yahealthy.vercel.app
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          curl -s -w "\nHTTP %{http_code}\n" -H "Authorization: Bearer $VERCEL_TOKEN" \
-            "https://api.vercel.com/v9/projects/yahealthy/domains/yahealthy.vercel.app"
+          curl -s -X PATCH -H "Authorization: Bearer $VERCEL_TOKEN" -H "Content-Type: application/json" \
+            "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID" \
+            -d '{"rootDirectory":"YAHEALTHYbackend"}' \
+            | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{const p=JSON.parse(d);console.log('after rootDirectory:', p.rootDirectory)})"
