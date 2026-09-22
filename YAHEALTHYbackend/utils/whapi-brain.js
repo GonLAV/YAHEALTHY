@@ -50,56 +50,20 @@ const client = new Anthropic({
     : undefined
 });
 
-/**
- * @param {'adi'|'chef'} activeBot
- * @param {{role: 'user'|'assistant', content: string}[]} history - oldest first
- * @param {string} userText
- * @param {string|null} imageBase64
- * @param {string|null} imageMediaType
- */
-async function generateReply({ activeBot, history, userText, imageBase64, imageMediaType }) {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    throw new Error('ANTHROPIC_API_KEY is not set -- cannot generate a reply.');
-  }
-
-  const userContent = [];
-  if (imageBase64) {
-    userContent.push({
-      type: 'image',
-      source: { type: 'base64', media_type: imageMediaType || 'image/jpeg', data: imageBase64 }
-    });
-  }
-  userContent.push({ type: 'text', text: userText || '(הלקוח שלח תמונה בלי טקסט)' });
-
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: 1024,
-    system: SYSTEM_PROMPTS[activeBot],
-    messages: [
-      ...history.map(m => ({ role: m.role, content: m.content })),
-      { role: 'user', content: userContent }
-    ]
-  });
-
-  return response.content
-    .filter(block => block.type === 'text')
-    .map(block => block.text)
-    .join('\n')
-    .trim();
-}
-
-// --- Tool-use mechanism (not wired into the live bot) -----------------------
-//
-// generateReply() above is untouched by everything below: no shared state,
-// no branching added to it. This is phase 1, proving the mechanism works --
-// the live prompts (docs/bot/nuri-bot-prompt.md and the chef prompt) still
-// explicitly forbid Adi from giving exact numeric nutrition targets, and
-// deciding to let the model call these calculators for real customers is a
-// separate, deliberate step nobody has taken yet. generateReplyWithTools is
-// exported alongside generateReply so a caller has to opt in by name.
+// --- Tools available to generateReply (not enabled on the live path) -------
 //
 // Anthropic tool specs (Messages API tool-use format). snake_case input to
 // match how models name JSON fields; mapped to the calculators' camelCase.
+//
+// generateReply() below takes a `tools` list and defaults it to [] --
+// routes/whapi.js, the only real caller, never passes one, so the live bot
+// sends none of this to the model today. The live prompts (docs/bot/
+// nuri-bot-prompt.md and the chef prompt) still explicitly forbid Adi from
+// giving exact numeric nutrition targets. Wiring calculate_daily_target (or
+// any tool here) into what a real customer sees is a separate, deliberate
+// product decision nobody has made yet -- not a side effect of this file's
+// structure. generateReplyWithTools, below, is the only thing that passes
+// this list, so a caller has to opt in by name.
 const TOOLS = [
   {
     name: 'calculate_daily_target',
@@ -180,24 +144,45 @@ function executeTool(name, input) {
 const MAX_TOOL_ROUNDS = 5;
 
 /**
- * Same contract and prompts as generateReply, but attaches TOOLS so the
- * model calls the real calculators instead of ever guessing a number.
- * Standard Anthropic tool-use loop: call the model; while stop_reason is
- * 'tool_use', execute every tool_use block (catching thrown errors into an
- * is_error tool_result so the model can recover), send all results back in
- * one user turn, and call again -- capped at MAX_TOOL_ROUNDS model calls, so
- * a model stuck calling tools returns whatever text it has instead of
- * looping forever.
+ * Turns one incoming message into a reply. One code path for both the live
+ * bot and the tool-use experiment -- previously these were two separate,
+ * near-duplicate implementations (generateReply and generateReplyWithTools),
+ * which meant a fix to one (message shape, error handling, model config)
+ * had to be remembered a second time for the other. The only thing that
+ * changes behavior now is `tools`:
  *
- * NOT called anywhere yet -- see the section header above.
+ *   - tools: [] (the default -- and what routes/whapi.js always passes,
+ *     since it never sets `tools`) sends no `tools` field to the API at
+ *     all, identical to the old standalone generateReply(). With nothing
+ *     to call, the model can never return stop_reason: 'tool_use', so the
+ *     loop below always runs exactly once and returns -- this is a
+ *     structural guarantee of the Messages API (an empty/absent tool list
+ *     cannot produce a tool_use response), not behavior that depends on
+ *     the prompt or on what the model chooses to do. The live customer
+ *     path is unchanged by this file being unified.
+ *   - tools: TOOLS (via generateReplyWithTools, below) runs the real
+ *     tool-use loop: call the model; while stop_reason is 'tool_use',
+ *     execute every tool_use block (catching thrown errors into an
+ *     is_error tool_result so the model can recover), send all results
+ *     back in one user turn, and call again -- capped at MAX_TOOL_ROUNDS
+ *     model calls, so a model stuck calling tools returns whatever text it
+ *     has instead of looping forever.
+ *
+ * `max_tokens` is 4096 with tools, 1024 without -- verified empirically
+ * (see the scratch tool-use test) that on this model, a tool round can
+ * spend part of the budget on adaptive thinking before it reaches a
+ * tool_use or text block, so 1024 could come back empty on a longer system
+ * prompt. Each path keeps exactly its historical value, so neither one's
+ * behavior changes because of the merge.
  *
  * @param {'adi'|'chef'} activeBot
  * @param {{role: 'user'|'assistant', content: string}[]} history - oldest first
  * @param {string} userText
  * @param {string|null} imageBase64
  * @param {string|null} imageMediaType
+ * @param {object[]} [tools] - Anthropic tool specs to offer the model; defaults to none.
  */
-async function generateReplyWithTools({ activeBot, history, userText, imageBase64, imageMediaType }) {
+async function generateReply({ activeBot, history, userText, imageBase64, imageMediaType, tools = [] }) {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error('ANTHROPIC_API_KEY is not set -- cannot generate a reply.');
   }
@@ -216,18 +201,17 @@ async function generateReplyWithTools({ activeBot, history, userText, imageBase6
     { role: 'user', content: userContent }
   ];
 
+  const maxTokens = tools.length ? 4096 : 1024;
+
   let response;
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     response = await client.messages.create({
       model: MODEL,
-      // Higher than generateReply's 1024: verified empirically (see the
-      // scratch tool-use test) that on this model, a tool round can spend
-      // part of the budget on adaptive thinking before it reaches a
-      // tool_use or text block, so 1024 could come back empty on a longer
-      // system prompt. Only affects this not-yet-activated path.
-      max_tokens: 4096,
+      max_tokens: maxTokens,
       system: SYSTEM_PROMPTS[activeBot],
-      tools: TOOLS,
+      // Omitted entirely (not sent as []) when there are no tools, so the
+      // request is byte-for-byte what the old standalone generateReply sent.
+      ...(tools.length ? { tools } : {}),
       messages
     });
 
@@ -263,10 +247,25 @@ async function generateReplyWithTools({ activeBot, history, userText, imageBase6
   // Cap reached while still tool_use: response.content has no text blocks,
   // so this returns '' rather than loop forever -- same extraction either way.
   return response.content
-    .filter(block => block.type === 'text')
-    .map(block => block.text)
+    .filter((block) => block.type === 'text')
+    .map((block) => block.text)
     .join('\n')
     .trim();
+}
+
+/**
+ * Convenience wrapper: generateReply with every calculator tool attached.
+ * NOT called anywhere in the live path today -- routes/whapi.js calls
+ * generateReply() directly, which defaults `tools` to [].
+ *
+ * @param {'adi'|'chef'} activeBot
+ * @param {{role: 'user'|'assistant', content: string}[]} history - oldest first
+ * @param {string} userText
+ * @param {string|null} imageBase64
+ * @param {string|null} imageMediaType
+ */
+function generateReplyWithTools({ activeBot, history, userText, imageBase64, imageMediaType }) {
+  return generateReply({ activeBot, history, userText, imageBase64, imageMediaType, tools: TOOLS });
 }
 
 module.exports = { generateReply, generateReplyWithTools };
