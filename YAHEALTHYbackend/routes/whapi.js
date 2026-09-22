@@ -155,7 +155,13 @@ async function handleIncomingMessage(message) {
     await whapi.sendTyping(phone);
 
     const history = await db.getRecentWhapiMessages(phone, 20);
-    const reply = await brain.generateReply({
+    // Adi gets the nutrition-calculator tools (calculate_daily_target,
+    // calculate_meal_nutrition, list_known_foods) so a calorie target or
+    // gram-level menu comes from real arithmetic, never a guess -- see
+    // nuri-bot-prompt.md's "מסע 0" for how she's instructed to use them.
+    // Yoni (the chef) has no use for them and keeps the plain path.
+    const generate = conversation.active_bot === 'adi' ? brain.generateReplyWithTools : brain.generateReply;
+    const reply = await generate({
       activeBot: conversation.active_bot,
       history,
       userText: rawText,
