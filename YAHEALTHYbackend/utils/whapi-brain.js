@@ -1,5 +1,5 @@
 /**
- * Loads Nuri's and the chef's prompts and turns a WhatsApp message into a
+ * Loads Adi's and the chef's prompts and turns a WhatsApp message into a
  * reply. The prompts are the actual safety layer (allergy handling, the
  * health boundary, "don't invent"); this file is transport, not policy.
  */
@@ -11,8 +11,14 @@ const Anthropic = require('@anthropic-ai/sdk');
 // docs/bot/, which stays the source of truth for editing) because Vercel's
 // project root is set to YAHEALTHYbackend/ -- anything outside it isn't part
 // of the deploy bundle.
+//
+// The 'adi' key is the persona identifier (matches whapi_conversations
+// .active_bot -- see migrations/003). The .md filename under it was left as
+// nuri-bot-prompt.md: a file path has no runtime meaning the way the key
+// does, and renaming it is pure churn for the same reason evals/ still says
+// "nuri" in its own file names.
 const PROMPT_PATHS = {
-  nuri: path.join(__dirname, '..', 'docs', 'bot', 'nuri-bot-prompt.md'),
+  adi: path.join(__dirname, '..', 'docs', 'bot', 'nuri-bot-prompt.md'),
   chef: path.join(__dirname, '..', 'docs', 'bot', 'chef-bot-prompt.md')
 };
 
@@ -27,7 +33,7 @@ function loadPrompt(bot) {
 }
 
 const SYSTEM_PROMPTS = {
-  nuri: loadPrompt('nuri'),
+  adi: loadPrompt('adi'),
   chef: loadPrompt('chef')
 };
 
@@ -43,7 +49,7 @@ const client = new Anthropic({
 });
 
 /**
- * @param {'nuri'|'chef'} activeBot
+ * @param {'adi'|'chef'} activeBot
  * @param {{role: 'user'|'assistant', content: string}[]} history - oldest first
  * @param {string} userText
  * @param {string|null} imageBase64
