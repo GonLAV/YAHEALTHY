@@ -63,7 +63,6 @@ const memoryDb = {
   mealPlans: [],
   subscriptions: [],
   paymentEvents: [],
-  chefRequests: [],
   foods: [],
   whapiConversations: new Map(),
   whapiMessages: []
@@ -580,66 +579,6 @@ async function recordPaymentEvent(event) {
     throw error;
   }
   return { created: true };
-}
-
-/**
- * Chef requests — ADR-007. The chef is a person, so "we will have him get in
- * touch" has to be a row somebody can look at, not a sentence a bot said.
- */
-async function getOpenChefRequest(userId) {
-  if (USE_MEMORY_DB) {
-    maybeLogMemoryMode();
-    return memoryDb.chefRequests.find((row) => row.user_id === userId && row.status === 'open') || null;
-  }
-
-  const { data, error } = await supabase
-    .from('chef_requests')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('status', 'open')
-    .maybeSingle();
-
-  if (error && error.code !== 'PGRST116') throw error;
-  return data || null;
-}
-
-/**
- * Open a request, or hand back the one already open.
- *
- * Pressing the button twice must not put two conversations in front of the
- * chef, so the partial unique index decides rather than a read-then-write.
- */
-async function createChefRequest(userId, note) {
-  if (USE_MEMORY_DB) {
-    maybeLogMemoryMode();
-    const existing = await getOpenChefRequest(userId);
-    if (existing) return { request: existing, created: false };
-
-    const row = {
-      id: uuidv4(),
-      user_id: userId,
-      status: 'open',
-      note: note || null,
-      requested_at: new Date().toISOString(),
-      contacted_at: null
-    };
-    memoryDb.chefRequests.push(row);
-    return { request: row, created: true };
-  }
-
-  const { data, error } = await supabase
-    .from('chef_requests')
-    .insert([{ user_id: userId, note: note || null }])
-    .select()
-    .single();
-
-  if (error) {
-    if (error.code === '23505') {
-      return { request: await getOpenChefRequest(userId), created: false };
-    }
-    throw error;
-  }
-  return { request: data, created: true };
 }
 
 /**
@@ -1749,8 +1688,6 @@ module.exports = {
   hasEntitlement,
   createSubscription,
   recordPaymentEvent,
-  getOpenChefRequest,
-  createChefRequest,
   upsertFoods,
   searchFoods,
   getFoodById,

@@ -28,7 +28,7 @@ const checkoutRouter = express.Router();
 // or a tampered field cannot mint access to something that does not exist.
 const PLANS = {
   base: { amount: Number(process.env.PLAN_BASE_AMOUNT || 0), label: 'מסלול בסיס' },
-  chef: { amount: Number(process.env.PLAN_CHEF_AMOUNT || 0), label: 'מסלול עם שף' }
+  yoni: { amount: Number(process.env.PLAN_YONI_AMOUNT || 0), label: 'מסלול עם יוני' }
 };
 
 // PayPlus reports the outcome as a code. '000' is approved on every PayPlus
