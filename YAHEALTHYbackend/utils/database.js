@@ -1595,11 +1595,11 @@ async function saveWhatsappMessage(msg) {
 }
 
 /**
- * WHAPI BOT CONVERSATIONS (Adi + the chef) -- see migrations/001 and 003.
+ * WHAPI BOT CONVERSATIONS (Adi + Yoni) -- see migrations/001, 003 and 008.
  *
  * migrations/003 renames the stored active_bot value from 'nuri' to 'adi'
  * and updates the check constraint to match. Everything above this file
- * (routes/whapi.js, whapi-brain.js) only ever deals in 'adi'/'chef' -- but
+ * (routes/whapi.js, whapi-brain.js) only ever deals in 'adi'/'yoni' -- but
  * this file can't assume migrations/003 has actually been run against a
  * given database yet, so it normalizes at the boundary instead of
  * requiring the two to be deployed in lockstep:
@@ -1611,8 +1611,12 @@ async function saveWhatsappMessage(msg) {
  * Once migrations/003 has run, every write succeeds on the first try and
  * this fallback simply never triggers again -- nothing to clean up later.
  */
-const LEGACY_ACTIVE_BOT = { adi: 'nuri' };
-const CANONICAL_ACTIVE_BOT = { nuri: 'adi' };
+// migrations/008 renames the chef persona to 'yoni' the same way 003 renamed
+// 'nuri' to 'adi', and is handled by the same boundary mapping: code above
+// this file only ever says 'adi'/'yoni', a database that has not run 008 yet
+// still says 'chef', and neither has to wait for the other to deploy.
+const LEGACY_ACTIVE_BOT = { adi: 'nuri', yoni: 'chef' };
+const CANONICAL_ACTIVE_BOT = { nuri: 'adi', chef: 'yoni' };
 const CHECK_VIOLATION = '23514';
 
 function normalizeActiveBot(row) {

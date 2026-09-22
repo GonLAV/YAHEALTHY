@@ -18,13 +18,24 @@ const brain = require('../utils/whapi-brain');
 
 const router = express.Router();
 
-const SWITCH_COMMANDS = { 'שף': 'chef', chef: 'chef', 'עדי': 'adi', adi: 'adi' };
+// 'שף' and 'chef' still switch to Yoni on purpose. Customers were told to type
+// "שף" — by the welcome message, by earlier conversations, and by whatever they
+// have scrolled back to — and a rename here is no reason for that word to stop
+// working for them.
+const SWITCH_COMMANDS = {
+  'יוני': 'yoni',
+  yoni: 'yoni',
+  'שף': 'yoni',
+  chef: 'yoni',
+  'עדי': 'adi',
+  adi: 'adi'
+};
 
 // The one and only place an emoji is allowed -- every reply Adi herself
 // writes is plain text, enforced in the prompt (docs/bot/nuri-bot-prompt.md).
 const WELCOME = `שלום! \u{1F642} זאת עדי.
 
-שלחו תמונת תווית או כל שאלה על אוכל. רוצים את השף (מתכונים, בישול) -- כתבו "שף". לחזור אליי -- "עדי".`;
+שלחו תמונת תווית או כל שאלה על אוכל. רוצים את יוני (מתכונים, בישול) -- כתבו "יוני". לחזור אליי -- "עדי".`;
 
 // Sends `body` preceded by a typing indicator and a delay roughly matched to
 // how long it'd take a person to type that much -- makes even a single
@@ -116,7 +127,7 @@ async function handleIncomingMessage(message) {
       await db.upsertWhapiConversation(phone, switchTo);
       await sendWithTyping(
         phone,
-        switchTo === 'chef' ? 'עברנו לשף. מה מבשלים היום?' : 'עברנו לעדי. שלחו תמונת תווית או שאלת מזון.'
+        switchTo === 'yoni' ? 'עברנו ליוני. מה מבשלים היום?' : 'עברנו לעדי. שלחו תמונת תווית או שאלת מזון.'
       );
       return;
     }
@@ -177,3 +188,8 @@ async function sendFallbackReply(phone) {
 }
 
 module.exports = router;
+
+// Exposed so a test can assert which words reach which persona without
+// standing up WHAPI and Anthropic. A router is a function; hanging one
+// property off it costs nothing and keeps the mapping in one place.
+module.exports.SWITCH_COMMANDS = SWITCH_COMMANDS;

@@ -1,5 +1,5 @@
 /**
- * Loads Adi's and the chef's prompts and turns a WhatsApp message into a
+ * Loads Adi's and Yoni's prompts and turns a WhatsApp message into a
  * reply. The prompts are the actual safety layer (allergy handling, the
  * health boundary, "don't invent"); this file is transport, not policy.
  */
@@ -21,7 +21,7 @@ const { listFoods, calculateForItems } = require('./food-calculator');
 // "nuri" in its own file names.
 const PROMPT_PATHS = {
   adi: path.join(__dirname, '..', 'docs', 'bot', 'nuri-bot-prompt.md'),
-  chef: path.join(__dirname, '..', 'docs', 'bot', 'chef-bot-prompt.md')
+  yoni: path.join(__dirname, '..', 'docs', 'bot', 'chef-bot-prompt.md')
 };
 
 function loadPrompt(bot) {
@@ -36,7 +36,7 @@ function loadPrompt(bot) {
 
 const SYSTEM_PROMPTS = {
   adi: loadPrompt('adi'),
-  chef: loadPrompt('chef')
+  yoni: loadPrompt('yoni')
 };
 
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5';
@@ -51,7 +51,7 @@ const client = new Anthropic({
 });
 
 /**
- * @param {'adi'|'chef'} activeBot
+ * @param {'adi'|'yoni'} activeBot
  * @param {{role: 'user'|'assistant', content: string}[]} history - oldest first
  * @param {string} userText
  * @param {string|null} imageBase64
@@ -191,7 +191,7 @@ const MAX_TOOL_ROUNDS = 5;
  *
  * NOT called anywhere yet -- see the section header above.
  *
- * @param {'adi'|'chef'} activeBot
+ * @param {'adi'|'yoni'} activeBot
  * @param {{role: 'user'|'assistant', content: string}[]} history - oldest first
  * @param {string} userText
  * @param {string|null} imageBase64
