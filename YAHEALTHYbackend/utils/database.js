@@ -1,5 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID: uuidv4 } = require('crypto');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://your-supabase-url.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || 'your-supabase-anon-key';
@@ -36,6 +36,15 @@ const USE_MEMORY_DB = !SUPABASE_CONFIGURED;
 // Initialize Supabase client (only used when configured)
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// whapi_conversations/whapi_messages (migrations/001) have RLS enabled with no
+// policies, so SUPABASE_KEY (the anon key, per .env.example) has zero access to
+// them by design -- only a service-role key bypasses RLS. Falls back to the
+// anon client so memory-mode/dev keeps working; against a real RLS-enabled
+// table without this key set, the four whapi* functions below will fail loudly.
+const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY
+  ? createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+  : supabase;
+
 const memoryDb = {
   usersById: new Map(),
   usersByEmail: new Map(),
@@ -46,10 +55,18 @@ const memoryDb = {
   sleepLogs: [],
   fastingWindows: [],
   mealSwaps: [],
+  whatsappMessages: [],
   readinessScores: [],
   offlineLogs: [],
   foodLogs: [],
-  foodLogTemplates: []
+  foodLogTemplates: [],
+  mealPlans: [],
+  subscriptions: [],
+  paymentEvents: [],
+  chefRequests: [],
+  foods: []
+  whapiConversations: new Map(),
+  whapiMessages: []
 };
 
 function sortByCreatedAtDesc(items) {
@@ -167,6 +184,7 @@ async function createUser(email, passwordHash, name) {
       password_hash: passwordHash,
       name: name || normalizedEmail.split('@')[0] || 'user',
       preferences: null,
+      token_version: 0,
       created_at: new Date().toISOString()
     };
     memoryDb.usersById.set(userId, user);
@@ -215,6 +233,501 @@ async function updateUserPasswordHash(userId, passwordHash) {
 
   if (error && error.code !== 'PGRST116') throw error;
   return data || null;
+}
+
+/**
+ * Raise the user's token version, which invalidates every token already
+ * issued to them. This is what makes a signed JWT revocable: logout, a
+ * password change and a password reset all call it, and any token carrying
+ * the old value is refused from that moment on.
+ *
+ * Returns the new version. Throws rather than reporting success for a
+ * revocation that did not happen — a logout that silently fails is worse
+ * than one that errors.
+ */
+async function bumpTokenVersion(userId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const user = memoryDb.usersById.get(userId);
+    if (!user) return null;
+    const updated = { ...user, token_version: (user.token_version || 0) + 1 };
+    memoryDb.usersById.set(userId, updated);
+    memoryDb.usersByEmail.set(String(updated.email || '').toLowerCase(), updated);
+    return updated.token_version;
+  }
+
+  // Read-then-write only races when the same user revokes twice at once, and
+  // the loser of that race still writes a number higher than the tokens being
+  // revoked carry — so every one of them is refused either way.
+  const current = await getUser(userId);
+  if (!current) return null;
+
+  const { data, error } = await supabase
+    .from('users')
+    .update({ token_version: (current.token_version || 0) + 1 })
+    .eq('id', userId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data.token_version;
+}
+
+/**
+ * Delete a user and everything held about them.
+ *
+ * Against Supabase this is a single delete: all eleven tables that hold user
+ * data reference users(id) with ON DELETE CASCADE, so the database removes
+ * them atomically. Doing it as eleven separate deletes would leave a person
+ * half-deleted whenever one of them failed.
+ *
+ * Not covered, and deliberately not hidden: whatsapp_messages is keyed by
+ * phone number rather than by account, so it is outside this delete and needs
+ * a retention policy of its own.
+ */
+async function deleteUser(userId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const user = memoryDb.usersById.get(userId);
+    if (!user) return false;
+
+    memoryDb.usersById.delete(userId);
+    memoryDb.usersByEmail.delete(String(user.email || '').toLowerCase());
+
+    // The cascade has to be written out here, because a Map and a handful of
+    // arrays have no foreign keys to do it for us.
+    for (const [key, value] of Object.entries(memoryDb)) {
+      if (Array.isArray(value)) {
+        memoryDb[key] = value.filter((row) => row.user_id !== userId);
+      }
+    }
+    return true;
+  }
+
+  const { error } = await supabase.from('users').delete().eq('id', userId);
+  if (error) throw error;
+  return true;
+}
+
+/**
+ * Meal plans — the week a paying customer is buying.
+ *
+ * These lived in a module-level array in index.js until now, which meant every
+ * restart silently discarded the plan and the grocery list derived from it.
+ * The functions below are the whole surface the routes need, so no route has
+ * to know which store is underneath.
+ */
+async function getMealPlans(userId, { start = null, end = null } = {}) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.mealPlans.filter(
+      (plan) =>
+        plan.user_id === userId &&
+        (!start || plan.date >= start) &&
+        (!end || plan.date <= end)
+    );
+  }
+
+  let query = supabase.from('meal_plans').select('*').eq('user_id', userId);
+  if (start) query = query.gte('date', start);
+  if (end) query = query.lte('date', end);
+
+  const { data, error } = await query.order('date', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+async function getMealPlanById(planId, userId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.mealPlans.find((plan) => plan.id === planId && plan.user_id === userId) || null;
+  }
+
+  const { data, error } = await supabase
+    .from('meal_plans')
+    .select('*')
+    .eq('id', planId)
+    .eq('user_id', userId)
+    .single();
+
+  if (error && error.code !== 'PGRST116') throw error;
+  return data || null;
+}
+
+/**
+ * Insert plans, skipping any that collide with the one-per-meal-slot rule.
+ *
+ * The caller wants to know what was actually written, so a collision is
+ * reported as a skip rather than raised: generating a week over days that are
+ * already planned is ordinary use, not an error. Postgres code 23505 is the
+ * unique violation.
+ */
+async function createMealPlans(userId, entries) {
+  const created = [];
+  let skipped = 0;
+
+  for (const entry of entries) {
+    const row = {
+      id: uuidv4(),
+      user_id: userId,
+      recipe_id: entry.recipe_id,
+      date: entry.date,
+      meal_type: entry.meal_type,
+      completed: false,
+      created_at: new Date().toISOString()
+    };
+
+    if (USE_MEMORY_DB) {
+      maybeLogMemoryMode();
+      const clash = memoryDb.mealPlans.some(
+        (plan) =>
+          plan.user_id === userId && plan.date === row.date && plan.meal_type === row.meal_type
+      );
+      if (clash) {
+        skipped += 1;
+        continue;
+      }
+      memoryDb.mealPlans.push(row);
+      created.push(row);
+      continue;
+    }
+
+    const { data, error } = await supabase.from('meal_plans').insert([row]).select().single();
+
+    if (error) {
+      if (error.code === '23505') {
+        skipped += 1;
+        continue;
+      }
+      throw error;
+    }
+    created.push(data);
+  }
+
+  return { created, skipped };
+}
+
+async function deleteMealPlansInRange(userId, { start, end, mealTypes }) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const before = memoryDb.mealPlans.length;
+    memoryDb.mealPlans = memoryDb.mealPlans.filter(
+      (plan) =>
+        !(
+          plan.user_id === userId &&
+          plan.date >= start &&
+          plan.date <= end &&
+          mealTypes.includes(plan.meal_type)
+        )
+    );
+    return before - memoryDb.mealPlans.length;
+  }
+
+  const { data, error } = await supabase
+    .from('meal_plans')
+    .delete()
+    .eq('user_id', userId)
+    .gte('date', start)
+    .lte('date', end)
+    .in('meal_type', mealTypes)
+    .select();
+
+  if (error) throw error;
+  return (data || []).length;
+}
+
+/**
+ * Update a plan. Only the fields a client is allowed to move are passed in;
+ * the route decides which those are, so nothing here can reassign ownership.
+ */
+async function updateMealPlan(planId, userId, changes) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const index = memoryDb.mealPlans.findIndex(
+      (plan) => plan.id === planId && plan.user_id === userId
+    );
+    if (index === -1) return null;
+    memoryDb.mealPlans[index] = { ...memoryDb.mealPlans[index], ...changes };
+    return memoryDb.mealPlans[index];
+  }
+
+  const { data, error } = await supabase
+    .from('meal_plans')
+    .update(changes)
+    .eq('id', planId)
+    .eq('user_id', userId)
+    .select()
+    .single();
+
+  if (error && error.code !== 'PGRST116') throw error;
+  return data || null;
+}
+
+async function deleteMealPlan(planId, userId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const index = memoryDb.mealPlans.findIndex(
+      (plan) => plan.id === planId && plan.user_id === userId
+    );
+    if (index === -1) return null;
+    return memoryDb.mealPlans.splice(index, 1)[0];
+  }
+
+  const { data, error } = await supabase
+    .from('meal_plans')
+    .delete()
+    .eq('id', planId)
+    .eq('user_id', userId)
+    .select()
+    .single();
+
+  if (error && error.code !== 'PGRST116') throw error;
+  return data || null;
+}
+
+/**
+ * Subscriptions — what someone bought, which is what grants access.
+ */
+async function getActiveSubscriptions(userId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.subscriptions.filter(
+      (row) => row.user_id === userId && row.status === 'active'
+    );
+  }
+
+  const { data, error } = await supabase
+    .from('subscriptions')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('status', 'active');
+
+  if (error) throw error;
+  return data || [];
+}
+
+async function hasEntitlement(userId, plan) {
+  const active = await getActiveSubscriptions(userId);
+  return active.some((row) => row.plan === plan);
+}
+
+/**
+ * Start a subscription, or leave the existing one alone.
+ *
+ * A repeated callback must not produce a second active row, so the collision
+ * is treated as "already subscribed" rather than as an error. Postgres code
+ * 23505 is the unique violation from subscriptions_one_active_per_plan.
+ */
+async function createSubscription(userId, plan) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const existing = memoryDb.subscriptions.find(
+      (row) => row.user_id === userId && row.plan === plan && row.status === 'active'
+    );
+    if (existing) return { subscription: existing, created: false };
+
+    const row = {
+      id: uuidv4(),
+      user_id: userId,
+      plan,
+      status: 'active',
+      started_at: new Date().toISOString(),
+      ends_at: null,
+      created_at: new Date().toISOString()
+    };
+    memoryDb.subscriptions.push(row);
+    return { subscription: row, created: true };
+  }
+
+  const { data, error } = await supabase
+    .from('subscriptions')
+    .insert([{ user_id: userId, plan, status: 'active' }])
+    .select()
+    .single();
+
+  if (error) {
+    if (error.code === '23505') {
+      const active = await getActiveSubscriptions(userId);
+      return { subscription: active.find((row) => row.plan === plan) || null, created: false };
+    }
+    throw error;
+  }
+  return { subscription: data, created: true };
+}
+
+/**
+ * Record a payment callback, once.
+ *
+ * The provider retries, so the page request id is the primary key and the
+ * database decides whether this delivery is new. `created: false` means we
+ * have seen it before and nothing further should happen — that is the whole
+ * idempotency guarantee, and it lives in a constraint rather than in an if.
+ */
+async function recordPaymentEvent(event) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    if (memoryDb.paymentEvents.some((row) => row.page_request_uid === event.page_request_uid)) {
+      return { created: false };
+    }
+    memoryDb.paymentEvents.push({ ...event, received_at: new Date().toISOString() });
+    return { created: true };
+  }
+
+  const { error } = await supabase.from('payment_events').insert([event]);
+
+  if (error) {
+    if (error.code === '23505') return { created: false };
+    throw error;
+  }
+  return { created: true };
+}
+
+/**
+ * Chef requests — ADR-007. The chef is a person, so "we will have him get in
+ * touch" has to be a row somebody can look at, not a sentence a bot said.
+ */
+async function getOpenChefRequest(userId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.chefRequests.find((row) => row.user_id === userId && row.status === 'open') || null;
+  }
+
+  const { data, error } = await supabase
+    .from('chef_requests')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('status', 'open')
+    .maybeSingle();
+
+  if (error && error.code !== 'PGRST116') throw error;
+  return data || null;
+}
+
+/**
+ * Open a request, or hand back the one already open.
+ *
+ * Pressing the button twice must not put two conversations in front of the
+ * chef, so the partial unique index decides rather than a read-then-write.
+ */
+async function createChefRequest(userId, note) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const existing = await getOpenChefRequest(userId);
+    if (existing) return { request: existing, created: false };
+
+    const row = {
+      id: uuidv4(),
+      user_id: userId,
+      status: 'open',
+      note: note || null,
+      requested_at: new Date().toISOString(),
+      contacted_at: null
+    };
+    memoryDb.chefRequests.push(row);
+    return { request: row, created: true };
+  }
+
+  const { data, error } = await supabase
+    .from('chef_requests')
+    .insert([{ user_id: userId, note: note || null }])
+    .select()
+    .single();
+
+  if (error) {
+    if (error.code === '23505') {
+      return { request: await getOpenChefRequest(userId), created: false };
+    }
+    throw error;
+  }
+  return { request: data, created: true };
+}
+
+/**
+ * Foods — nutrition values per 100 g, each one carrying its source.
+ *
+ * Nothing writes here except scripts/ingest-foods.js, and that script only
+ * writes what it read from a cited database. There is no code path in this
+ * project that puts a calorie value into this table by hand.
+ */
+async function upsertFoods(rows) {
+  if (!rows.length) return 0;
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    for (const row of rows) {
+      const i = memoryDb.foods.findIndex(
+        (f) => f.source === row.source && f.source_ref === row.source_ref && f.state === row.state
+      );
+      const record = { id: i === -1 ? uuidv4() : memoryDb.foods[i].id, ...row, retrieved_at: null };
+      if (i === -1) memoryDb.foods.push(record);
+      else memoryDb.foods[i] = record;
+    }
+    return rows.length;
+  }
+
+  // Re-running the ingest refreshes values rather than duplicating them; the
+  // unique key is (source, source_ref, state).
+  const { data, error } = await supabase
+    .from('foods')
+    .upsert(rows, { onConflict: 'source,source_ref,state' })
+    .select('id');
+
+  if (error) throw error;
+  return (data || []).length;
+}
+
+/**
+ * Look a food up by what someone typed. Hebrew name first, then aliases.
+ *
+ * Returns matches with their source attached, always — a value a consultant
+ * cannot attribute is a value she cannot use in front of a customer.
+ */
+async function searchFoods(term, limit = 20) {
+  const needle = String(term || '').trim();
+  if (!needle) return [];
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const lower = needle.toLowerCase();
+    return memoryDb.foods
+      .filter(
+        (f) =>
+          String(f.name_he || '').includes(needle) ||
+          String(f.name_en || '').toLowerCase().includes(lower) ||
+          (Array.isArray(f.aliases_he) && f.aliases_he.some((a) => String(a).includes(needle)))
+      )
+      .slice(0, limit);
+  }
+
+  const { data, error } = await supabase
+    .from('foods')
+    .select('*')
+    .or(`name_he.ilike.%${needle}%,name_en.ilike.%${needle}%`)
+    .limit(limit);
+
+  if (error) throw error;
+  return data || [];
+}
+
+async function getFoodById(foodId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.foods.find((f) => f.id === foodId) || null;
+  }
+
+  const { data, error } = await supabase.from('foods').select('*').eq('id', foodId).single();
+  if (error && error.code !== 'PGRST116') throw error;
+  return data || null;
+}
+
+async function countFoods() {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.foods.length;
+  }
+  const { count, error } = await supabase.from('foods').select('id', { count: 'exact', head: true });
+  if (error) throw error;
+  return count || 0;
 }
 
 /**
@@ -1054,7 +1567,163 @@ async function updateFoodLog(userId, logId, patch) {
   return normalizeFoodLogRow(data || null);
 }
 
+
+/**
+ * WHATSAPP
+ */
+
+// Upsert on the WHAPI message id: the same webhook can be delivered twice, and
+// a retry must not create a second row.
+async function saveWhatsappMessage(msg) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const i = memoryDb.whatsappMessages.findIndex(r => r.id === msg.id);
+    const row = { ...msg, received_at: new Date().toISOString() };
+    if (i >= 0) memoryDb.whatsappMessages[i] = row;
+    else memoryDb.whatsappMessages.push(row);
+    return row;
+  }
+
+  const { data, error } = await supabase
+    .from('whatsapp_messages')
+    .upsert([{ ...msg, received_at: new Date().toISOString() }], { onConflict: 'id' })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * WHAPI BOT CONVERSATIONS (Adi + the chef) -- see migrations/001 and 003.
+ *
+ * migrations/003 renames the stored active_bot value from 'nuri' to 'adi'
+ * and updates the check constraint to match. Everything above this file
+ * (routes/whapi.js, whapi-brain.js) only ever deals in 'adi'/'chef' -- but
+ * this file can't assume migrations/003 has actually been run against a
+ * given database yet, so it normalizes at the boundary instead of
+ * requiring the two to be deployed in lockstep:
+ *  - read: a legacy 'nuri' row is returned as 'adi'.
+ *  - write: if the check constraint still only allows 'nuri' (Postgres
+ *    23514, check_violation), retry once with the legacy value instead of
+ *    failing the whole request, then return the write normalized to 'adi'
+ *    regardless of which value actually landed in the row.
+ * Once migrations/003 has run, every write succeeds on the first try and
+ * this fallback simply never triggers again -- nothing to clean up later.
+ */
+const LEGACY_ACTIVE_BOT = { adi: 'nuri' };
+const CANONICAL_ACTIVE_BOT = { nuri: 'adi' };
+const CHECK_VIOLATION = '23514';
+
+function normalizeActiveBot(row) {
+  if (row && CANONICAL_ACTIVE_BOT[row.active_bot]) {
+    return { ...row, active_bot: CANONICAL_ACTIVE_BOT[row.active_bot] };
+  }
+  return row;
+}
+
+async function getWhapiConversation(phone) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return normalizeActiveBot(memoryDb.whapiConversations.get(phone) || null);
+  }
+  const { data, error } = await supabaseServiceRole
+    .from('whapi_conversations')
+    .select('*')
+    .eq('phone', phone)
+    .maybeSingle();
+
+  if (error) throw error;
+  return normalizeActiveBot(data);
+}
+
+async function upsertWhapiConversation(phone, activeBot) {
+  const row = { phone, active_bot: activeBot, updated_at: new Date().toISOString() };
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    memoryDb.whapiConversations.set(phone, row);
+    return row;
+  }
+  const { data, error } = await supabaseServiceRole
+    .from('whapi_conversations')
+    .upsert(row, { onConflict: 'phone' })
+    .select()
+    .single();
+
+  if (!error) return normalizeActiveBot(data);
+
+  const legacyValue = LEGACY_ACTIVE_BOT[activeBot];
+  if (error.code !== CHECK_VIOLATION || !legacyValue) throw error;
+
+  const { data: fallbackData, error: fallbackError } = await supabaseServiceRole
+    .from('whapi_conversations')
+    .upsert({ ...row, active_bot: legacyValue }, { onConflict: 'phone' })
+    .select()
+    .single();
+
+  if (fallbackError) throw fallbackError;
+  return normalizeActiveBot(fallbackData);
+}
+
+async function getWhatsappMessages({ status = null, limit = 50 } = {}) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return sortByCreatedAtDesc(
+      memoryDb.whatsappMessages.filter(r => !status || r.status === status)
+    ).slice(0, limit);
+  }
+
+  let q = supabase
+    .from('whatsapp_messages')
+    .select('*')
+    .order('received_at', { ascending: false })
+    .limit(limit);
+  if (status) q = q.eq('status', status);
+
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+}
+
+async function logWhapiMessage(phone, role, content) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const row = { phone, role, content, created_at: new Date().toISOString() };
+    memoryDb.whapiMessages.push(row);
+    return row;
+  }
+  const { data, error } = await supabaseServiceRole
+    .from('whapi_messages')
+    .insert([{ phone, role, content, created_at: new Date().toISOString() }])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+async function getRecentWhapiMessages(phone, limit = 20) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.whapiMessages
+      .filter(m => m.phone === phone)
+      .slice(-limit)
+      .map(({ role, content }) => ({ role, content }));
+  }
+  const { data, error } = await supabaseServiceRole
+    .from('whapi_messages')
+    .select('role, content, created_at')
+    .eq('phone', phone)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return (data || []).reverse().map(({ role, content }) => ({ role, content }));
+}
+
 module.exports = {
+  saveWhatsappMessage,
+  getWhatsappMessages,
   supabase,
   initializeDatabase,
   isMemoryMode,
@@ -1064,6 +1733,24 @@ module.exports = {
   getUserByEmail,
   createUser,
   updateUserPasswordHash,
+  bumpTokenVersion,
+  deleteUser,
+  getMealPlans,
+  getMealPlanById,
+  createMealPlans,
+  deleteMealPlansInRange,
+  updateMealPlan,
+  deleteMealPlan,
+  getActiveSubscriptions,
+  hasEntitlement,
+  createSubscription,
+  recordPaymentEvent,
+  getOpenChefRequest,
+  createChefRequest,
+  upsertFoods,
+  searchFoods,
+  getFoodById,
+  countFoods,
   getUserPreferences,
   updateUserPreferences,
   // Surveys
@@ -1106,5 +1793,10 @@ module.exports = {
   getFoodLogById,
   deleteFoodLog,
   updateFoodLog,
-  deleteFoodLogTemplate
+  deleteFoodLogTemplate,
+  // WHAPI bot conversations
+  getWhapiConversation,
+  upsertWhapiConversation,
+  logWhapiMessage,
+  getRecentWhapiMessages
 };

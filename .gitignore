@@ -17,3 +17,15 @@ coverage/
 
 # compiled tsc artifacts
 *.tsbuildinfo
+
+# throwaway scratch scripts (often hold a credential mid-debugging) — never commit
+.test-*.js
+
+# Compiled output that must not sit next to sources: Vite resolves .js before
+# .tsx, so a stale .js shadows the real source and edits appear to do nothing.
+YAHEALTHYFrontend/src/**/*.js
+YAHEALTHYFrontend/vite.config.d.ts
+
+# eval harness: deps and run output
+evals/node_modules/
+evals/results/

@@ -41,7 +41,8 @@ version: 2.0.0
 |---|---|
 | תחילת כל סבב אבחון | `references/coaching-method.md` |
 | צריך לדעת איפה קובץ יושב | `references/bot-map.md` |
-| בודקים בוט לפני שחרור / אין ארכיון שיחות | `references/sales-simulations.md` — 20 מלכודות מכוונות |
+| בודקים בוט מכירה | `references/sales-simulations.md` — 20 מלכודות |
+| בודקים את השף או את נורי | `references/food-bot-simulator.md` — 30 מלכודות + **רנר אוטומטי ב-`evals/`** |
 | כל תיקון שנוגע במחיר/תנאי תוכנית | מקור-האמת העסקי ב-`bot-map.md`. **ריק → לא מאבחנים מחיר, מבקשים אותו** |
 
 ## 📗 מקור האמת של המוצר

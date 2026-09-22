@@ -5,18 +5,18 @@
   "secrets": [
     {
       "name": "JWT_SECRET",
-      "description": "JWT signing secret for the backend auth endpoints",
+      "description": "Secret key for signing JWT auth tokens. Auto-generated for development; set a real value for stable sessions across restarts.",
       "requiredAtBoot": true,
       "generatedForDevelopment": true
     },
     {
       "name": "SUPABASE_URL",
-      "description": "Supabase project URL — optional; without it the backend runs on its in-memory store (ALLOW_MEMORY_DB=true)",
+      "description": "Supabase project URL. Optional — without it the backend runs on in-memory storage (ALLOW_MEMORY_DB=true).",
       "requiredAtBoot": false
     },
     {
       "name": "SUPABASE_KEY",
-      "description": "Supabase anon public key — optional, see SUPABASE_URL",
+      "description": "Supabase anon public key. Optional — paired with SUPABASE_URL for persistent storage.",
       "requiredAtBoot": false
     }
   ]
