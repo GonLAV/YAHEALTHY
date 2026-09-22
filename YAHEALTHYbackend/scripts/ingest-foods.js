@@ -45,8 +45,41 @@ const DATA_TYPES = 'Foundation,SR Legacy';
 
 const args = process.argv.slice(2);
 const DRY_RUN = args.includes('--dry-run');
+// Load the file a previous run produced instead of calling USDA again. The
+// values are already sourced and already carry their fdcId, so re-fetching them
+// would spend a few hundred requests to arrive at the same rows.
+const FROM_FILE = args.includes('--from-file');
 const limitFlag = args.indexOf('--limit');
 const LIMIT = limitFlag !== -1 ? Number(args[limitFlag + 1]) : Infinity;
+
+const round1 = (value) => (value == null ? null : Math.round(value * 10) / 10);
+
+/** Written by an older run, before values were rounded on the way in. */
+function normalize(row) {
+  const out = { ...row };
+  for (const key of ['kcal_per_100g', 'protein_g', 'carbs_g', 'fat_g', 'fiber_g', 'sugar_g', 'sodium_mg']) {
+    out[key] = round1(out[key]);
+  }
+  return out;
+}
+
+async function loadFromFile() {
+  const filePath = path.join(__dirname, '..', 'data', 'foods-usda.json');
+  if (!fs.existsSync(filePath)) {
+    console.error(`No ${filePath}. Run the ingest once without --from-file first.`);
+    process.exit(1);
+  }
+  const rows = JSON.parse(fs.readFileSync(filePath, 'utf8')).foods.map(normalize);
+  fs.writeFileSync(
+    filePath,
+    JSON.stringify({ ...JSON.parse(fs.readFileSync(filePath, 'utf8')), foods: rows }, null, 2) + '\n'
+  );
+
+  const db = require('../utils/database');
+  const written = await db.upsertFoods(rows);
+  console.log(`${written} rows upserted into the foods table from data/foods-usda.json`);
+  console.log('No USDA requests were made — the values were already sourced and carry their fdcId.');
+}
 
 function nutrientValue(food, ids) {
   for (const n of food.foodNutrients || []) {
@@ -57,7 +90,10 @@ function nutrientValue(food, ids) {
     if (value == null) continue;
     // kJ is not kcal. Convert rather than store a number four times too large.
     if (unit === 'KJ') return Math.round((value / 4.184) * 10) / 10;
-    return value;
+    // Foundation foods carry more decimal places than the underlying
+    // measurement supports. "39.9998 kcal" in front of a customer reads as
+    // false precision, and precision is exactly what should not be faked here.
+    return Math.round(value * 10) / 10;
   }
   return null;
 }
@@ -102,6 +138,8 @@ async function detail(fdcId) {
 }
 
 async function main() {
+  if (FROM_FILE) return loadFromFile();
+
   if (!API_KEY) {
     console.error(
       'USDA_API_KEY is not set.\n' +
@@ -155,6 +193,9 @@ async function main() {
         source_ref: String(hit.fdcId),
         source_detail: full.dataType || hit.dataType || null,
         common_servings: portions(full),
+        // Carried over from the catalogue. Names, not values — a customer who
+        // types "חזה" should still find chicken breast.
+        aliases_he: food.aliases_he || null,
       };
       for (const [column, ids] of Object.entries(NUTRIENTS)) {
         row[column] = nutrientValue(full, ids);
