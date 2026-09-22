@@ -53,7 +53,7 @@ const USE_MEMORY_DB = !process.env.SUPABASE_URL || !process.env.SUPABASE_KEY || 
 - **הגנות:** `express-rate-limit`, middleware ל-`validate` (zod), `requestContext`
 - **תיעוד API:** `swagger-jsdoc` + `swagger-ui-express`, `openapi.js` (472 שורות)
 - **לוגיקת תחום:** `utils/health-calculations.js` (242 שורות) — חישובי בריאות
-- **תוכן:** מתכונים בעברית מוטמעים ב-`index.js` — **מקור נתונים אמיתי לבוט/למוצר**
+- **תוכן:** מתכונים בעברית ב-`data/recipes.json` (לא מוטמעים ב-`index.js` — תוקן 22/09/2026, ADR-003 ב-`decisions.md`) — **מקור נתונים אמיתי לבוט/למוצר**
 - **Frontend:** React 18 + TS + Vite + Tailwind, React Router, `useAuth`, `PrivateRoute`, Recharts
 
 ## Frontend — מה קיים
