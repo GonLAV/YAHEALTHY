@@ -1,5 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const { randomUUID: uuidv4 } = require('crypto');
+const { normalizePhone } = require('./phone');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://your-supabase-url.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || 'your-supabase-anon-key';
@@ -667,6 +668,102 @@ async function countFoods() {
   const { count, error } = await supabase.from('foods').select('id', { count: 'exact', head: true });
   if (error) throw error;
   return count || 0;
+}
+
+/**
+ * Phone identity — what links a WhatsApp sender to a paying account.
+ *
+ * Both sides normalise through utils/phone before touching the database, so
+ * "050-123-4567" and "972501234567@s.whatsapp.net" reach the same row. A
+ * number that cannot be normalised is refused rather than stored raw: a
+ * half-formed value here would match nobody, or worse, the wrong person.
+ */
+async function setUserPhone(userId, rawPhone) {
+  const phone = normalizePhone(rawPhone);
+  if (!phone) return null;
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const user = memoryDb.usersById.get(userId);
+    if (!user) return null;
+    // One account per number, enforced here the way the partial unique index
+    // enforces it in Postgres.
+    for (const [otherId, other] of memoryDb.usersById) {
+      if (otherId !== userId && other.phone === phone) {
+        const err = new Error('Phone already belongs to another account');
+        err.code = 'PHONE_TAKEN';
+        throw err;
+      }
+    }
+    const updated = { ...user, phone };
+    memoryDb.usersById.set(userId, updated);
+    memoryDb.usersByEmail.set(String(updated.email || '').toLowerCase(), updated);
+    return updated;
+  }
+
+  const { data, error } = await supabase
+    .from('users')
+    .update({ phone })
+    .eq('id', userId)
+    .select()
+    .single();
+
+  if (error) {
+    if (error.code === '23505') {
+      const err = new Error('Phone already belongs to another account');
+      err.code = 'PHONE_TAKEN';
+      throw err;
+    }
+    throw error;
+  }
+  return data;
+}
+
+async function getUserByPhone(rawPhone) {
+  const phone = normalizePhone(rawPhone);
+  if (!phone) return null;
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    for (const user of memoryDb.usersById.values()) {
+      if (user.phone === phone) return user;
+    }
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('phone', phone)
+    .maybeSingle();
+
+  if (error && error.code !== 'PGRST116') throw error;
+  return data || null;
+}
+
+/**
+ * What a WhatsApp sender is entitled to, answered in one call.
+ *
+ * Returns { user, plans, has(feature) }. `user` is null for a number nobody
+ * has claimed, which is an ordinary state: people message before they buy.
+ * Throws rather than returning "no access" when the lookup itself fails —
+ * the caller decides what to do, and a database outage must not read as a
+ * paying customer having lapsed.
+ */
+async function getWhatsappAccess(rawPhone) {
+  const phone = normalizePhone(rawPhone);
+  if (!phone) return { user: null, plans: [], has: () => false };
+
+  const user = await getUserByPhone(phone);
+  if (!user) return { user: null, plans: [], has: () => false };
+
+  const subscriptions = await getActiveSubscriptions(user.id);
+  const plans = subscriptions.map((row) => row.plan);
+  return {
+    user,
+    plans,
+    has: (plan) => plans.includes(plan)
+  };
 }
 
 /**
@@ -1688,6 +1785,9 @@ module.exports = {
   hasEntitlement,
   createSubscription,
   recordPaymentEvent,
+  setUserPhone,
+  getUserByPhone,
+  getWhatsappAccess,
   upsertFoods,
   searchFoods,
   getFoodById,

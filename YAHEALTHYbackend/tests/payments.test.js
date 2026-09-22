@@ -196,9 +196,9 @@ async function run() {
     (await call('POST', '/api/auth/login', { body: { email: declinedEmail, password: 'anything at all' } })).status === 401
   );
 
-  // ── checkout refuses to run unconfigured ──────────────────────────────────
+  // ── checkout validates the request, then the server ───────────────────────
   const checkout = await call('POST', '/api/payments/checkout', {
-    body: { email: 'someone@example.com', plan: 'yoni' }
+    body: { email: 'someone@example.com', plan: 'yoni', phone: '0501234567' }
   });
   check(
     'checkout refuses while PayPlus is unconfigured',
@@ -208,8 +208,32 @@ async function run() {
   check(
     'checkout rejects an unknown plan',
     (await call('POST', '/api/payments/checkout', {
-      body: { email: 'someone@example.com', plan: 'platinum' }
+      body: { email: 'someone@example.com', plan: 'platinum', phone: '0501234567' }
     })).status === 400
+  );
+
+  // The phone number is not a nicety: it is the only thing that will connect
+  // this payment to the person who later messages WhatsApp.
+  check(
+    'checkout refuses without a phone number',
+    (await call('POST', '/api/payments/checkout', {
+      body: { email: 'someone@example.com', plan: 'yoni' }
+    })).status === 400,
+    'paying and then not being recognised is the worst outcome for a customer'
+  );
+  check(
+    'checkout refuses a phone number it cannot read',
+    (await call('POST', '/api/payments/checkout', {
+      body: { email: 'someone@example.com', plan: 'yoni', phone: '021234567' }
+    })).status === 400,
+    'a landline cannot message on WhatsApp'
+  );
+  check(
+    'a phone number in any written form is accepted',
+    (await call('POST', '/api/payments/checkout', {
+      body: { email: 'someone@example.com', plan: 'yoni', phone: '+972 50-123-4567' }
+    })).status === 503,
+    'it should reach the unconfigured-PayPlus refusal, not fail validation'
   );
 
 }
