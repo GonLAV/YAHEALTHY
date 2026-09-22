@@ -6,15 +6,18 @@
 -- (the default and the check constraint below), and that survived both
 -- renames until now.
 --
--- Run this in the Supabase SQL editor BEFORE deploying the code that writes
--- 'adi' as active_bot (routes/whapi.js, utils/whapi-brain.js). Until this
--- runs, the check constraint still only allows 'nuri'/'chef', so any write
--- of 'adi' fails with a constraint violation -- and if the code's
--- SYSTEM_PROMPTS map no longer has a 'nuri' key, an existing conversation
--- still tagged 'nuri' would get a reply generated with no system prompt at
--- all (no safety layer), not just an error. The UPDATE below is what
--- prevents that: it migrates existing rows in the same transaction as the
--- constraint change.
+-- No longer a hard prerequisite for deploying the code that writes 'adi' as
+-- active_bot: utils/database.js (getWhapiConversation/upsertWhapiConversation)
+-- now normalizes at the boundary -- a write of 'adi' that hits this
+-- constraint before it's been updated retries once with the legacy 'nuri'
+-- value instead of failing, and a row read back as 'nuri' is returned as
+-- 'adi' -- so an existing conversation never loses its system prompt
+-- (SYSTEM_PROMPTS keyed by 'adi', not 'nuri') either way. Run this whenever
+-- convenient regardless: it's the real fix (the stored data matches the
+-- code's vocabulary, so anyone reading the table directly -- e.g. in the
+-- Supabase dashboard -- isn't confused by a stale 'nuri'), the fallback in
+-- database.js is a safety net, not a replacement for it. Once this has run,
+-- that fallback path simply never triggers again.
 --
 -- Rollback:
 --   alter table whapi_conversations drop constraint if exists whapi_conversations_active_bot_check;

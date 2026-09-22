@@ -1094,12 +1094,37 @@ async function saveWhatsappMessage(msg) {
 }
 
 /**
- * WHAPI BOT CONVERSATIONS (Nuri + the chef) -- see migrations/001
+ * WHAPI BOT CONVERSATIONS (Adi + the chef) -- see migrations/001 and 003.
+ *
+ * migrations/003 renames the stored active_bot value from 'nuri' to 'adi'
+ * and updates the check constraint to match. Everything above this file
+ * (routes/whapi.js, whapi-brain.js) only ever deals in 'adi'/'chef' -- but
+ * this file can't assume migrations/003 has actually been run against a
+ * given database yet, so it normalizes at the boundary instead of
+ * requiring the two to be deployed in lockstep:
+ *  - read: a legacy 'nuri' row is returned as 'adi'.
+ *  - write: if the check constraint still only allows 'nuri' (Postgres
+ *    23514, check_violation), retry once with the legacy value instead of
+ *    failing the whole request, then return the write normalized to 'adi'
+ *    regardless of which value actually landed in the row.
+ * Once migrations/003 has run, every write succeeds on the first try and
+ * this fallback simply never triggers again -- nothing to clean up later.
  */
+const LEGACY_ACTIVE_BOT = { adi: 'nuri' };
+const CANONICAL_ACTIVE_BOT = { nuri: 'adi' };
+const CHECK_VIOLATION = '23514';
+
+function normalizeActiveBot(row) {
+  if (row && CANONICAL_ACTIVE_BOT[row.active_bot]) {
+    return { ...row, active_bot: CANONICAL_ACTIVE_BOT[row.active_bot] };
+  }
+  return row;
+}
+
 async function getWhapiConversation(phone) {
   if (USE_MEMORY_DB) {
     maybeLogMemoryMode();
-    return memoryDb.whapiConversations.get(phone) || null;
+    return normalizeActiveBot(memoryDb.whapiConversations.get(phone) || null);
   }
   const { data, error } = await supabaseServiceRole
     .from('whapi_conversations')
@@ -1108,7 +1133,7 @@ async function getWhapiConversation(phone) {
     .maybeSingle();
 
   if (error) throw error;
-  return data;
+  return normalizeActiveBot(data);
 }
 
 async function upsertWhapiConversation(phone, activeBot) {
@@ -1124,8 +1149,19 @@ async function upsertWhapiConversation(phone, activeBot) {
     .select()
     .single();
 
-  if (error) throw error;
-  return data;
+  if (!error) return normalizeActiveBot(data);
+
+  const legacyValue = LEGACY_ACTIVE_BOT[activeBot];
+  if (error.code !== CHECK_VIOLATION || !legacyValue) throw error;
+
+  const { data: fallbackData, error: fallbackError } = await supabaseServiceRole
+    .from('whapi_conversations')
+    .upsert({ ...row, active_bot: legacyValue }, { onConflict: 'phone' })
+    .select()
+    .single();
+
+  if (fallbackError) throw fallbackError;
+  return normalizeActiveBot(fallbackData);
 }
 
 async function getWhatsappMessages({ status = null, limit = 50 } = {}) {
