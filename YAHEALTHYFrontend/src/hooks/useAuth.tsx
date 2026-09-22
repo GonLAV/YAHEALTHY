@@ -58,8 +58,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = async () => {
-    await authApi.logout();
-    setUser(null);
+    try {
+      await authApi.logout();
+    } finally {
+      // The local session ends even if the server could not be reached, so a
+      // failed request never strands someone in a logged-in screen. What it
+      // does mean is that the token stays live server-side until it expires,
+      // which is why the request is attempted first rather than skipped.
+      setUser(null);
+    }
   };
 
   return (
