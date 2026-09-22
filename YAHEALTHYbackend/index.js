@@ -147,10 +147,6 @@ app.use('/api', apiLimiter);
 
 app.use('/api/payments', checkoutRouter);
 
-// The chef track. Both gates — a paid plan, and a week already planned — are
-// enforced inside this router, not by whichever screen or bot happens to call it.
-app.use('/api/chef', require('./routes/chef'));
-
 // Food values. Lookup and arithmetic over sourced numbers — never a guess,
 // and never advice about what anyone should eat.
 app.use('/api/foods', require('./routes/foods'));
@@ -162,7 +158,7 @@ app.use('/api/whatsapp/pending', auth.authMiddleware);
 app.use('/api/whatsapp', whatsappRouter);
 app.use('/api/auth', authLimiter);
 
-// Nuri + the chef (WhatsApp via WHAPI) -- see routes/whapi.js
+// Adi + Yoni (WhatsApp via WHAPI) -- see routes/whapi.js
 app.use('/api/whapi', require('./routes/whapi'));
 
 // OpenAPI docs (not authenticated)

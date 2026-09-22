@@ -8,11 +8,11 @@
     "dev": "nodemon index.js",
     "test": "bash ./test-system.sh",
     "test:tokens": "node tests/token-lifecycle.test.js",
-    "test:meal-plans": "node tests/meal-plans.test.js",
     "test:all": "node tests/run-all.js",
     "test:foods": "node tests/foods.test.js",
     "ingest:foods": "node scripts/ingest-foods.js",
-    "test:yoni": "node tests/yoni-persona.test.js"
+    "test:yoni": "node tests/yoni-persona.test.js",
+    "test:meal-plans": "node tests/meal-plans.test.js"
   },
   "keywords": [],
   "author": "",

@@ -1,12 +1,12 @@
 /**
- * Payments and the chef track.
+ * Payments.
  *
  * The callback endpoint is the one place where an outside party can create an
  * account and grant a paid plan, so most of this file is about refusing. The
  * rest walks the journey a customer actually takes: pay, get a link, choose a
- * password, sign in, plan a week, then reach the chef.
+ * password, sign in, and end up holding exactly one subscription.
  *
- *   node tests/payments-and-chef.test.js
+ *   node tests/payments.test.js
  */
 
 const { spawn } = require('child_process');
@@ -80,7 +80,7 @@ async function sendCallback(payload, { hash, userAgent = 'PayPlus' } = {}) {
   return { status: res.status, body: json };
 }
 
-function transaction({ uid, plan = 'chef', email, statusCode = '000' }) {
+function transaction({ uid, plan = 'yoni', email, statusCode = '000' }) {
   return {
     transaction_type: 'Charge',
     transaction: {
@@ -180,8 +180,8 @@ async function run() {
 
   const plans = await call('GET', '/api/payments/my-plans', { token });
   check(
-    'exactly one chef subscription, not two',
-    plans.body?.plans?.length === 1 && plans.body.plans[0].plan === 'chef',
+    'exactly one yoni subscription, not two',
+    plans.body?.plans?.length === 1 && plans.body.plans[0].plan === 'yoni',
     JSON.stringify(plans.body)
   );
 
@@ -198,7 +198,7 @@ async function run() {
 
   // ── checkout refuses to run unconfigured ──────────────────────────────────
   const checkout = await call('POST', '/api/payments/checkout', {
-    body: { email: 'someone@example.com', plan: 'chef' }
+    body: { email: 'someone@example.com', plan: 'yoni' }
   });
   check(
     'checkout refuses while PayPlus is unconfigured',
@@ -212,55 +212,6 @@ async function run() {
     })).status === 400
   );
 
-  // ── the chef gates ────────────────────────────────────────────────────────
-  const outsider = await call('POST', '/api/auth/signup', {
-    body: { email: `outsider-${Date.now()}@example.com`, password: 'a long enough one' }
-  });
-  const outsiderToken = outsider.body?.token;
-
-  const outsiderView = await call('GET', '/api/chef/availability', { token: outsiderToken });
-  check('someone with no plan is not offered the chef', outsiderView.body?.canOffer === false);
-  check(
-    'and cannot request one',
-    (await call('POST', '/api/chef/request', { token: outsiderToken })).status === 403,
-    'the gate is the server, not the button'
-  );
-
-  const beforePlanning = await call('GET', '/api/chef/availability', { token });
-  check(
-    'a subscriber with no week planned is not offered the chef yet',
-    beforePlanning.body?.subscribed === true && beforePlanning.body?.canOffer === false,
-    'ADR-007: the chef comes after the week and the shopping list'
-  );
-  check(
-    'and the request is refused until the week exists',
-    (await call('POST', '/api/chef/request', { token })).status === 409
-  );
-
-  // Plan a week, which is the thing the gate is waiting for.
-  await call('POST', '/api/meal-plans/generate', {
-    token,
-    body: { startDate: '2026-10-12', endDate: '2026-10-14' }
-  });
-
-  const afterPlanning = await call('GET', '/api/chef/availability', { token });
-  check('now the chef can be offered', afterPlanning.body?.canOffer === true);
-
-  const requested = await call('POST', '/api/chef/request', {
-    token,
-    body: { note: 'אשמח ללמוד לעבוד עם הוק' }
-  });
-  check('the request is recorded', requested.status === 201 && requested.body?.status === 'open');
-
-  const again = await call('POST', '/api/chef/request', { token });
-  check(
-    'pressing twice does not queue a second conversation',
-    again.status === 200 && again.body?.alreadyOpen === true
-  );
-  check(
-    'availability reports the open request',
-    (await call('GET', '/api/chef/availability', { token })).body?.alreadyRequested === true
-  );
 }
 
 (async () => {
@@ -295,7 +246,7 @@ async function run() {
     } else if (serverLog.join('').includes('EADDRINUSE')) {
       console.error(`port ${port} is already in use — aborting rather than testing another process`);
     } else {
-      console.log('\npayments and the chef track\n');
+      console.log('\npayments\n');
       await run();
       console.log(`\n${passed} passed, ${failed} failed\n`);
       code = failed === 0 ? 0 : 1;
