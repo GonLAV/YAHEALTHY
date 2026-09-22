@@ -89,6 +89,14 @@ async function handleIncomingMessage(message) {
   const phone = message.chat_id || message.from;
   if (!phone) return;
 
+  // A WhatsApp group JID ends in @g.us, not @s.whatsapp.net -- if this
+  // number is ever added to a group, treating the group as one `phone`
+  // would commingle every member into a single whapi_conversations row:
+  // one member's message becomes Adi's context for a reply to a different
+  // member, then gets sent back into the group. Out of v1 scope the same
+  // way non-text/image messages are, not something to silently get wrong.
+  if (phone.endsWith('@g.us')) return;
+
   // Everything below can throw for reasons the customer has no way to see:
   // a DB error, the Claude call failing (rate limit/timeout/5xx), or WHAPI
   // itself rejecting the send. Today that's three separate confirmed

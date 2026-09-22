@@ -82,14 +82,26 @@ async function downloadMediaAsBase64(url) {
   return { base64: buffer.toString('base64'), mimeType };
 }
 
-// Configure the same value in the WHAPI dashboard's webhook custom headers
-// (header name: X-Webhook-Secret) so incoming requests can be verified.
-// If WHAPI_WEBHOOK_SECRET isn't set, verification is skipped -- fine for
-// initial local testing, not for anything reachable from the internet.
+// The WHAPI channel already sends this header (configured once via WHAPI's
+// API, matching whatever value WHAPI_WEBHOOK_SECRET holds here).
+//
+// Fails CLOSED in production without WHAPI_WEBHOOK_SECRET set: this route
+// is reachable from the internet, and was confirmed unauthenticated in
+// production for a period -- any caller could forge messages into a real
+// customer's conversation (message.chat_id/from are taken straight from
+// the request body) or make the bot send real WhatsApp messages from the
+// business number to any number of their choosing. Only skipped when
+// NODE_ENV isn't 'production' (same signal utils/database.js's own
+// IS_PRODUCTION check already relies on), so local dev needs no new setup.
+//
+// Deploy note: do not ship this without WHAPI_WEBHOOK_SECRET actually set
+// in Vercel's production environment variables first -- until it is,
+// NODE_ENV is 'production' there, so this fails every request, including
+// WHAPI's real ones.
 function verifyWebhookSecret(req) {
   const expected = process.env.WHAPI_WEBHOOK_SECRET;
-  if (!expected) return true;
-  return req.get('x-webhook-secret') === expected;
+  if (expected) return req.get('x-webhook-secret') === expected;
+  return process.env.NODE_ENV !== 'production';
 }
 
 module.exports = { sendText, sendTyping, downloadMediaAsBase64, verifyWebhookSecret };
