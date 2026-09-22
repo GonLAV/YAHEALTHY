@@ -158,7 +158,32 @@ async function run() {
   // ── the grocery list is derived from the plans ────────────────────────────
   const groceries = await call('GET', '/api/grocery-list?start=2026-10-01&end=2026-10-31', { token });
   check('the grocery list reads the stored plans', groceries.status === 200 && groceries.body?.mealPlansCount === 1);
-  check('it lists ingredients', (groceries.body?.items?.length ?? 0) > 0);
+
+  const items = groceries.body?.items ?? [];
+  check('it lists ingredients', items.length > 0);
+
+  // The previous version of this test asserted only that the list was
+  // non-empty, and passed for months while every row read "[object Object]" —
+  // String() over an ingredient object. Assert the contents, not the count.
+  check(
+    'no row is a stringified object',
+    items.every((row) => !/\[object/i.test(String(row.item))),
+    `got: ${JSON.stringify(items.slice(0, 3))}`
+  );
+  check(
+    'rows carry a readable ingredient name',
+    items.every((row) => typeof row.item === 'string' && row.item.trim().length > 1)
+  );
+  check(
+    'rows carry the quantity each recipe asks for',
+    items.some((row) => Array.isArray(row.amounts) && row.amounts.length > 0),
+    'a shopping list without amounts does not tell anyone how much to buy'
+  );
+  check(
+    'more than one distinct ingredient is listed',
+    items.length > 1,
+    'a single row means everything collapsed to one key'
+  );
   check(
     "another account's grocery list is empty",
     (await call('GET', '/api/grocery-list', { token: other })).body?.mealPlansCount === 0

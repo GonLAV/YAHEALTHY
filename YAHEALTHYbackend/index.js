@@ -1520,24 +1520,48 @@ app.get('/api/grocery-list', auth.authMiddleware, async (req, res) => {
     return res.status(500).json({ error: 'Failed to build grocery list', details: safeErrorDetails(error), requestId: req.id });
   }
 
-  const counts = new Map();
+  // Ingredients in data/recipes.json are objects — { item, amount, category } —
+  // and the previous String(ingredient) turned every one of them into the
+  // literal text "[object Object]", so the shopping list a paying customer got
+  // was one meaningless row. Older entries are plain strings, so both shapes
+  // are handled.
+  const byItem = new Map();
   const recipeIds = new Set();
 
   for (const plan of plans) {
     recipeIds.add(plan.recipe_id);
     const recipe = recipes.find(r => r.id === plan.recipe_id);
     if (!recipe || !Array.isArray(recipe.ingredients)) continue;
+
     for (const ingredient of recipe.ingredients) {
-      const key = String(ingredient).trim().toLowerCase();
-      if (!key) continue;
-      const prev = counts.get(key) || 0;
-      counts.set(key, prev + 1);
+      const isObject = ingredient && typeof ingredient === 'object';
+      const name = String(isObject ? ingredient.item ?? '' : ingredient ?? '').trim();
+      if (!name) continue;
+
+      const key = name.toLowerCase();
+      const entry = byItem.get(key) || {
+        item: name,
+        category: isObject ? ingredient.category ?? null : null,
+        count: 0,
+        amounts: []
+      };
+
+      entry.count += 1;
+
+      // Quantities are free text in Hebrew — "5 בינוניות, או קופסה 400 גרם
+      // מרוסקות". Adding those together would mean inventing a number, so each
+      // recipe's requirement is listed as written and the shopper adds up. A
+      // structured quantity needs structured source data, which is its own job.
+      const amount = isObject && ingredient.amount ? String(ingredient.amount).trim() : null;
+      if (amount && !entry.amounts.includes(amount)) entry.amounts.push(amount);
+
+      byItem.set(key, entry);
     }
   }
 
-  const items = [...counts.entries()]
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .map(([item, count]) => ({ item, count }));
+  const items = [...byItem.values()].sort(
+    (a, b) => b.count - a.count || a.item.localeCompare(b.item, 'he')
+  );
 
   return res.json({
     start: req.query.start || null,
