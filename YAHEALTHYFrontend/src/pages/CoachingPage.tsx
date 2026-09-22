@@ -93,7 +93,7 @@ export const CoachingPage = () => {
           </div>
 
           {loadingInsights ? (
-            <p className="text-gray-600">Loading insights…</p>
+            <p role="status" aria-live="polite" className="text-gray-600">Loading insights…</p>
           ) : insights.length === 0 ? (
             <p className="text-gray-600">No insights yet. Keep logging food!</p>
           ) : (
@@ -113,31 +113,48 @@ export const CoachingPage = () => {
         {/* Chat */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Ask Your Coach</h2>
-          <div className="flex gap-2 mb-4">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleAsk();
+            }}
+            aria-label="Ask your coach a question"
+            className="flex gap-2 mb-4"
+          >
+            <label htmlFor="coach-message" className="sr-only">
+              Ask me anything about your nutrition
+            </label>
             <input
+              id="coach-message"
               type="text"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Ask me anything about your nutrition…"
+              aria-describedby="coach-response"
               className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleAsk();
-              }}
             />
             <button
-              onClick={handleAsk}
+              type="submit"
               disabled={!canAsk}
-              className="px-6 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 hover:bg-indigo-700"
+              aria-busy={asking}
+              className="px-6 py-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 focus-visible:outline-offset-2"
             >
               {asking ? 'Thinking…' : 'Ask'}
             </button>
-          </div>
+          </form>
 
-          {response && (
-            <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-              <p className="text-gray-800">{response}</p>
-            </div>
-          )}
+          <div
+            id="coach-response"
+            role="status"
+            aria-live="polite"
+            className="min-h-[1px]"
+          >
+            {response && (
+              <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                <p className="text-gray-800">{response}</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

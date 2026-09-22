@@ -1,0 +1,23 @@
+{
+  "previewPort": 3000,
+  "healthPath": "/api/health",
+  "startCommand": "docker compose -f docker-compose.base44.yml up -d",
+  "secrets": [
+    {
+      "name": "JWT_SECRET",
+      "description": "JWT signing secret for the backend auth endpoints",
+      "requiredAtBoot": true,
+      "generatedForDevelopment": true
+    },
+    {
+      "name": "SUPABASE_URL",
+      "description": "Supabase project URL — optional; without it the backend runs on its in-memory store (ALLOW_MEMORY_DB=true)",
+      "requiredAtBoot": false
+    },
+    {
+      "name": "SUPABASE_KEY",
+      "description": "Supabase anon public key — optional, see SUPABASE_URL",
+      "requiredAtBoot": false
+    }
+  ]
+}

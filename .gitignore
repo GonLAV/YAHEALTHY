@@ -14,3 +14,6 @@ coverage/
 
 # malachi channel credentials — never commit
 .env.malachi
+
+# compiled tsc artifacts
+*.tsbuildinfo

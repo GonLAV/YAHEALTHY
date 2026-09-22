@@ -81,7 +81,11 @@ export const FoodLogPage = () => {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+    return (
+      <div role="status" aria-live="polite" className="flex items-center justify-center min-h-screen">
+        <span className="text-gray-700">Loading food log…</span>
+      </div>
+    );
   }
 
   return (
@@ -91,7 +95,9 @@ export const FoodLogPage = () => {
           <h1 className="text-3xl font-bold text-gray-900">Food Log</h1>
           <button
             onClick={() => setShowForm(!showForm)}
-            className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700"
+            aria-expanded={showForm}
+            aria-controls="food-log-form"
+            className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 focus-visible:outline-offset-2"
           >
             {showForm ? 'Cancel' : 'Log Food'}
           </button>
@@ -99,14 +105,15 @@ export const FoodLogPage = () => {
 
         {/* Add Food Form */}
         {showForm && (
-          <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <div id="food-log-form" className="bg-white rounded-lg shadow p-6 mb-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Log New Food</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} aria-label="Log new food form" className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="food-name" className="block text-sm font-medium text-gray-700 mb-2">
                   Food Name
                 </label>
                 <input
+                  id="food-name"
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -117,10 +124,11 @@ export const FoodLogPage = () => {
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="food-calories" className="block text-sm font-medium text-gray-700 mb-2">
                     Calories
                   </label>
                   <input
+                    id="food-calories"
                     type="number"
                     value={formData.calories}
                     onChange={(e) => setFormData({ ...formData, calories: parseFloat(e.target.value) })}
@@ -130,10 +138,11 @@ export const FoodLogPage = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="food-protein" className="block text-sm font-medium text-gray-700 mb-2">
                     Protein (g)
                   </label>
                   <input
+                    id="food-protein"
                     type="number"
                     step="0.1"
                     value={formData.proteinGrams}
@@ -143,10 +152,11 @@ export const FoodLogPage = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="food-carbs" className="block text-sm font-medium text-gray-700 mb-2">
                     Carbs (g)
                   </label>
                   <input
+                    id="food-carbs"
                     type="number"
                     step="0.1"
                     value={formData.carbsGrams}
@@ -156,10 +166,11 @@ export const FoodLogPage = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="food-fat" className="block text-sm font-medium text-gray-700 mb-2">
                     Fat (g)
                   </label>
                   <input
+                    id="food-fat"
                     type="number"
                     step="0.1"
                     value={formData.fatGrams}
@@ -171,10 +182,11 @@ export const FoodLogPage = () => {
 
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="food-meal-type" className="block text-sm font-medium text-gray-700 mb-2">
                     Meal Type
                   </label>
                   <select
+                    id="food-meal-type"
                     value={formData.mealType}
                     onChange={(e) => setFormData({ ...formData, mealType: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -188,10 +200,11 @@ export const FoodLogPage = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="food-quantity" className="block text-sm font-medium text-gray-700 mb-2">
                     Quantity
                   </label>
                   <input
+                    id="food-quantity"
                     type="number"
                     step="0.1"
                     value={formData.quantity}
@@ -201,10 +214,11 @@ export const FoodLogPage = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="food-unit" className="block text-sm font-medium text-gray-700 mb-2">
                     Unit
                   </label>
                   <input
+                    id="food-unit"
                     type="text"
                     value={formData.unit}
                     onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
@@ -215,7 +229,7 @@ export const FoodLogPage = () => {
 
               <button
                 type="submit"
-                className="w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700"
+                className="w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 focus-visible:outline-offset-2"
               >
                 Log Food
               </button>
@@ -264,7 +278,8 @@ export const FoodLogPage = () => {
                     </div>
                     <button
                       onClick={() => handleDelete(log.id)}
-                      className="ml-4 text-red-600 hover:text-red-700 font-semibold"
+                      aria-label={`Delete ${log.name}`}
+                      className="ml-4 text-red-600 hover:text-red-700 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-600 focus-visible:outline-offset-2 rounded"
                     >
                       Delete
                     </button>

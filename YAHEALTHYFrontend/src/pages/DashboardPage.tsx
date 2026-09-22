@@ -40,7 +40,11 @@ export const DashboardPage = () => {
   }, []);
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+    return (
+      <div role="status" aria-live="polite" className="flex items-center justify-center min-h-screen">
+        <span className="text-gray-700">Loading dashboard…</span>
+      </div>
+    );
   }
 
   const totalCalories = stats?.total_calories || 0;
@@ -61,19 +65,19 @@ export const DashboardPage = () => {
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white rounded-lg shadow p-6" role="group" aria-label="Calories today">
             <p className="text-gray-600 text-sm font-semibold">CALORIES</p>
             <p className="text-3xl font-bold text-gray-900 mt-2">{totalCalories}</p>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white rounded-lg shadow p-6" role="group" aria-label="Protein today">
             <p className="text-gray-600 text-sm font-semibold">PROTEIN</p>
             <p className="text-3xl font-bold text-red-600 mt-2">{totalProtein.toFixed(1)}g</p>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white rounded-lg shadow p-6" role="group" aria-label="Carbs today">
             <p className="text-gray-600 text-sm font-semibold">CARBS</p>
             <p className="text-3xl font-bold text-blue-600 mt-2">{totalCarbs.toFixed(1)}g</p>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white rounded-lg shadow p-6" role="group" aria-label="Fat today">
             <p className="text-gray-600 text-sm font-semibold">FAT</p>
             <p className="text-3xl font-bold text-amber-600 mt-2">{totalFat.toFixed(1)}g</p>
           </div>
@@ -84,25 +88,31 @@ export const DashboardPage = () => {
           {/* Macros Pie Chart */}
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Macro Distribution</h2>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={macrosData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, value }) => `${name}: ${value.toFixed(1)}g`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {macrosData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            <figure aria-label="Macro distribution chart" role="img">
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={macrosData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, value }) => `${name}: ${value.toFixed(1)}g`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {macrosData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+              <figcaption className="sr-only">
+                Pie chart showing today's macro distribution: Protein {totalProtein.toFixed(1)} grams,
+                Carbs {totalCarbs.toFixed(1)} grams, Fat {totalFat.toFixed(1)} grams.
+              </figcaption>
+            </figure>
           </div>
 
           {/* Recent Food Logs */}
