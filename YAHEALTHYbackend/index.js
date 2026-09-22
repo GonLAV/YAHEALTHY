@@ -150,6 +150,10 @@ app.use('/api/payments', checkoutRouter);
 // enforced inside this router, not by whichever screen or bot happens to call it.
 app.use('/api/chef', require('./routes/chef'));
 
+// Food values. Lookup and arithmetic over sourced numbers — never a guess,
+// and never advice about what anyone should eat.
+app.use('/api/foods', require('./routes/foods'));
+
 // WhatsApp inbound. The webhook is public (guarded by a path secret); the
 // listing endpoint underneath it requires auth because it returns message text.
 const whatsappRouter = require('./routes/whatsapp');

@@ -54,7 +54,8 @@ const memoryDb = {
   mealPlans: [],
   subscriptions: [],
   paymentEvents: [],
-  chefRequests: []
+  chefRequests: [],
+  foods: []
 };
 
 function sortByCreatedAtDesc(items) {
@@ -628,6 +629,94 @@ async function createChefRequest(userId, note) {
     throw error;
   }
   return { request: data, created: true };
+}
+
+/**
+ * Foods — nutrition values per 100 g, each one carrying its source.
+ *
+ * Nothing writes here except scripts/ingest-foods.js, and that script only
+ * writes what it read from a cited database. There is no code path in this
+ * project that puts a calorie value into this table by hand.
+ */
+async function upsertFoods(rows) {
+  if (!rows.length) return 0;
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    for (const row of rows) {
+      const i = memoryDb.foods.findIndex(
+        (f) => f.source === row.source && f.source_ref === row.source_ref && f.state === row.state
+      );
+      const record = { id: i === -1 ? uuidv4() : memoryDb.foods[i].id, ...row, retrieved_at: null };
+      if (i === -1) memoryDb.foods.push(record);
+      else memoryDb.foods[i] = record;
+    }
+    return rows.length;
+  }
+
+  // Re-running the ingest refreshes values rather than duplicating them; the
+  // unique key is (source, source_ref, state).
+  const { data, error } = await supabase
+    .from('foods')
+    .upsert(rows, { onConflict: 'source,source_ref,state' })
+    .select('id');
+
+  if (error) throw error;
+  return (data || []).length;
+}
+
+/**
+ * Look a food up by what someone typed. Hebrew name first, then aliases.
+ *
+ * Returns matches with their source attached, always — a value a consultant
+ * cannot attribute is a value she cannot use in front of a customer.
+ */
+async function searchFoods(term, limit = 20) {
+  const needle = String(term || '').trim();
+  if (!needle) return [];
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const lower = needle.toLowerCase();
+    return memoryDb.foods
+      .filter(
+        (f) =>
+          String(f.name_he || '').includes(needle) ||
+          String(f.name_en || '').toLowerCase().includes(lower) ||
+          (Array.isArray(f.aliases_he) && f.aliases_he.some((a) => String(a).includes(needle)))
+      )
+      .slice(0, limit);
+  }
+
+  const { data, error } = await supabase
+    .from('foods')
+    .select('*')
+    .or(`name_he.ilike.%${needle}%,name_en.ilike.%${needle}%`)
+    .limit(limit);
+
+  if (error) throw error;
+  return data || [];
+}
+
+async function getFoodById(foodId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.foods.find((f) => f.id === foodId) || null;
+  }
+
+  const { data, error } = await supabase.from('foods').select('*').eq('id', foodId).single();
+  if (error && error.code !== 'PGRST116') throw error;
+  return data || null;
+}
+
+async function countFoods() {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.foods.length;
+  }
+  const { count, error } = await supabase.from('foods').select('id', { count: 'exact', head: true });
+  if (error) throw error;
+  return count || 0;
 }
 
 /**
@@ -1540,6 +1629,10 @@ module.exports = {
   recordPaymentEvent,
   getOpenChefRequest,
   createChefRequest,
+  upsertFoods,
+  searchFoods,
+  getFoodById,
+  countFoods,
   getUserPreferences,
   updateUserPreferences,
   // Surveys

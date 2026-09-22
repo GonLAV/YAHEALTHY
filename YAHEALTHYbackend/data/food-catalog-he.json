@@ -1,0 +1,1757 @@
+{
+  "_note_he": "רשימת עבודה בלבד — שמות, קטגוריה ומצב. אין כאן ולו ערך קלורי אחד, בכוונה: הערכים נטענים מ-USDA FoodData Central או ממאגר משרד הבריאות על ידי scripts/ingest-foods.js, וכל שורה נשמרת עם המזהה שלה במקור. פריט עם source_plan = moh_il_or_label הוא מוצר ישראלי שאין לו מקביל ב-USDA, והערך שלו חייב להגיע ממאגר משרד הבריאות או מתווית היצרן.",
+  "_source_he": "שמות המזונות נאספו מהרשימות של בעל העסק. ההתאמה לשם החיפוש באנגלית נעשתה על ידי מודל — זו עבודת תרגום, לא מדידה — ומסומנת בכל שורה ב-confidence אחרי הטעינה.",
+  "count": 250,
+  "foods": [
+    {
+      "name_he": "מלפפון",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "cucumber, with peel, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "עגבנייה",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "tomatoes, red, ripe, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "חסה",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "lettuce, romaine, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "כרוב",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "cabbage, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "כרוב סגול",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "cabbage, red, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "כרובית",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "cauliflower, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "ברוקולי",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "broccoli, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "קישוא",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "squash, summer, zucchini, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "חציל",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "eggplant, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "פלפל אדום",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "peppers, sweet, red, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "פלפל צהוב",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "peppers, sweet, yellow, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "פלפל ירוק",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "peppers, sweet, green, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "גזר",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "carrots, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "צנונית",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "radishes, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "סלרי",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "celery, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "תרד",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "spinach, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "מנגולד",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "chard, swiss, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "רוקט",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "arugula, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "פטריות",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "mushrooms, white, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "בצל",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "onions, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "בצל ירוק",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "onions, spring or scallions, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "שום",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "garlic, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "כרישה",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "leeks, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "שומר",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "fennel, bulb, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "אספרגוס",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "asparagus, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "שעועית ירוקה",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "beans, snap, green, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "אפונה ירוקה",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "peas, green, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "תירס",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "corn, sweet, yellow, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "במיה",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "okra, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "ארטישוק",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "artichokes, globe, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "דלעת",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "pumpkin, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "דלורית",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "squash, winter, butternut, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "סלק",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "beets, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "לפת",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "turnips, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "נבטים",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "mung beans, sprouted, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "כרוב ניצנים",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "brussels sprouts, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "ארטישוק ירושלמי",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "jerusalem artichokes, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "לימון",
+      "category": "ירקות",
+      "state": "raw",
+      "fdc_query": "lemons, raw, without peel",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "תפוח אדמה",
+      "category": "ירקות עמילניים",
+      "state": "raw",
+      "fdc_query": "potatoes, flesh and skin, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "תפוח אדמה אפוי",
+      "category": "ירקות עמילניים",
+      "state": "baked",
+      "fdc_query": "potatoes, baked, flesh and skin",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "בטטה",
+      "category": "ירקות עמילניים",
+      "state": "raw",
+      "fdc_query": "sweet potato, raw, unprepared",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "ערמונים",
+      "category": "ירקות עמילניים",
+      "state": "raw",
+      "fdc_query": "chestnuts, european, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "קסאווה",
+      "category": "ירקות עמילניים",
+      "state": "raw",
+      "fdc_query": "cassava, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "תפוח",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "apples, raw, with skin",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "אגס",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "pears, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "בננה",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "bananas, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "תפוז",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "oranges, raw, all commercial varieties",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "קלמנטינה",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "tangerines, (mandarin oranges), raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "אשכולית",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "grapefruit, raw, pink and red",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "ליים",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "limes, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "ענבים",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "grapes, red or green, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "תות שדה",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "strawberries, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "אוכמניות",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "blueberries, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "פטל",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "raspberries, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "פטל שחור",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "blackberries, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "דובדבנים",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "cherries, sweet, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "אפרסק",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "peaches, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "נקטרינה",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "nectarines, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "שזיף",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "plums, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "משמש",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "apricots, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "מנגו",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "mangos, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "אננס",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "pineapple, raw, all varieties",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "קיווי",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "kiwifruit, green, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "אבטיח",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "watermelon, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "מלון",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "melons, cantaloupe, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "פפאיה",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "papayas, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "רימון",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "pomegranates, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "תאנים טריות",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "figs, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "פסיפלורה",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "passion-fruit, purple, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "גויאבה",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "guavas, common, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "ליצ'י",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "litchis, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "קוקוס טרי",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "nuts, coconut meat, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "אבוקדו",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "avocados, raw, all commercial varieties",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "חמוציות טריות",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "cranberries, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "פומלה",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "pummelo, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "אפרסמון",
+      "category": "פירות",
+      "state": "raw",
+      "fdc_query": "persimmons, japanese, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "חלב 1%",
+      "category": "חלב",
+      "state": "raw",
+      "fdc_query": "milk, lowfat, fluid, 1% milkfat",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "חלב 3%",
+      "category": "חלב",
+      "state": "raw",
+      "fdc_query": "milk, whole, 3.25% milkfat",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "חלב 3.6%",
+      "category": "חלב",
+      "state": "raw",
+      "fdc_query": "milk, whole, 3.25% milkfat",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "חלב ללא לקטוז 1%",
+      "category": "חלב",
+      "state": "raw",
+      "fdc_query": null,
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "חלב ללא לקטוז 3%",
+      "category": "חלב",
+      "state": "raw",
+      "fdc_query": null,
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "יוגורט טבעי 1.5%",
+      "category": "חלב",
+      "state": "raw",
+      "fdc_query": "yogurt, plain, low fat",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "יוגורט טבעי 3%",
+      "category": "חלב",
+      "state": "raw",
+      "fdc_query": "yogurt, plain, whole milk",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "יוגורט יווני 0%",
+      "category": "חלב",
+      "state": "raw",
+      "fdc_query": "yogurt, greek, plain, nonfat",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "יוגורט יווני 5%",
+      "category": "חלב",
+      "state": "raw",
+      "fdc_query": "yogurt, greek, plain, whole milk",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "סקיר",
+      "category": "חלב",
+      "state": "raw",
+      "fdc_query": null,
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "גבינה לבנה 3%",
+      "category": "חלב",
+      "state": "raw",
+      "fdc_query": null,
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "גבינה לבנה 5%",
+      "category": "חלב",
+      "state": "raw",
+      "fdc_query": null,
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "קוטג' 3%",
+      "category": "חלב",
+      "state": "raw",
+      "fdc_query": "cheese, cottage, lowfat, 2% milkfat",
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "קוטג' 5%",
+      "category": "חלב",
+      "state": "raw",
+      "fdc_query": "cheese, cottage, creamed, large or small curd",
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "גבינת שמנת 5%",
+      "category": "חלב",
+      "state": "raw",
+      "fdc_query": null,
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "גבינת שמנת 30%",
+      "category": "חלב",
+      "state": "raw",
+      "fdc_query": "cheese, cream",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "מוצרלה",
+      "category": "חלב",
+      "state": "raw",
+      "fdc_query": "cheese, mozzarella, whole milk",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "פטה 5%",
+      "category": "חלב",
+      "state": "raw",
+      "fdc_query": null,
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "פטה 16%",
+      "category": "חלב",
+      "state": "raw",
+      "fdc_query": "cheese, feta",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "צהובה 9%",
+      "category": "חלב",
+      "state": "raw",
+      "fdc_query": null,
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "צהובה 28%",
+      "category": "חלב",
+      "state": "raw",
+      "fdc_query": "cheese, cheddar",
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "פרמזן",
+      "category": "חלב",
+      "state": "raw",
+      "fdc_query": "cheese, parmesan, hard",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "ריקוטה",
+      "category": "חלב",
+      "state": "raw",
+      "fdc_query": "cheese, ricotta, whole milk",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "שמנת חמוצה 9%",
+      "category": "חלב",
+      "state": "raw",
+      "fdc_query": null,
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "שמנת חמוצה 15%",
+      "category": "חלב",
+      "state": "raw",
+      "fdc_query": "cream, sour, cultured",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "שמנת מתוקה 32%",
+      "category": "חלב",
+      "state": "raw",
+      "fdc_query": "cream, heavy whipping",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "חמאה",
+      "category": "חלב",
+      "state": "raw",
+      "fdc_query": "butter, without salt",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "ביצה שלמה",
+      "category": "ביצים",
+      "state": "raw",
+      "fdc_query": "egg, whole, raw, fresh",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "חלבון ביצה",
+      "category": "ביצים",
+      "state": "raw",
+      "fdc_query": "egg, white, raw, fresh",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "חלמון",
+      "category": "ביצים",
+      "state": "raw",
+      "fdc_query": "egg, yolk, raw, fresh",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "ביצת שליו",
+      "category": "ביצים",
+      "state": "raw",
+      "fdc_query": "egg, quail, whole, fresh, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "ביצה קשה",
+      "category": "ביצים",
+      "state": "cooked",
+      "fdc_query": "egg, whole, cooked, hard-boiled",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "ביצה מטוגנת",
+      "category": "ביצים",
+      "state": "fried",
+      "fdc_query": "egg, whole, cooked, fried",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "חביתה",
+      "category": "ביצים",
+      "state": "cooked",
+      "fdc_query": "egg, whole, cooked, omelet",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "חזה עוף",
+      "category": "בשר",
+      "state": "raw",
+      "fdc_query": "chicken, broilers or fryers, breast, meat only, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "שוק עוף",
+      "category": "בשר",
+      "state": "raw",
+      "fdc_query": "chicken, broilers or fryers, thigh, meat only, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "כנף עוף",
+      "category": "בשר",
+      "state": "raw",
+      "fdc_query": "chicken, broilers or fryers, wing, meat and skin, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "פרגית",
+      "category": "בשר",
+      "state": "raw",
+      "fdc_query": "chicken, broilers or fryers, thigh, meat and skin, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "הודו חזה",
+      "category": "בשר",
+      "state": "raw",
+      "fdc_query": "turkey, breast, meat only, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "הודו טחון",
+      "category": "בשר",
+      "state": "raw",
+      "fdc_query": "turkey, ground, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "בקר טחון 5%",
+      "category": "בשר",
+      "state": "raw",
+      "fdc_query": "beef, ground, 95% lean meat / 5% fat, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "בקר טחון 10%",
+      "category": "בשר",
+      "state": "raw",
+      "fdc_query": "beef, ground, 90% lean meat / 10% fat, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "בקר טחון 20%",
+      "category": "בשר",
+      "state": "raw",
+      "fdc_query": "beef, ground, 80% lean meat / 20% fat, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "סינטה",
+      "category": "בשר",
+      "state": "raw",
+      "fdc_query": "beef, loin, top sirloin, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "פילה בקר",
+      "category": "בשר",
+      "state": "raw",
+      "fdc_query": "beef, tenderloin, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "אנטריקוט",
+      "category": "בשר",
+      "state": "raw",
+      "fdc_query": "beef, rib eye steak, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "כתף בקר",
+      "category": "בשר",
+      "state": "raw",
+      "fdc_query": "beef, chuck, shoulder, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "צלעות בקר",
+      "category": "בשר",
+      "state": "raw",
+      "fdc_query": "beef, short ribs, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "כבד בקר",
+      "category": "בשר",
+      "state": "raw",
+      "fdc_query": "beef, liver, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "כבד עוף",
+      "category": "בשר",
+      "state": "raw",
+      "fdc_query": "chicken, liver, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "קורקבנים",
+      "category": "בשר",
+      "state": "raw",
+      "fdc_query": "chicken, gizzard, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "פילה מדומה",
+      "category": "בשר",
+      "state": "raw",
+      "fdc_query": null,
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "פסטרמה הודו",
+      "category": "בשר",
+      "state": "raw",
+      "fdc_query": null,
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "נקניקיות",
+      "category": "בשר",
+      "state": "raw",
+      "fdc_query": null,
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "טונה במים",
+      "category": "דגים",
+      "state": "canned",
+      "fdc_query": "fish, tuna, light, canned in water, drained",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "טונה בשמן",
+      "category": "דגים",
+      "state": "canned",
+      "fdc_query": "fish, tuna, light, canned in oil, drained",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "סלמון",
+      "category": "דגים",
+      "state": "raw",
+      "fdc_query": "fish, salmon, atlantic, farmed, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "סלמון מעושן",
+      "category": "דגים",
+      "state": "smoked",
+      "fdc_query": "fish, salmon, chinook, smoked",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "דניס",
+      "category": "דגים",
+      "state": "raw",
+      "fdc_query": "fish, sea bream, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "לברק",
+      "category": "דגים",
+      "state": "raw",
+      "fdc_query": "fish, bass, striped, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "אמנון",
+      "category": "דגים",
+      "state": "raw",
+      "fdc_query": "fish, tilapia, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "בקלה",
+      "category": "דגים",
+      "state": "raw",
+      "fdc_query": "fish, cod, atlantic, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "מושט",
+      "category": "דגים",
+      "state": "raw",
+      "fdc_query": "fish, tilapia, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "סרדינים",
+      "category": "דגים",
+      "state": "canned",
+      "fdc_query": "fish, sardine, atlantic, canned in oil, drained",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "מקרל",
+      "category": "דגים",
+      "state": "raw",
+      "fdc_query": "fish, mackerel, atlantic, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "פורל",
+      "category": "דגים",
+      "state": "raw",
+      "fdc_query": "fish, trout, rainbow, farmed, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "קרפיון",
+      "category": "דגים",
+      "state": "raw",
+      "fdc_query": "fish, carp, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "נסיכת הנילוס",
+      "category": "דגים",
+      "state": "raw",
+      "fdc_query": "fish, tilapia, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "שרימפס",
+      "category": "דגים",
+      "state": "raw",
+      "fdc_query": "crustaceans, shrimp, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "קלמרי",
+      "category": "דגים",
+      "state": "raw",
+      "fdc_query": "mollusks, squid, mixed species, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "עדשים מבושלות",
+      "category": "קטניות",
+      "state": "cooked",
+      "fdc_query": "lentils, mature seeds, cooked, boiled, without salt",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "עדשים יבשות",
+      "category": "קטניות",
+      "state": "dry",
+      "fdc_query": "lentils, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "שעועית לבנה מבושלת",
+      "category": "קטניות",
+      "state": "cooked",
+      "fdc_query": "beans, white, mature seeds, cooked, boiled",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "שעועית אדומה מבושלת",
+      "category": "קטניות",
+      "state": "cooked",
+      "fdc_query": "beans, kidney, red, mature seeds, cooked, boiled",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "שעועית שחורה מבושלת",
+      "category": "קטניות",
+      "state": "cooked",
+      "fdc_query": "beans, black, mature seeds, cooked, boiled",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "שעועית יבשה",
+      "category": "קטניות",
+      "state": "dry",
+      "fdc_query": "beans, kidney, red, mature seeds, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "חומוס מבושל",
+      "category": "קטניות",
+      "state": "cooked",
+      "fdc_query": "chickpeas, mature seeds, cooked, boiled, without salt",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "חומוס יבש",
+      "category": "קטניות",
+      "state": "dry",
+      "fdc_query": "chickpeas, mature seeds, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "פול מבושל",
+      "category": "קטניות",
+      "state": "cooked",
+      "fdc_query": "broadbeans, fava, mature seeds, cooked, boiled",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "אפונה מבושלת",
+      "category": "קטניות",
+      "state": "cooked",
+      "fdc_query": "peas, split, mature seeds, cooked, boiled",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "סויה מבושלת",
+      "category": "קטניות",
+      "state": "cooked",
+      "fdc_query": "soybeans, mature seeds, cooked, boiled",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "אדממה",
+      "category": "קטניות",
+      "state": "cooked",
+      "fdc_query": "edamame, frozen, prepared",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "אורז לבן מבושל",
+      "category": "דגנים",
+      "state": "cooked",
+      "fdc_query": "rice, white, long-grain, regular, cooked",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "אורז מלא מבושל",
+      "category": "דגנים",
+      "state": "cooked",
+      "fdc_query": "rice, brown, long-grain, cooked",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "אורז יבש",
+      "category": "דגנים",
+      "state": "dry",
+      "fdc_query": "rice, white, long-grain, regular, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "קוסקוס מבושל",
+      "category": "דגנים",
+      "state": "cooked",
+      "fdc_query": "couscous, cooked",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "בורגול מבושל",
+      "category": "דגנים",
+      "state": "cooked",
+      "fdc_query": "bulgur, cooked",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "קינואה מבושלת",
+      "category": "דגנים",
+      "state": "cooked",
+      "fdc_query": "quinoa, cooked",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "שיבולת שועל",
+      "category": "דגנים",
+      "state": "dry",
+      "fdc_query": "oats, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "שיבולת שועל מבושלת",
+      "category": "דגנים",
+      "state": "cooked",
+      "fdc_query": "cereals, oats, regular and quick, cooked with water",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "כוסמת מבושלת",
+      "category": "דגנים",
+      "state": "cooked",
+      "fdc_query": "buckwheat groats, roasted, cooked",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "גריסים מבושלים",
+      "category": "דגנים",
+      "state": "cooked",
+      "fdc_query": "barley, pearled, cooked",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "פסטה מבושלת",
+      "category": "דגנים",
+      "state": "cooked",
+      "fdc_query": "pasta, cooked, enriched",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "פסטה מחיטה מלאה",
+      "category": "דגנים",
+      "state": "cooked",
+      "fdc_query": "pasta, whole-wheat, cooked",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "קורנפלקס",
+      "category": "דגנים",
+      "state": "dry",
+      "fdc_query": "cereals ready-to-eat, corn flakes",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "גרנולה",
+      "category": "דגנים",
+      "state": "dry",
+      "fdc_query": "granola, homemade",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "פתיתים מבושלים",
+      "category": "דגנים",
+      "state": "cooked",
+      "fdc_query": null,
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "לחם לבן",
+      "category": "לחמים",
+      "state": "baked",
+      "fdc_query": "bread, white, commercially prepared",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "לחם מלא",
+      "category": "לחמים",
+      "state": "baked",
+      "fdc_query": "bread, whole-wheat, commercially prepared",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "לחם שיפון",
+      "category": "לחמים",
+      "state": "baked",
+      "fdc_query": "bread, rye",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "פיתה",
+      "category": "לחמים",
+      "state": "baked",
+      "fdc_query": "bread, pita, white, enriched",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "טורטייה",
+      "category": "לחמים",
+      "state": "baked",
+      "fdc_query": "tortillas, ready-to-bake or -fry, flour",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "לחמנייה",
+      "category": "לחמים",
+      "state": "baked",
+      "fdc_query": "rolls, dinner, plain, commercially prepared",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "בייגל",
+      "category": "לחמים",
+      "state": "baked",
+      "fdc_query": "bagels, plain, enriched",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "קרקר",
+      "category": "לחמים",
+      "state": "baked",
+      "fdc_query": "crackers, saltines",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "מצה",
+      "category": "לחמים",
+      "state": "baked",
+      "fdc_query": "crackers, matzo, plain",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "פירורי לחם",
+      "category": "לחמים",
+      "state": "dry",
+      "fdc_query": "bread crumbs, dry, grated, plain",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "לחם כוסמין",
+      "category": "לחמים",
+      "state": "baked",
+      "fdc_query": null,
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "לחם קל",
+      "category": "לחמים",
+      "state": "baked",
+      "fdc_query": null,
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "פיתה קלה",
+      "category": "לחמים",
+      "state": "baked",
+      "fdc_query": null,
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "לאפה",
+      "category": "לחמים",
+      "state": "baked",
+      "fdc_query": null,
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "שקדים",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "fdc_query": "nuts, almonds",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "אגוזי מלך",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "fdc_query": "nuts, walnuts, english",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "אגוזי קשיו",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "fdc_query": "nuts, cashew nuts, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "פיסטוקים",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "fdc_query": "nuts, pistachio nuts, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "אגוזי לוז",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "fdc_query": "nuts, hazelnuts or filberts",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "בוטנים",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "fdc_query": "peanuts, all types, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "אגוזי פקאן",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "fdc_query": "nuts, pecans",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "מקדמיה",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "fdc_query": "nuts, macadamia nuts, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "גרעיני חמנייה",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "fdc_query": "seeds, sunflower seed kernels, dried",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "גרעיני דלעת",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "fdc_query": "seeds, pumpkin and squash seed kernels, dried",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "שומשום",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "fdc_query": "seeds, sesame seeds, whole, dried",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "צ'יה",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "fdc_query": "seeds, chia seeds, dried",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "פשתן",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "fdc_query": "seeds, flaxseed",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "חמאת בוטנים",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "fdc_query": "peanut butter, smooth style",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "חמאת שקדים",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "fdc_query": "nuts, almond butter, plain",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "טחינה גולמית",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "fdc_query": "seeds, sesame butter, tahini",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "טחינה מוכנה",
+      "category": "אגוזים וזרעים",
+      "state": "raw",
+      "fdc_query": null,
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "שמן זית",
+      "category": "שמנים",
+      "state": "raw",
+      "fdc_query": "oil, olive, salad or cooking",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "שמן קנולה",
+      "category": "שמנים",
+      "state": "raw",
+      "fdc_query": "oil, canola",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "שמן אבוקדו",
+      "category": "שמנים",
+      "state": "raw",
+      "fdc_query": "oil, avocado",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "שמן קוקוס",
+      "category": "שמנים",
+      "state": "raw",
+      "fdc_query": "oil, coconut",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "שמן חמניות",
+      "category": "שמנים",
+      "state": "raw",
+      "fdc_query": "oil, sunflower",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "מרגרינה",
+      "category": "שמנים",
+      "state": "raw",
+      "fdc_query": "margarine, regular, 80% fat",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "סוכר לבן",
+      "category": "סוכרים",
+      "state": "raw",
+      "fdc_query": "sugars, granulated",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "סוכר חום",
+      "category": "סוכרים",
+      "state": "raw",
+      "fdc_query": "sugars, brown",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "דבש",
+      "category": "סוכרים",
+      "state": "raw",
+      "fdc_query": "honey",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "מייפל",
+      "category": "סוכרים",
+      "state": "raw",
+      "fdc_query": "syrups, maple",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "שוקולד חלב",
+      "category": "סוכרים",
+      "state": "raw",
+      "fdc_query": "candies, milk chocolate",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "שוקולד מריר 70%",
+      "category": "סוכרים",
+      "state": "raw",
+      "fdc_query": "candies, dark chocolate, 70-85% cacao solids",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "שוקולד לבן",
+      "category": "סוכרים",
+      "state": "raw",
+      "fdc_query": "candies, white chocolate",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "קקאו ללא סוכר",
+      "category": "סוכרים",
+      "state": "raw",
+      "fdc_query": "cocoa, dry powder, unsweetened",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "סילאן",
+      "category": "סוכרים",
+      "state": "raw",
+      "fdc_query": null,
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "ריבה",
+      "category": "סוכרים",
+      "state": "raw",
+      "fdc_query": null,
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "קטשופ",
+      "category": "רטבים",
+      "state": "raw",
+      "fdc_query": "catsup",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "מיונז",
+      "category": "רטבים",
+      "state": "raw",
+      "fdc_query": "salad dressing, mayonnaise, regular",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "חרדל",
+      "category": "רטבים",
+      "state": "raw",
+      "fdc_query": "mustard, prepared, yellow",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "רוטב סויה",
+      "category": "רטבים",
+      "state": "raw",
+      "fdc_query": "soy sauce made from soy and wheat (shoyu)",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "פסטו",
+      "category": "רטבים",
+      "state": "raw",
+      "fdc_query": "sauce, pesto, ready-to-serve",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "חומוס (ממרח)",
+      "category": "רטבים",
+      "state": "raw",
+      "fdc_query": "hummus, commercial",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "מטבוחה",
+      "category": "רטבים",
+      "state": "cooked",
+      "fdc_query": null,
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "סלט חצילים במיונז",
+      "category": "רטבים",
+      "state": "raw",
+      "fdc_query": null,
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "רוטב צ'ילי מתוק",
+      "category": "רטבים",
+      "state": "raw",
+      "fdc_query": null,
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "רוטב טריאקי",
+      "category": "רטבים",
+      "state": "raw",
+      "fdc_query": "sauce, teriyaki, ready-to-serve",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "פופקורן ללא שמן",
+      "category": "מוכן ומעובד",
+      "state": "cooked",
+      "fdc_query": "snacks, popcorn, air-popped",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "צ'יפס",
+      "category": "מוכן ומעובד",
+      "state": "fried",
+      "fdc_query": "potatoes, french fried, frozen, oven-heated",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "תפוצ'יפס",
+      "category": "מוכן ומעובד",
+      "state": "fried",
+      "fdc_query": "snacks, potato chips, plain, salted",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "גלידה",
+      "category": "מוכן ומעובד",
+      "state": "raw",
+      "fdc_query": "ice creams, vanilla",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "פיצה",
+      "category": "מוכן ומעובד",
+      "state": "baked",
+      "fdc_query": "pizza, cheese topping, regular crust",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "פלאפל",
+      "category": "מוכן ומעובד",
+      "state": "fried",
+      "fdc_query": "falafel, home-prepared",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "המבורגר",
+      "category": "מוכן ומעובד",
+      "state": "cooked",
+      "fdc_query": null,
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "שניצל מטוגן",
+      "category": "מוכן ומעובד",
+      "state": "fried",
+      "fdc_query": null,
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "שניצל אפוי",
+      "category": "מוכן ומעובד",
+      "state": "baked",
+      "fdc_query": null,
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "ביסקוויטים",
+      "category": "מוכן ומעובד",
+      "state": "baked",
+      "fdc_query": null,
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "עוגיות",
+      "category": "מוכן ומעובד",
+      "state": "baked",
+      "fdc_query": "cookies, sugar, commercially prepared",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "עוגת שוקולד",
+      "category": "מוכן ומעובד",
+      "state": "baked",
+      "fdc_query": "cake, chocolate, commercially prepared",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "מים",
+      "category": "משקאות",
+      "state": "raw",
+      "fdc_query": "water, tap, drinking",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "קפה שחור",
+      "category": "משקאות",
+      "state": "raw",
+      "fdc_query": "beverages, coffee, brewed, prepared with tap water",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "תה ללא סוכר",
+      "category": "משקאות",
+      "state": "raw",
+      "fdc_query": "beverages, tea, brewed, prepared with tap water",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "מיץ תפוזים",
+      "category": "משקאות",
+      "state": "raw",
+      "fdc_query": "orange juice, raw",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "קולה",
+      "category": "משקאות",
+      "state": "raw",
+      "fdc_query": "beverages, carbonated, cola, regular",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "ספרייט",
+      "category": "משקאות",
+      "state": "raw",
+      "fdc_query": "beverages, carbonated, lemon-lime soda",
+      "source_plan": "usda_fdc"
+    },
+    {
+      "name_he": "שוקו",
+      "category": "משקאות",
+      "state": "raw",
+      "fdc_query": null,
+      "source_plan": "moh_il_or_label"
+    },
+    {
+      "name_he": "משקה אנרגיה",
+      "category": "משקאות",
+      "state": "raw",
+      "fdc_query": null,
+      "source_plan": "moh_il_or_label"
+    }
+  ]
+}
