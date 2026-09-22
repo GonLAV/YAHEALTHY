@@ -70,10 +70,6 @@ export const authApi = {
     } finally {
       localStorage.removeItem('token');
     }
-
-  logout: () => {
-    localStorage.removeItem('token');
-    return Promise.resolve();
   },
 
   getCurrentUser: () =>
@@ -213,6 +209,8 @@ export const crmApi = {
     api.get(`/api/crm/users/${userId}/insights`, { params: { lang } }),
   askCoach: (userId: string, message: string, lang: string) =>
     api.post(`/api/crm/users/${userId}/ask?lang=${lang}`, { message }),
+};
+
 export interface RecipeIngredient {
   item: string;
   amount: string;

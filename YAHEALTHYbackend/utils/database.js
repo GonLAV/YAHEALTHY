@@ -64,7 +64,7 @@ const memoryDb = {
   subscriptions: [],
   paymentEvents: [],
   chefRequests: [],
-  foods: []
+  foods: [],
   whapiConversations: new Map(),
   whapiMessages: []
 };
