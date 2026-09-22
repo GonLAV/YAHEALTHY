@@ -1,13 +1,14 @@
 /**
- * WHAPI webhook -- receives WhatsApp messages, routes them to Mor or the
+ * WHAPI webhook -- receives WhatsApp messages, routes them to Adi or the
  * chef, and sends the reply back. See docs/bot/nuri-bot-prompt.md and
  * docs/bot/chef-bot-prompt.md for what each persona actually does; this file
  * is only transport and routing.
  *
- * The 'nuri' identifier below is the internal DB value (whapi_conversations
- * .active_bot, constrained by migrations/001) -- renaming it would need a
- * migration for no user-visible benefit. "Mor" is the persona's name in
- * every user-facing string; SWITCH_COMMANDS is what a customer types.
+ * 'adi' is both the internal DB value (whapi_conversations.active_bot,
+ * originally constrained to 'nuri'/'chef' by migrations/001) and the
+ * persona's name in every user-facing string -- migrations/003 renamed the
+ * stored value and its constraint to match. SWITCH_COMMANDS is what a
+ * customer types.
  */
 const express = require('express');
 const { waitUntil } = require('@vercel/functions');
@@ -17,12 +18,35 @@ const brain = require('../utils/whapi-brain');
 
 const router = express.Router();
 
-const SWITCH_COMMANDS = { 'שף': 'chef', chef: 'chef', 'מור': 'nuri', mor: 'nuri' };
+const SWITCH_COMMANDS = { 'שף': 'chef', chef: 'chef', 'עדי': 'adi', adi: 'adi' };
 
-const WELCOME = `היי! \u{1F642} כאן YAHEALTHY.
+// The one and only place an emoji is allowed -- every reply Adi herself
+// writes is plain text, enforced in the prompt (docs/bot/nuri-bot-prompt.md).
+const WELCOME = `שלום! \u{1F642} זאת עדי.
 
-אני מור -- שלחו תמונת תווית ("מה יש בזה?") או כל שאלת מזון.
-רוצים את השף במקום (מתכונים, איך לבשל) -- כתבו בכל שלב "שף". לחזור אליי -- "מור".`;
+שלחו תמונת תווית או כל שאלה על אוכל. רוצים את השף (מתכונים, בישול) -- כתבו "שף". לחזור אליי -- "עדי".`;
+
+// Sends `body` preceded by a typing indicator and a delay roughly matched to
+// how long it'd take a person to type that much -- makes even a single
+// message feel less like an instant bot reply.
+async function sendWithTyping(phone, body) {
+  await whapi.sendTyping(phone);
+  const typingDelayMs = Math.min(3500, Math.max(700, body.length * 35));
+  await new Promise((resolve) => setTimeout(resolve, typingDelayMs));
+  await whapi.sendText(phone, body);
+}
+
+// A reply can contain more than one WhatsApp bubble -- the prompt separates
+// distinct thoughts with a blank line when that's how a person would
+// actually text them (see "סגנון" in nuri-bot-prompt.md). Each bubble gets
+// its own typing pause, so a multi-part reply arrives the way a person
+// sends it: a few short messages in a row, not one paragraph.
+async function sendReplyInChunks(phone, reply) {
+  const chunks = reply.split(/\n{2,}/).map((c) => c.trim()).filter(Boolean);
+  for (const chunk of chunks.length ? chunks : [reply]) {
+    await sendWithTyping(phone, chunk);
+  }
+}
 
 // WHAPI's dispatcher appends the event type to the configured webhook URL
 // (confirmed by inspecting a raw delivery: a webhook set to base "/x" arrives
@@ -67,21 +91,21 @@ async function handleIncomingMessage(message) {
 
   const existingConversation = await db.getWhapiConversation(phone);
   const isNewConversation = !existingConversation;
-  const conversation = existingConversation || (await db.upsertWhapiConversation(phone, 'nuri'));
+  const conversation = existingConversation || (await db.upsertWhapiConversation(phone, 'adi'));
 
   const rawText = (message.text?.body || message.image?.caption || '').trim();
   const switchTo = SWITCH_COMMANDS[rawText.toLowerCase()];
   if (switchTo) {
     await db.upsertWhapiConversation(phone, switchTo);
-    await whapi.sendText(
+    await sendWithTyping(
       phone,
-      switchTo === 'chef' ? 'עברנו לשף \u{1F468}‍\u{1F373} מה מבשלים היום?' : 'עברנו למור \u{1F642} שלחו תמונת תווית או שאלת מזון.'
+      switchTo === 'chef' ? 'עברנו לשף. מה מבשלים היום?' : 'עברנו לעדי. שלחו תמונת תווית או שאלת מזון.'
     );
     return;
   }
 
   if (isNewConversation) {
-    await whapi.sendText(phone, WELCOME);
+    await sendWithTyping(phone, WELCOME);
   }
 
   let imageBase64 = null;
@@ -113,7 +137,7 @@ async function handleIncomingMessage(message) {
 
   await db.logWhapiMessage(phone, 'user', rawText || '[תמונה]');
   await db.logWhapiMessage(phone, 'assistant', reply);
-  await whapi.sendText(phone, reply);
+  await sendReplyInChunks(phone, reply);
 }
 
 module.exports = router;

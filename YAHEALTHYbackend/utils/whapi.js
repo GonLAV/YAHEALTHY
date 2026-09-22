@@ -35,9 +35,16 @@ async function sendText(to, body) {
 }
 
 // Best-effort UX only (typing indicator) -- must never block a reply.
+//
+// /presences/{id} wants a bare phone number, not the chat_id shape
+// ("<phone>@s.whatsapp.net") that /messages/text accepts for `to` -- passing
+// the full chat_id here always got a 400 ("EntryID must match exactly one
+// schema in oneOf"), silently, forever, since every call caught its own
+// error. Confirmed by hitting the endpoint directly with each shape.
 async function sendTyping(to) {
   try {
-    await whapiFetch(`/presences/${encodeURIComponent(to)}`, {
+    const bareNumber = String(to).split('@')[0];
+    await whapiFetch(`/presences/${encodeURIComponent(bareNumber)}`, {
       method: 'PUT',
       body: JSON.stringify({ presence: 'typing' })
     });
