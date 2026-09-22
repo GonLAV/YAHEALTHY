@@ -1,0 +1,56 @@
+name: One-off - Diagnose production 404
+
+# Read-only diagnostic: production is returning 404 on /api/health right
+# after a deploy that reportedly returned 200. Lists recent deployments and
+# inspects the current production one to see whether something other than
+# this repo's own deploy.yml (e.g. Vercel's native Git integration, using a
+# different Root Directory setting) is redeploying and overwriting it.
+# Prints no secret values. Delete once the cause is found.
+on:
+  workflow_dispatch: {}
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Install vercel CLI
+        run: npm i -g vercel@latest
+
+      - name: List recent deployments
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        run: |
+          vercel ls --token "$VERCEL_TOKEN" || true
+
+      - name: Inspect current production deployment
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        run: |
+          vercel inspect https://yahealthy.vercel.app --token "$VERCEL_TOKEN" || true
+
+      - name: Show project's Git integration settings
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        run: |
+          curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID?teamId=$VERCEL_ORG_ID" \
+            | node -e "
+              let d='';
+              process.stdin.on('data', c => d += c);
+              process.stdin.on('end', () => {
+                const p = JSON.parse(d);
+                console.log(JSON.stringify({
+                  name: p.name,
+                  rootDirectory: p.rootDirectory,
+                  link: p.link && { type: p.link.type, repo: p.link.repo, productionBranch: p.link.productionBranch },
+                  autoExposeSystemEnvs: p.autoExposeSystemEnvs
+                }, null, 2));
+              });
+            "
