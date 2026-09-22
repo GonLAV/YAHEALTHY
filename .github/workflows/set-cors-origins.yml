@@ -29,6 +29,8 @@ jobs:
       CORS_ORIGINS_VALUE: https://yahealthy.vercel.app
 
     steps:
+      - uses: actions/checkout@v4
+
       - name: Install Vercel CLI
         run: npm i -g vercel@latest
 
