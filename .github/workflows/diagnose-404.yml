@@ -1,11 +1,18 @@
 name: One-off - Diagnose production 404
 
-# Read-only diagnostic: production is returning 404 on /api/health right
-# after a deploy that reportedly returned 200. Lists recent deployments and
-# inspects the current production one to see whether something other than
-# this repo's own deploy.yml (e.g. Vercel's native Git integration, using a
-# different Root Directory setting) is redeploying and overwriting it.
-# Prints no secret values. Delete once the cause is found.
+# v2: the first version's project-info call used a `teamId` param that
+# doesn't apply to a personal-scope account and got back an unhelpful `{}` --
+# this version drops it, prints HTTP status codes, and (this is the part
+# that actually matters) lists the project's recent deployments with their
+# source and target, to check a specific theory: our own CI's deploy at
+# 15:49:21 UTC logged "Aliased https://yahealthy.vercel.app" and that exact
+# per-deploy URL still returns 200 right now -- so the deployment itself is
+# fine and the alias briefly worked. Something un-aliased the custom domain
+# afterward with no new deploy.yml run in between. The leading suspect is
+# Vercel's own Git integration deploying independently of this repo's CI
+# (using the dashboard's Root Directory setting, not --cwd) on the very next
+# push and re-claiming the production alias with a broken build. No secret
+# values are printed. Delete once the cause is found.
 on:
   workflow_dispatch: {}
 
@@ -14,43 +21,68 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Install vercel CLI
-        run: npm i -g vercel@latest
-
-      - name: List recent deployments
+      - name: Project info (no teamId -- this looks like a personal-scope account)
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
         run: |
-          vercel ls --token "$VERCEL_TOKEN" || true
-
-      - name: Inspect current production deployment
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-        run: |
-          vercel inspect https://yahealthy.vercel.app --token "$VERCEL_TOKEN" || true
-
-      - name: Show project's Git integration settings
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-        run: |
-          curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
-            "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID?teamId=$VERCEL_ORG_ID" \
+          curl -s -w "\nHTTP %{http_code}\n" -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID" \
             | node -e "
               let d='';
               process.stdin.on('data', c => d += c);
               process.stdin.on('end', () => {
-                const p = JSON.parse(d);
-                console.log(JSON.stringify({
-                  name: p.name,
-                  rootDirectory: p.rootDirectory,
-                  link: p.link && { type: p.link.type, repo: p.link.repo, productionBranch: p.link.productionBranch },
-                  autoExposeSystemEnvs: p.autoExposeSystemEnvs
-                }, null, 2));
+                const parts = d.split(/\nHTTP (\d+)\n$/);
+                let body = parts[0];
+                try { body = JSON.parse(body); } catch (e) {}
+                if (body && body.id) {
+                  console.log(JSON.stringify({
+                    id: body.id, name: body.name, rootDirectory: body.rootDirectory,
+                    link: body.link && { type: body.link.type, repo: body.link.repo, productionBranch: body.link.productionBranch },
+                    targets: body.targets && Object.keys(body.targets)
+                  }, null, 2));
+                } else {
+                  console.log('non-project response:', JSON.stringify(body));
+                }
+                console.log('HTTP', parts[1]);
               });
             "
+
+      - name: Recent deployments for this project (production target)
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          curl -s -w "\nHTTP %{http_code}\n" -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v6/deployments?projectId=$VERCEL_PROJECT_ID&target=production&limit=8" \
+            | node -e "
+              let d='';
+              process.stdin.on('data', c => d += c);
+              process.stdin.on('end', () => {
+                const parts = d.split(/\nHTTP (\d+)\n$/);
+                let body = parts[0];
+                try { body = JSON.parse(body); } catch (e) {}
+                if (body && body.deployments) {
+                  for (const dep of body.deployments) {
+                    console.log(JSON.stringify({
+                      url: dep.url,
+                      createdAt: new Date(dep.createdAt || dep.created).toISOString(),
+                      readyState: dep.readyState || dep.state,
+                      source: dep.source,
+                      creator: dep.creator && dep.creator.username,
+                      meta_githubCommitSha: dep.meta && dep.meta.githubCommitSha
+                    }));
+                  }
+                } else {
+                  console.log('non-list response:', JSON.stringify(body));
+                }
+                console.log('HTTP', parts[1]);
+              });
+            "
+
+      - name: Domain config for yahealthy.vercel.app
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          curl -s -w "\nHTTP %{http_code}\n" -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v9/projects/yahealthy/domains/yahealthy.vercel.app"
