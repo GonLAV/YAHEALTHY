@@ -532,3 +532,56 @@ update public.payment_events set plan = 'yoni' where plan = 'chef';
 
 -- מסלול-האדם. אין לו יותר endpoint, ואין לו מי שמנהל את התור שהוא יוצר.
 drop table if exists public.chef_requests;
+
+-- קישור בין מספר טלפון לחשבון — התנאי לגבייה על יוני.
+--
+-- הבעיה: וואטסאפ מזהה אנשים לפי מספר טלפון, ומנויים רשומים על חשבון עם
+-- אימייל. לא היה ביניהם שום קשר, ולכן השרת לא ידע מי כותב לו — ולא יכול
+-- היה לדעת אם שילם.
+--
+-- 🔴 מספר טלפון הוא לא הוכחת זהות. הוא מספיק כדי להחליט מי מקבל בוט
+-- בישול; הוא לא מספיק לשום דבר חמור מזה. אין כאן מפתח לחשבון.
+--
+-- נתיב חזרה:
+--   alter table public.users drop column phone;
+--   alter table whapi_conversations drop column user_id;
+
+-- E.164 בלי הפלוס: 972501234567. צורה אחת בלבד, כי השוואה בין
+-- "050-123-4567" ל-"+972501234567" היא באג שמחכה לקרות.
+alter table public.users
+  add column if not exists phone text;
+
+-- ייחודי, אבל רק על מה שקיים: שני חשבונות על אותו מספר הם תמיד תקלה,
+-- ורוב החשבונות לא ימסרו מספר בכלל.
+create unique index if not exists users_phone_key
+  on public.users (phone)
+  where phone is not null;
+
+-- מי מדבר איתנו בוואטסאפ, אם ידוע. null = מספר שלא זוהה, וזה מצב
+-- לגיטימי: אדם יכול לכתוב לפני שקנה.
+alter table whapi_conversations
+  add column if not exists user_id uuid references public.users(id) on delete set null;
+
+create index if not exists whapi_conversations_user_idx
+  on whapi_conversations (user_id);
+
+-- איזו גרסת פרומפט ענתה ללקוח.
+--
+-- הבוט אומר לאנשים מה לאכול ובאיזה יעד קלורי. ההצדקה לכך היא שאשת מקצוע
+-- כתבה ואישרה את הנוסח. ההצדקה הזו שווה משהו רק אם אפשר להראות **איזה**
+-- נוסח היה בתוקף כשנאמר מה שנאמר — שיחה משישה חודשים אחורה מול פרומפט
+-- שהשתנה מאז היא בדיוק המצב שבו אי אפשר להגן על כלום.
+--
+-- הערך הוא persona:12 התווים הראשונים של sha256 של קובץ הפרומפט, למשל
+-- "adi:dc4acc971f59". מי שמשווה אותו ל-data/clinical-approvals.json יודע
+-- מיד אם הגרסה שענתה היא הגרסה שאושרה.
+--
+-- null מותר: שורות שנכתבו לפני השינוי הזה, ותשובות מערכת שאינן מהמודל.
+--
+-- נתיב חזרה: alter table whapi_messages drop column prompt_version;
+
+alter table whapi_messages
+  add column if not exists prompt_version text;
+
+create index if not exists whapi_messages_prompt_version_idx
+  on whapi_messages (prompt_version);

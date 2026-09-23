@@ -8,6 +8,7 @@ const path = require('path');
 const Anthropic = require('@anthropic-ai/sdk');
 const { calculateDailyTarget } = require('./nutrition-calculator');
 const { listFoods, calculateForItems } = require('./food-calculator');
+const clinical = require('./clinical-approval');
 
 // Vendored into YAHEALTHYbackend/docs/bot/ (copied from the repo-root
 // docs/bot/, which stays the source of truth for editing) because Vercel's
@@ -37,6 +38,25 @@ function loadPrompt(bot) {
 const SYSTEM_PROMPTS = {
   adi: loadPrompt('adi'),
   yoni: loadPrompt('yoni')
+};
+
+// These prompts tell people what to eat and how many calories to aim for.
+// That is clinical content, and the reason it may ship is that a registered
+// professional wrote and approved it — so the approval is checked here, at the
+// only moment that covers every reply. Production refuses to start on an
+// unapproved prompt; development warns, so editing one is not blocked by
+// editing a JSON file first.
+const APPROVALS = {
+  adi: clinical.assertApproved('adi', PROMPT_PATHS.adi),
+  yoni: clinical.assertApproved('yoni', PROMPT_PATHS.yoni)
+};
+
+// Stamped onto every logged reply, so a conversation can later be read back
+// against the exact text that produced it. "She approved it" is a claim;
+// "this reply came from adi:dc4acc971f59" is a record.
+const PROMPT_VERSIONS = {
+  adi: clinical.versionLabel('adi', PROMPT_PATHS.adi),
+  yoni: clinical.versionLabel('yoni', PROMPT_PATHS.yoni)
 };
 
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5';
@@ -269,4 +289,9 @@ async function generateReplyWithTools({ activeBot, history, userText, imageBase6
     .trim();
 }
 
-module.exports = { generateReply, generateReplyWithTools };
+module.exports = {
+  PROMPT_VERSIONS,
+  APPROVALS,
+  generateReply,
+  generateReplyWithTools
+};
