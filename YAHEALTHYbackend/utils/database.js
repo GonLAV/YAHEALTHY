@@ -489,10 +489,19 @@ async function deleteMealPlan(planId, userId) {
  * Subscriptions — what someone bought, which is what grants access.
  */
 async function getActiveSubscriptions(userId) {
+  // status alone was the whole test, so a row with ends_at in the past still
+  // read as active — a subscription that ended in March would have kept
+  // granting access forever. Reading the date here means access expires the
+  // moment anything writes one, with no scheduled job to run or forget.
+  const now = new Date().toISOString();
+
   if (USE_MEMORY_DB) {
     maybeLogMemoryMode();
     return memoryDb.subscriptions.filter(
-      (row) => row.user_id === userId && row.status === 'active'
+      (row) =>
+        row.user_id === userId &&
+        row.status === 'active' &&
+        (!row.ends_at || row.ends_at > now)
     );
   }
 
@@ -500,7 +509,9 @@ async function getActiveSubscriptions(userId) {
     .from('subscriptions')
     .select('*')
     .eq('user_id', userId)
-    .eq('status', 'active');
+    .eq('status', 'active')
+    // null means open-ended, which is the normal case for a live subscription.
+    .or(`ends_at.is.null,ends_at.gt.${now}`);
 
   if (error) throw error;
   return data || [];
@@ -1705,19 +1716,39 @@ async function upsertWhapiConversation(phone, activeBot) {
   return normalizeActiveBot(fallbackData);
 }
 
+// Only what a person answering a message needs. `raw` holds the entire WHAPI
+// payload — profile name, media links, metadata nobody reviewing a message has
+// to see — and select('*') handed all of it out. It also means a column added
+// later is not exposed by an endpoint written before it existed.
+const WHATSAPP_MESSAGE_FIELDS = 'id, chat_id, from_number, from_name, type, body, sent_at, status, received_at';
+
+// A status is a fixed set, and it came straight from the query string. An
+// unknown value is refused rather than passed through to the database.
+const WHATSAPP_STATUSES = ['pending', 'drafted', 'answered', 'escalated'];
+
 async function getWhatsappMessages({ status = null, limit = 50 } = {}) {
+  if (status && !WHATSAPP_STATUSES.includes(status)) {
+    const err = new Error(`Unknown status: ${status}`);
+    err.code = 'BAD_STATUS';
+    throw err;
+  }
+
+  const capped = Math.min(Math.max(Number(limit) || 50, 1), 200);
+
   if (USE_MEMORY_DB) {
     maybeLogMemoryMode();
     return sortByCreatedAtDesc(
-      memoryDb.whatsappMessages.filter(r => !status || r.status === status)
-    ).slice(0, limit);
+      memoryDb.whatsappMessages.filter((r) => !status || r.status === status)
+    )
+      .slice(0, capped)
+      .map(({ raw, ...rest }) => rest);
   }
 
   let q = supabase
     .from('whatsapp_messages')
-    .select('*')
+    .select(WHATSAPP_MESSAGE_FIELDS)
     .order('received_at', { ascending: false })
-    .limit(limit);
+    .limit(capped);
   if (status) q = q.eq('status', status);
 
   const { data, error } = await q;

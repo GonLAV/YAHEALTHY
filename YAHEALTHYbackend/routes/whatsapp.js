@@ -106,9 +106,15 @@ router.post('/webhook', handleWebhook);
  */
 router.get('/pending', async (req, res) => {
   try {
-    const rows = await db.getWhatsappMessages({ status: req.query.status ?? 'pending' });
+    const rows = await db.getWhatsappMessages({
+      status: req.query.status ?? 'pending',
+      limit: req.query.limit
+    });
     return res.json({ count: rows.length, messages: rows });
   } catch (error) {
+    if (error.code === 'BAD_STATUS') {
+      return res.status(400).json({ error: 'Unknown status', requestId: req.id });
+    }
     return res.status(500).json({
       error: 'Failed to list messages',
       details: process.env.NODE_ENV === 'production' ? undefined : error.message,
