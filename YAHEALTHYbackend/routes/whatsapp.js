@@ -106,8 +106,13 @@ router.post('/webhook', handleWebhook);
  */
 router.get('/pending', async (req, res) => {
   try {
+    // `||` rather than `??`: ?status= with nothing after it is an empty
+    // string, which ?? keeps. It then fell through the whitelist as falsy and
+    // through the filter as "no status", so the one query shape that skipped
+    // validation was also the one that returned every status — escalated
+    // messages included — instead of the documented default.
     const rows = await db.getWhatsappMessages({
-      status: req.query.status ?? 'pending',
+      status: req.query.status || 'pending',
       limit: req.query.limit
     });
     return res.json({ count: rows.length, messages: rows });

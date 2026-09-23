@@ -104,8 +104,11 @@ WEBHOOK_SECRET=your-webhook-secret
  * Or run in your app startup:
  */
 
-import fs from 'fs';
-import path from 'path';
+// The only two lines in this file that were not commented out, in a file
+// where every other example is. Live ESM syntax in a CommonJS package made
+// the whole guide fail to parse — the one file in the backend that did.
+// import fs from 'fs';
+// import path from 'path';
 
 // async function initializeCRM() {
 //   try {
@@ -199,82 +202,84 @@ export const crmApi = {
  * In a new page YAHEALTHYFrontend/src/pages/CoachingPage.tsx:
  */
 
-/*
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { crmApi } from '@/services/api';
-
-export const CoachingPage = () => {
-  const { user } = useAuth();
-  const [insights, setInsights] = useState([]);
-  const [message, setMessage] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    loadInsights();
-  }, [user]);
-
-  const loadInsights = async () => {
-    const response = await crmApi.getInsights(user.id);
-    setInsights(response.data);
-  };
-
-  const handleAsk = async () => {
-    if (!message.trim()) return;
-    setLoading(true);
-    try {
-      const response = await crmApi.askAssistant(user.id, message);
-      // Show AI response in modal or chat UI
-      alert(response.data.response);
-      setMessage('');
-      loadInsights();
-    } catch (error) {
-      console.error('Error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="p-6">
-      <h1 className="text-3xl font-bold mb-6">AI Coaching</h1>
-
-      {/* Insights Section */}
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold mb-4">Your Insights</h2>
-        {insights.map(insight => (
-          <div key={insight.id} className="bg-blue-50 p-4 rounded-lg mb-4 border-l-4 border-blue-500">
-            <p className="font-semibold text-blue-900">{insight.title}</p>
-            <p className="text-blue-800">{insight.content}</p>
-            {insight.suggested_action && (
-              <p className="text-sm text-blue-700 mt-2">💡 {insight.suggested_action}</p>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Ask AI Section */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h2 className="text-2xl font-bold mb-4">Ask Your AI Coach</h2>
-        <textarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Ask about nutrition, goals, or get motivation..."
-          className="w-full p-3 border rounded-lg mb-4"
-          rows={3}
-        />
-        <button
-          onClick={handleAsk}
-          disabled={loading}
-          className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700"
-        >
-          {loading ? 'Thinking...' : 'Ask Coach'}
-        </button>
-      </div>
-    </div>
-  );
-};
-*/
+// Line comments, not a /* */ block. The example is JSX, and JSX writes its
+// own comments as {/* ... */} — that inner */ closed the wrapping block
+// early, so half the example parsed as live code and the trailing */ had
+// nothing to close. It is why this file would not parse at all.
+// import { useState, useEffect } from 'react';
+// import { useAuth } from '@/hooks/useAuth';
+// import { crmApi } from '@/services/api';
+//
+// export const CoachingPage = () => {
+//   const { user } = useAuth();
+//   const [insights, setInsights] = useState([]);
+//   const [message, setMessage] = useState('');
+//   const [loading, setLoading] = useState(false);
+//
+//   useEffect(() => {
+//     loadInsights();
+//   }, [user]);
+//
+//   const loadInsights = async () => {
+//     const response = await crmApi.getInsights(user.id);
+//     setInsights(response.data);
+//   };
+//
+//   const handleAsk = async () => {
+//     if (!message.trim()) return;
+//     setLoading(true);
+//     try {
+//       const response = await crmApi.askAssistant(user.id, message);
+//       // Show AI response in modal or chat UI
+//       alert(response.data.response);
+//       setMessage('');
+//       loadInsights();
+//     } catch (error) {
+//       console.error('Error:', error);
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+//
+//   return (
+//     <div className="p-6">
+//       <h1 className="text-3xl font-bold mb-6">AI Coaching</h1>
+//
+//       {/* Insights Section */}
+//       <div className="mb-8">
+//         <h2 className="text-2xl font-bold mb-4">Your Insights</h2>
+//         {insights.map(insight => (
+//           <div key={insight.id} className="bg-blue-50 p-4 rounded-lg mb-4 border-l-4 border-blue-500">
+//             <p className="font-semibold text-blue-900">{insight.title}</p>
+//             <p className="text-blue-800">{insight.content}</p>
+//             {insight.suggested_action && (
+//               <p className="text-sm text-blue-700 mt-2">💡 {insight.suggested_action}</p>
+//             )}
+//           </div>
+//         ))}
+//       </div>
+//
+//       {/* Ask AI Section */}
+//       <div className="bg-white p-6 rounded-lg shadow">
+//         <h2 className="text-2xl font-bold mb-4">Ask Your AI Coach</h2>
+//         <textarea
+//           value={message}
+//           onChange={(e) => setMessage(e.target.value)}
+//           placeholder="Ask about nutrition, goals, or get motivation..."
+//           className="w-full p-3 border rounded-lg mb-4"
+//           rows={3}
+//         />
+//         <button
+//           onClick={handleAsk}
+//           disabled={loading}
+//           className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700"
+//         >
+//           {loading ? 'Thinking...' : 'Ask Coach'}
+//         </button>
+//       </div>
+//     </div>
+//   );
+// };
 
 // ============================================================================
 // EXAMPLE: WEBHOOK PAYLOAD FROM APP TO CRM
@@ -357,4 +362,7 @@ CRM Setup Checklist:
    ☐ Track AI token usage (completion_tokens, prompt_tokens)
 */
 
-export default {};
+// The package is CommonJS ("type": "commonjs"), so an export statement here
+// is a parse error. This file is documentation and nothing imports it; the
+// empty export just keeps it a module.
+module.exports = {};
