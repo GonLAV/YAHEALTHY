@@ -12,7 +12,11 @@
     "test:foods": "node tests/foods.test.js",
     "ingest:foods": "node scripts/ingest-foods.js",
     "test:yoni": "node tests/yoni-persona.test.js",
-    "test:meal-plans": "node tests/meal-plans.test.js"
+    "test:meal-plans": "node tests/meal-plans.test.js",
+    "test:phone": "node tests/phone.test.js",
+    "approvals:hash": "node scripts/approvals-hash.js",
+    "test:clinical": "node tests/clinical-approval.test.js",
+    "test:staff": "node tests/staff-access.test.js"
   },
   "keywords": [],
   "author": "",

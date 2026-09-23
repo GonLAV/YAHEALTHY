@@ -83,7 +83,7 @@ function verifyCallback({ rawBody, parsedBody, hashHeader, userAgent }) {
  * `more_info` carries the plan through the payment and back in the callback,
  * so the callback does not have to guess what was bought.
  */
-async function createPaymentLink({ amount, currency = 'ILS', customerName, email, plan, callbackUrl, successUrl, failureUrl }) {
+async function createPaymentLink({ amount, currency = 'ILS', customerName, email, phone, plan, callbackUrl, successUrl, failureUrl }) {
   if (!isConfigured()) {
     throw new Error(
       'PayPlus is not configured. Set PAYPLUS_API_KEY, PAYPLUS_SECRET_KEY and PAYPLUS_PAYMENT_PAGE_UID.'
@@ -111,9 +111,14 @@ async function createPaymentLink({ amount, currency = 'ILS', customerName, email
       // decode PayPlus's base64 `hash_data` to learn who paid for what.
       more_info: plan,
       more_info_2: email,
+      // The number the customer will message from. It comes back in the
+      // callback, which is the only moment we can tie a WhatsApp sender to
+      // the account that paid — PayPlus's own customer block is not echoed.
+      more_info_3: phone || '',
       customer: {
         customer_name: customerName || email,
-        email
+        email,
+        phone: phone || undefined
       }
     })
   });

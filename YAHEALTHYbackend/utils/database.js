@@ -1,5 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const { randomUUID: uuidv4 } = require('crypto');
+const { normalizePhone } = require('./phone');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://your-supabase-url.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || 'your-supabase-anon-key';
@@ -488,10 +489,19 @@ async function deleteMealPlan(planId, userId) {
  * Subscriptions — what someone bought, which is what grants access.
  */
 async function getActiveSubscriptions(userId) {
+  // status alone was the whole test, so a row with ends_at in the past still
+  // read as active — a subscription that ended in March would have kept
+  // granting access forever. Reading the date here means access expires the
+  // moment anything writes one, with no scheduled job to run or forget.
+  const now = new Date().toISOString();
+
   if (USE_MEMORY_DB) {
     maybeLogMemoryMode();
     return memoryDb.subscriptions.filter(
-      (row) => row.user_id === userId && row.status === 'active'
+      (row) =>
+        row.user_id === userId &&
+        row.status === 'active' &&
+        (!row.ends_at || row.ends_at > now)
     );
   }
 
@@ -499,7 +509,9 @@ async function getActiveSubscriptions(userId) {
     .from('subscriptions')
     .select('*')
     .eq('user_id', userId)
-    .eq('status', 'active');
+    .eq('status', 'active')
+    // null means open-ended, which is the normal case for a live subscription.
+    .or(`ends_at.is.null,ends_at.gt.${now}`);
 
   if (error) throw error;
   return data || [];
@@ -511,19 +523,33 @@ async function hasEntitlement(userId, plan) {
 }
 
 /**
- * Start a subscription, or leave the existing one alone.
+ * Start a subscription, renew one that has ended, or leave a live one alone.
  *
  * A repeated callback must not produce a second active row, so the collision
  * is treated as "already subscribed" rather than as an error. Postgres code
  * 23505 is the unique violation from subscriptions_one_active_per_plan.
+ *
+ * That index keys on status alone, so a row that has passed its ends_at but is
+ * still marked 'active' goes on holding the slot for its plan. It used to be
+ * handed straight back as "already subscribed", and once getActiveSubscriptions
+ * started reading ends_at that answer became wrong in the worst direction:
+ * somebody renewing paid, the callback logged an activation, and they had no
+ * access. An ended row is closed and replaced instead.
  */
 async function createSubscription(userId, plan) {
+  const isLive = (row) => row && (!row.ends_at || row.ends_at > new Date().toISOString());
+
   if (USE_MEMORY_DB) {
     maybeLogMemoryMode();
-    const existing = memoryDb.subscriptions.find(
+    const holder = memoryDb.subscriptions.find(
       (row) => row.user_id === userId && row.plan === plan && row.status === 'active'
     );
-    if (existing) return { subscription: existing, created: false };
+
+    if (isLive(holder)) return { subscription: holder, created: false };
+
+    // Closed rather than overwritten: what was sold and when is the record a
+    // billing dispute gets settled from.
+    if (holder) holder.status = 'expired';
 
     const row = {
       id: uuidv4(),
@@ -538,20 +564,50 @@ async function createSubscription(userId, plan) {
     return { subscription: row, created: true };
   }
 
-  const { data, error } = await supabase
-    .from('subscriptions')
-    .insert([{ user_id: userId, plan, status: 'active' }])
-    .select()
-    .single();
+  // Two passes at most: the insert, then — if an ended row was holding the
+  // slot — the same insert again once that row has been closed.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const { data, error } = await supabase
+      .from('subscriptions')
+      .insert([{ user_id: userId, plan, status: 'active' }])
+      .select()
+      .single();
 
-  if (error) {
-    if (error.code === '23505') {
-      const active = await getActiveSubscriptions(userId);
-      return { subscription: active.find((row) => row.plan === plan) || null, created: false };
-    }
-    throw error;
+    if (!error) return { subscription: data, created: true };
+    if (error.code !== '23505') throw error;
+
+    // Read the blocking row directly rather than through
+    // getActiveSubscriptions, which now filters out exactly the ended row we
+    // are here to deal with.
+    const { data: holder, error: readError } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('plan', plan)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (readError) throw readError;
+
+    // A live subscription already: the repeated-delivery case the index is for.
+    if (isLive(holder)) return { subscription: holder, created: false };
+
+    // Gone between the conflict and the read — try the insert once more.
+    if (!holder) continue;
+
+    const { error: closeError } = await supabase
+      .from('subscriptions')
+      .update({ status: 'expired' })
+      .eq('id', holder.id)
+      .eq('status', 'active');
+
+    if (closeError) throw closeError;
   }
-  return { subscription: data, created: true };
+
+  // Loud rather than silent. The callback records the payment event before it
+  // gets here, so a retry from PayPlus is swallowed as a duplicate — a
+  // subscription that quietly failed to open would never be opened at all.
+  throw new Error(`Could not open a '${plan}' subscription for user ${userId}`);
 }
 
 /**
@@ -667,6 +723,102 @@ async function countFoods() {
   const { count, error } = await supabase.from('foods').select('id', { count: 'exact', head: true });
   if (error) throw error;
   return count || 0;
+}
+
+/**
+ * Phone identity — what links a WhatsApp sender to a paying account.
+ *
+ * Both sides normalise through utils/phone before touching the database, so
+ * "050-123-4567" and "972501234567@s.whatsapp.net" reach the same row. A
+ * number that cannot be normalised is refused rather than stored raw: a
+ * half-formed value here would match nobody, or worse, the wrong person.
+ */
+async function setUserPhone(userId, rawPhone) {
+  const phone = normalizePhone(rawPhone);
+  if (!phone) return null;
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const user = memoryDb.usersById.get(userId);
+    if (!user) return null;
+    // One account per number, enforced here the way the partial unique index
+    // enforces it in Postgres.
+    for (const [otherId, other] of memoryDb.usersById) {
+      if (otherId !== userId && other.phone === phone) {
+        const err = new Error('Phone already belongs to another account');
+        err.code = 'PHONE_TAKEN';
+        throw err;
+      }
+    }
+    const updated = { ...user, phone };
+    memoryDb.usersById.set(userId, updated);
+    memoryDb.usersByEmail.set(String(updated.email || '').toLowerCase(), updated);
+    return updated;
+  }
+
+  const { data, error } = await supabase
+    .from('users')
+    .update({ phone })
+    .eq('id', userId)
+    .select()
+    .single();
+
+  if (error) {
+    if (error.code === '23505') {
+      const err = new Error('Phone already belongs to another account');
+      err.code = 'PHONE_TAKEN';
+      throw err;
+    }
+    throw error;
+  }
+  return data;
+}
+
+async function getUserByPhone(rawPhone) {
+  const phone = normalizePhone(rawPhone);
+  if (!phone) return null;
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    for (const user of memoryDb.usersById.values()) {
+      if (user.phone === phone) return user;
+    }
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('phone', phone)
+    .maybeSingle();
+
+  if (error && error.code !== 'PGRST116') throw error;
+  return data || null;
+}
+
+/**
+ * What a WhatsApp sender is entitled to, answered in one call.
+ *
+ * Returns { user, plans, has(feature) }. `user` is null for a number nobody
+ * has claimed, which is an ordinary state: people message before they buy.
+ * Throws rather than returning "no access" when the lookup itself fails —
+ * the caller decides what to do, and a database outage must not read as a
+ * paying customer having lapsed.
+ */
+async function getWhatsappAccess(rawPhone) {
+  const phone = normalizePhone(rawPhone);
+  if (!phone) return { user: null, plans: [], has: () => false };
+
+  const user = await getUserByPhone(phone);
+  if (!user) return { user: null, plans: [], has: () => false };
+
+  const subscriptions = await getActiveSubscriptions(user.id);
+  const plans = subscriptions.map((row) => row.plan);
+  return {
+    user,
+    plans,
+    has: (plan) => plans.includes(plan)
+  };
 }
 
 /**
@@ -1608,19 +1760,57 @@ async function upsertWhapiConversation(phone, activeBot) {
   return normalizeActiveBot(fallbackData);
 }
 
+// Only what a person answering a message needs. `raw` holds the entire WHAPI
+// payload — profile name, media links, metadata nobody reviewing a message has
+// to see — and select('*') handed all of it out. It also means a column added
+// later is not exposed by an endpoint written before it existed.
+//
+// One list, used by both branches. Dropping `raw` in the memory branch and
+// naming the columns in the Supabase one looked equivalent and was not: a
+// column added later would have been withheld in production and handed out in
+// dev, which is the direction that hides a leak until it ships.
+const WHATSAPP_MESSAGE_FIELDS = [
+  'id', 'chat_id', 'from_number', 'from_name', 'type', 'body', 'sent_at', 'status', 'received_at'
+];
+
+const WHATSAPP_MESSAGE_SELECT = WHATSAPP_MESSAGE_FIELDS.join(', ');
+
+const projectWhatsappMessage = (row) =>
+  Object.fromEntries(WHATSAPP_MESSAGE_FIELDS.map((field) => [field, row[field] ?? null]));
+
+// A status is a fixed set, and it came straight from the query string. An
+// unknown value is refused rather than passed through to the database.
+const WHATSAPP_STATUSES = ['pending', 'drafted', 'answered', 'escalated'];
+
 async function getWhatsappMessages({ status = null, limit = 50 } = {}) {
+  if (status && !WHATSAPP_STATUSES.includes(status)) {
+    const err = new Error(`Unknown status: ${status}`);
+    err.code = 'BAD_STATUS';
+    throw err;
+  }
+
+  const capped = Math.min(Math.max(Number(limit) || 50, 1), 200);
+
   if (USE_MEMORY_DB) {
     maybeLogMemoryMode();
-    return sortByCreatedAtDesc(
-      memoryDb.whatsappMessages.filter(r => !status || r.status === status)
-    ).slice(0, limit);
+    // By received_at, which is the field these rows actually carry —
+    // sortByCreatedAtDesc read a created_at that saveWhatsappMessage never
+    // writes, so every comparison was NaN and the order was whatever the array
+    // happened to be in. Harmless while everything was returned; once `limit`
+    // started being enforced it meant an arbitrary subset rather than the
+    // newest messages, and the Supabase branch already ordered this way.
+    return memoryDb.whatsappMessages
+      .filter((r) => !status || r.status === status)
+      .sort((a, b) => new Date(b.received_at) - new Date(a.received_at))
+      .slice(0, capped)
+      .map(projectWhatsappMessage);
   }
 
   let q = supabase
     .from('whatsapp_messages')
-    .select('*')
+    .select(WHATSAPP_MESSAGE_SELECT)
     .order('received_at', { ascending: false })
-    .limit(limit);
+    .limit(capped);
   if (status) q = q.eq('status', status);
 
   const { data, error } = await q;
@@ -1628,21 +1818,80 @@ async function getWhatsappMessages({ status = null, limit = 50 } = {}) {
   return data || [];
 }
 
-async function logWhapiMessage(phone, role, content) {
+/**
+ * @param {string|null} promptVersion which prompt produced this, e.g.
+ *   "adi:dc4acc971f59" — see migrations/011. Null for the customer's own
+ *   messages and for anything the system wrote without the model.
+ */
+async function logWhapiMessage(phone, role, content, promptVersion = null) {
+  const row = {
+    phone,
+    role,
+    content,
+    prompt_version: promptVersion,
+    created_at: new Date().toISOString()
+  };
+
   if (USE_MEMORY_DB) {
     maybeLogMemoryMode();
-    const row = { phone, role, content, created_at: new Date().toISOString() };
     memoryDb.whapiMessages.push(row);
     return row;
   }
+
   const { data, error } = await supabaseServiceRole
     .from('whapi_messages')
-    .insert([{ phone, role, content, created_at: new Date().toISOString() }])
+    .insert([row])
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    // A database that has not run migrations/011 yet has no such column
+    // (Postgres 42703, undefined_column). Losing the provenance stamp is bad;
+    // losing the message itself is worse, so retry without it and say so.
+    if (error.code === '42703' && promptVersion) {
+      console.warn('[db] whapi_messages has no prompt_version column yet — run migrations/011.');
+      const { prompt_version, ...withoutVersion } = row;
+      const retry = await supabaseServiceRole
+        .from('whapi_messages')
+        .insert([withoutVersion])
+        .select()
+        .single();
+      if (retry.error) throw retry.error;
+      return retry.data;
+    }
+    throw error;
+  }
   return data;
+}
+
+/**
+ * The full record of a conversation, for reading back rather than for
+ * replying.
+ *
+ * Deliberately separate from getRecentWhapiMessages: that one feeds the
+ * model, and the model's context should hold what was said and nothing else.
+ * This one is what a person opens when a customer disputes what the bot told
+ * them, so it keeps the timestamps and the prompt version that produced each
+ * reply.
+ *
+ * 🩺 These rows can contain health information someone volunteered. Reading
+ * them is a considered act, not a convenience.
+ */
+async function getWhapiTranscript(phone, limit = 50) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.whapiMessages.filter((m) => m.phone === phone).slice(-limit);
+  }
+
+  const { data, error } = await supabaseServiceRole
+    .from('whapi_messages')
+    .select('*')
+    .eq('phone', phone)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return (data || []).reverse();
 }
 
 async function getRecentWhapiMessages(phone, limit = 20) {
@@ -1688,6 +1937,9 @@ module.exports = {
   hasEntitlement,
   createSubscription,
   recordPaymentEvent,
+  setUserPhone,
+  getUserByPhone,
+  getWhatsappAccess,
   upsertFoods,
   searchFoods,
   getFoodById,
@@ -1739,5 +1991,6 @@ module.exports = {
   getWhapiConversation,
   upsertWhapiConversation,
   logWhapiMessage,
-  getRecentWhapiMessages
+  getRecentWhapiMessages,
+  getWhapiTranscript
 };

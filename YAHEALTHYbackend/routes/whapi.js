@@ -170,7 +170,16 @@ async function handleIncomingMessage(message) {
     });
 
     await db.logWhapiMessage(phone, 'user', rawText || '[תמונה]');
-    await db.logWhapiMessage(phone, 'assistant', reply);
+    // The reply carries the prompt version that produced it. Reading a
+    // conversation back months later against whatever the prompt says today
+    // proves nothing; reading it against the version in force at the time is
+    // the whole point of recording it.
+    await db.logWhapiMessage(
+      phone,
+      'assistant',
+      reply,
+      brain.PROMPT_VERSIONS[conversation.active_bot] || null
+    );
     await sendReplyInChunks(phone, reply);
   } catch (err) {
     await sendFallbackReply(phone);
