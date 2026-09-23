@@ -1725,21 +1725,80 @@ async function getWhatsappMessages({ status = null, limit = 50 } = {}) {
   return data || [];
 }
 
-async function logWhapiMessage(phone, role, content) {
+/**
+ * @param {string|null} promptVersion which prompt produced this, e.g.
+ *   "adi:dc4acc971f59" — see migrations/011. Null for the customer's own
+ *   messages and for anything the system wrote without the model.
+ */
+async function logWhapiMessage(phone, role, content, promptVersion = null) {
+  const row = {
+    phone,
+    role,
+    content,
+    prompt_version: promptVersion,
+    created_at: new Date().toISOString()
+  };
+
   if (USE_MEMORY_DB) {
     maybeLogMemoryMode();
-    const row = { phone, role, content, created_at: new Date().toISOString() };
     memoryDb.whapiMessages.push(row);
     return row;
   }
+
   const { data, error } = await supabaseServiceRole
     .from('whapi_messages')
-    .insert([{ phone, role, content, created_at: new Date().toISOString() }])
+    .insert([row])
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    // A database that has not run migrations/011 yet has no such column
+    // (Postgres 42703, undefined_column). Losing the provenance stamp is bad;
+    // losing the message itself is worse, so retry without it and say so.
+    if (error.code === '42703' && promptVersion) {
+      console.warn('[db] whapi_messages has no prompt_version column yet — run migrations/011.');
+      const { prompt_version, ...withoutVersion } = row;
+      const retry = await supabaseServiceRole
+        .from('whapi_messages')
+        .insert([withoutVersion])
+        .select()
+        .single();
+      if (retry.error) throw retry.error;
+      return retry.data;
+    }
+    throw error;
+  }
   return data;
+}
+
+/**
+ * The full record of a conversation, for reading back rather than for
+ * replying.
+ *
+ * Deliberately separate from getRecentWhapiMessages: that one feeds the
+ * model, and the model's context should hold what was said and nothing else.
+ * This one is what a person opens when a customer disputes what the bot told
+ * them, so it keeps the timestamps and the prompt version that produced each
+ * reply.
+ *
+ * 🩺 These rows can contain health information someone volunteered. Reading
+ * them is a considered act, not a convenience.
+ */
+async function getWhapiTranscript(phone, limit = 50) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.whapiMessages.filter((m) => m.phone === phone).slice(-limit);
+  }
+
+  const { data, error } = await supabaseServiceRole
+    .from('whapi_messages')
+    .select('*')
+    .eq('phone', phone)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return (data || []).reverse();
 }
 
 async function getRecentWhapiMessages(phone, limit = 20) {
@@ -1839,5 +1898,6 @@ module.exports = {
   getWhapiConversation,
   upsertWhapiConversation,
   logWhapiMessage,
-  getRecentWhapiMessages
+  getRecentWhapiMessages,
+  getWhapiTranscript
 };
