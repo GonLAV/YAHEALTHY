@@ -64,6 +64,7 @@ const memoryDb = {
   mealPlans: [],
   subscriptions: [],
   paymentEvents: [],
+  chefRequests: [],
   foods: [],
   whapiConversations: new Map(),
   whapiMessages: []
@@ -163,6 +164,22 @@ async function getUserByEmail(email) {
   
   if (error && error.code !== 'PGRST116') throw error;
   return data;
+}
+
+/**
+ * Get all users (weekly summary email job)
+ */
+async function getAllUsers() {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return Array.from(memoryDb.usersById.values());
+  }
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, email, name, created_at');
+  
+  if (error) throw error;
+  return data || [];
 }
 
 /**
@@ -1923,6 +1940,7 @@ module.exports = {
   // Users
   getUser,
   getUserByEmail,
+  getAllUsers,
   createUser,
   updateUserPasswordHash,
   bumpTokenVersion,

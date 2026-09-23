@@ -13,7 +13,24 @@ export const translations: Record<Lang, Record<string, string>> = {
     'nav.sleep': 'Sleep',
     'nav.weight': 'Weight',
     'nav.coaching': 'AI Coaching',
+    'nav.progress': 'Progress',
     'nav.logout': 'Logout',
+
+    // Progress page
+    'progress.title': 'Progress Charts',
+    'progress.subtitle': 'Visual trends of your health metrics over the last two weeks',
+    'progress.calories': 'Daily Calories',
+    'progress.hydration': 'Daily Hydration (liters)',
+    'progress.sleep': 'Sleep Hours per Night',
+    'progress.weight': 'Weight Trend (kg)',
+    'progress.macros': 'Macros Distribution (grams)',
+    'progress.avgPerDay': 'Average per day',
+    'progress.noData': 'No data to display yet. Log meals, drinks, sleep or weigh-ins to see your progress here.',
+    'progress.protein': 'Protein',
+    'progress.carbs': 'Carbs',
+    'progress.fats': 'Fats',
+    'progress.kcal': 'kcal',
+    'progress.hours': 'hours',
 
     // Accessibility
     'a11y.skipToContent': 'Skip to main content',
@@ -187,7 +204,24 @@ export const translations: Record<Lang, Record<string, string>> = {
     'nav.sleep': 'שינה',
     'nav.weight': 'משקל',
     'nav.coaching': 'ליווי AI',
+    'nav.progress': 'התקדמות',
     'nav.logout': 'התנתקות',
+
+    // Progress page
+    'progress.title': 'גרפי התקדמות',
+    'progress.subtitle': 'מגמות ויזואליות של מדדי הבריאות שלך בשבועיים האחרונים',
+    'progress.calories': 'קלוריות ביום',
+    'progress.hydration': 'שתייה יומית (ליטר)',
+    'progress.sleep': 'שעות שינה בלילה',
+    'progress.weight': 'מגמת משקל (ק"ג)',
+    'progress.macros': 'התפלגות מאקרו (גרם)',
+    'progress.avgPerDay': 'ממוצע ליום',
+    'progress.noData': 'אין עדיין נתונים להצגה. תעדו ארוחות, שתייה, שינה או שקילות כדי לראות את ההתקדמות כאן.',
+    'progress.protein': 'חלבון',
+    'progress.carbs': 'פחמימות',
+    'progress.fats': 'שומנים',
+    'progress.kcal': 'קלוריות',
+    'progress.hours': 'שעות',
 
     // נגישות
     'a11y.skipToContent': 'דלג לתוכן הראשי',

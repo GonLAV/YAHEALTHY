@@ -14,9 +14,10 @@ const HydrationPage = lazy(() => import('@/pages/HydrationPage').then((m) => ({ 
 const SleepPage = lazy(() => import('@/pages/SleepPage').then((m) => ({ default: m.SleepPage })));
 const WeightPage = lazy(() => import('@/pages/WeightPage').then((m) => ({ default: m.WeightPage })));
 const CoachingPage = lazy(() => import('@/pages/CoachingPage').then((m) => ({ default: m.CoachingPage })));
+const ProgressPage = lazy(() => import('@/pages/ProgressPage').then((m) => ({ default: m.ProgressPage })));
 
 const PageLoader = () => (
-  <div className="flex min-h-screen items-center justify-center">
+  <div role="status" aria-live="polite" className="flex min-h-screen items-center justify-center">
     <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
   </div>
 );
@@ -82,6 +83,16 @@ const AppRoutes = () => (
           <PrivateRoute>
             <AppLayout>
               <CoachingPage />
+            </AppLayout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/progress"
+        element={
+          <PrivateRoute>
+            <AppLayout>
+              <ProgressPage />
             </AppLayout>
           </PrivateRoute>
         }

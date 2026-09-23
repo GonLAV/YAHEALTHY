@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, UtensilsCrossed, Droplets, Moon, Scale,
-  MessageCircleHeart, LogOut, Languages, Heart,
+  MessageCircleHeart, LogOut, Languages, Heart, BarChart3,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/i18n/LanguageContext';
@@ -15,6 +15,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { to: '/dashboard', key: 'nav.dashboard', icon: <LayoutDashboard size={20} /> },
+  { to: '/progress', key: 'nav.progress', icon: <BarChart3 size={20} /> },
   { to: '/food-log', key: 'nav.foodLog', icon: <UtensilsCrossed size={20} /> },
   { to: '/hydration', key: 'nav.hydration', icon: <Droplets size={20} /> },
   { to: '/sleep', key: 'nav.sleep', icon: <Moon size={20} /> },
@@ -133,7 +134,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
             key={item.to}
             to={item.to}
             className={({ isActive }) =>
-              `flex min-w-[14.2%] flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 text-[10px] font-medium transition ${
+              `flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1.5 text-[10px] font-medium transition ${
                 isActive ? 'text-emerald-600' : 'text-slate-400'
               }`
             }
