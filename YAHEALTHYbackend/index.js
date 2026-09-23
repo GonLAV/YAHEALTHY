@@ -154,7 +154,10 @@ app.use('/api/foods', require('./routes/foods'));
 // WhatsApp inbound. The webhook is public (guarded by a path secret); the
 // listing endpoint underneath it requires auth because it returns message text.
 const whatsappRouter = require('./routes/whatsapp');
-app.use('/api/whatsapp/pending', auth.authMiddleware);
+// Authentication answers who you are; this answers what you may read. The
+// route returns other people's inbound messages, including the health-flagged
+// ones, and signup is open — so being signed in is nowhere near enough.
+app.use('/api/whatsapp/pending', auth.authMiddleware, require('./middleware/requireStaff'));
 app.use('/api/whatsapp', whatsappRouter);
 app.use('/api/auth', authLimiter);
 

@@ -489,10 +489,19 @@ async function deleteMealPlan(planId, userId) {
  * Subscriptions — what someone bought, which is what grants access.
  */
 async function getActiveSubscriptions(userId) {
+  // status alone was the whole test, so a row with ends_at in the past still
+  // read as active — a subscription that ended in March would have kept
+  // granting access forever. Reading the date here means access expires the
+  // moment anything writes one, with no scheduled job to run or forget.
+  const now = new Date().toISOString();
+
   if (USE_MEMORY_DB) {
     maybeLogMemoryMode();
     return memoryDb.subscriptions.filter(
-      (row) => row.user_id === userId && row.status === 'active'
+      (row) =>
+        row.user_id === userId &&
+        row.status === 'active' &&
+        (!row.ends_at || row.ends_at > now)
     );
   }
 
@@ -500,7 +509,9 @@ async function getActiveSubscriptions(userId) {
     .from('subscriptions')
     .select('*')
     .eq('user_id', userId)
-    .eq('status', 'active');
+    .eq('status', 'active')
+    // null means open-ended, which is the normal case for a live subscription.
+    .or(`ends_at.is.null,ends_at.gt.${now}`);
 
   if (error) throw error;
   return data || [];
@@ -512,19 +523,33 @@ async function hasEntitlement(userId, plan) {
 }
 
 /**
- * Start a subscription, or leave the existing one alone.
+ * Start a subscription, renew one that has ended, or leave a live one alone.
  *
  * A repeated callback must not produce a second active row, so the collision
  * is treated as "already subscribed" rather than as an error. Postgres code
  * 23505 is the unique violation from subscriptions_one_active_per_plan.
+ *
+ * That index keys on status alone, so a row that has passed its ends_at but is
+ * still marked 'active' goes on holding the slot for its plan. It used to be
+ * handed straight back as "already subscribed", and once getActiveSubscriptions
+ * started reading ends_at that answer became wrong in the worst direction:
+ * somebody renewing paid, the callback logged an activation, and they had no
+ * access. An ended row is closed and replaced instead.
  */
 async function createSubscription(userId, plan) {
+  const isLive = (row) => row && (!row.ends_at || row.ends_at > new Date().toISOString());
+
   if (USE_MEMORY_DB) {
     maybeLogMemoryMode();
-    const existing = memoryDb.subscriptions.find(
+    const holder = memoryDb.subscriptions.find(
       (row) => row.user_id === userId && row.plan === plan && row.status === 'active'
     );
-    if (existing) return { subscription: existing, created: false };
+
+    if (isLive(holder)) return { subscription: holder, created: false };
+
+    // Closed rather than overwritten: what was sold and when is the record a
+    // billing dispute gets settled from.
+    if (holder) holder.status = 'expired';
 
     const row = {
       id: uuidv4(),
@@ -539,20 +564,50 @@ async function createSubscription(userId, plan) {
     return { subscription: row, created: true };
   }
 
-  const { data, error } = await supabase
-    .from('subscriptions')
-    .insert([{ user_id: userId, plan, status: 'active' }])
-    .select()
-    .single();
+  // Two passes at most: the insert, then — if an ended row was holding the
+  // slot — the same insert again once that row has been closed.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const { data, error } = await supabase
+      .from('subscriptions')
+      .insert([{ user_id: userId, plan, status: 'active' }])
+      .select()
+      .single();
 
-  if (error) {
-    if (error.code === '23505') {
-      const active = await getActiveSubscriptions(userId);
-      return { subscription: active.find((row) => row.plan === plan) || null, created: false };
-    }
-    throw error;
+    if (!error) return { subscription: data, created: true };
+    if (error.code !== '23505') throw error;
+
+    // Read the blocking row directly rather than through
+    // getActiveSubscriptions, which now filters out exactly the ended row we
+    // are here to deal with.
+    const { data: holder, error: readError } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('plan', plan)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (readError) throw readError;
+
+    // A live subscription already: the repeated-delivery case the index is for.
+    if (isLive(holder)) return { subscription: holder, created: false };
+
+    // Gone between the conflict and the read — try the insert once more.
+    if (!holder) continue;
+
+    const { error: closeError } = await supabase
+      .from('subscriptions')
+      .update({ status: 'expired' })
+      .eq('id', holder.id)
+      .eq('status', 'active');
+
+    if (closeError) throw closeError;
   }
-  return { subscription: data, created: true };
+
+  // Loud rather than silent. The callback records the payment event before it
+  // gets here, so a retry from PayPlus is swallowed as a duplicate — a
+  // subscription that quietly failed to open would never be opened at all.
+  throw new Error(`Could not open a '${plan}' subscription for user ${userId}`);
 }
 
 /**
@@ -1705,19 +1760,57 @@ async function upsertWhapiConversation(phone, activeBot) {
   return normalizeActiveBot(fallbackData);
 }
 
+// Only what a person answering a message needs. `raw` holds the entire WHAPI
+// payload — profile name, media links, metadata nobody reviewing a message has
+// to see — and select('*') handed all of it out. It also means a column added
+// later is not exposed by an endpoint written before it existed.
+//
+// One list, used by both branches. Dropping `raw` in the memory branch and
+// naming the columns in the Supabase one looked equivalent and was not: a
+// column added later would have been withheld in production and handed out in
+// dev, which is the direction that hides a leak until it ships.
+const WHATSAPP_MESSAGE_FIELDS = [
+  'id', 'chat_id', 'from_number', 'from_name', 'type', 'body', 'sent_at', 'status', 'received_at'
+];
+
+const WHATSAPP_MESSAGE_SELECT = WHATSAPP_MESSAGE_FIELDS.join(', ');
+
+const projectWhatsappMessage = (row) =>
+  Object.fromEntries(WHATSAPP_MESSAGE_FIELDS.map((field) => [field, row[field] ?? null]));
+
+// A status is a fixed set, and it came straight from the query string. An
+// unknown value is refused rather than passed through to the database.
+const WHATSAPP_STATUSES = ['pending', 'drafted', 'answered', 'escalated'];
+
 async function getWhatsappMessages({ status = null, limit = 50 } = {}) {
+  if (status && !WHATSAPP_STATUSES.includes(status)) {
+    const err = new Error(`Unknown status: ${status}`);
+    err.code = 'BAD_STATUS';
+    throw err;
+  }
+
+  const capped = Math.min(Math.max(Number(limit) || 50, 1), 200);
+
   if (USE_MEMORY_DB) {
     maybeLogMemoryMode();
-    return sortByCreatedAtDesc(
-      memoryDb.whatsappMessages.filter(r => !status || r.status === status)
-    ).slice(0, limit);
+    // By received_at, which is the field these rows actually carry —
+    // sortByCreatedAtDesc read a created_at that saveWhatsappMessage never
+    // writes, so every comparison was NaN and the order was whatever the array
+    // happened to be in. Harmless while everything was returned; once `limit`
+    // started being enforced it meant an arbitrary subset rather than the
+    // newest messages, and the Supabase branch already ordered this way.
+    return memoryDb.whatsappMessages
+      .filter((r) => !status || r.status === status)
+      .sort((a, b) => new Date(b.received_at) - new Date(a.received_at))
+      .slice(0, capped)
+      .map(projectWhatsappMessage);
   }
 
   let q = supabase
     .from('whatsapp_messages')
-    .select('*')
+    .select(WHATSAPP_MESSAGE_SELECT)
     .order('received_at', { ascending: false })
-    .limit(limit);
+    .limit(capped);
   if (status) q = q.eq('status', status);
 
   const { data, error } = await q;
