@@ -45,6 +45,8 @@ const {
 const auth = require('./utils/auth');
 const db = require('./utils/database');
 const coach = require('./utils/coach');
+const cron = require('node-cron');
+const { sendWeeklySummaryEmail, runWeeklySummaryJob } = require('./utils/weekly-summary');
 
 const { apiLimiter, authLimiter } = require('./middleware/rateLimit');
 const { requestContext } = require('./middleware/requestContext');
@@ -3836,6 +3838,43 @@ app.post('/api/crm/users/:userId/ask', auth.authMiddleware, async (req, res) => 
     res.status(500).json({ error: 'Coach request failed', details: safeErrorDetails(error) });
   }
 });
+
+// ========== WEEKLY SUMMARY EMAILS ==========
+
+/**
+ * POST /api/summary/weekly/test
+ * Build and send the weekly summary to the requesting user — verification of
+ * the same path the Sunday job uses.
+ */
+app.post('/api/summary/weekly/test', auth.authMiddleware, async (req, res) => {
+  try {
+    const user = await db.getUser(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const result = await sendWeeklySummaryEmail(user);
+    return res.json({
+      delivered: result.delivered ?? false,
+      logged: result.logged ?? false,
+      summary: result.summary,
+      emailText: result.email
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to send weekly summary', details: safeErrorDetails(error), requestId: req.id });
+  }
+});
+
+// Sundays 08:00 Israel time: mail every user a digest of the week that just
+// ended. Vercel's serverless runtime can't host a scheduler, so the job only
+// arms where a long-lived process does.
+if (!process.env.VERCEL) {
+  cron.schedule('0 8 * * 0', () => {
+    runWeeklySummaryJob().catch((err) =>
+      console.error(`📧 Weekly summary job crashed: ${err.message}`)
+    );
+  }, { timezone: 'Asia/Jerusalem' });
+  console.log('📧 Weekly summary emails scheduled: Sundays 08:00 (Asia/Jerusalem)');
+}
 
 // ========== ERROR HANDLING ==========
 

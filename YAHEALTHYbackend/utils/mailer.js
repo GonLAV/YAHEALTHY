@@ -15,6 +15,8 @@
  * one function that needs filling in.
  */
 
+const nodemailer = require('nodemailer');
+
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 // Where the links in these emails point. The reset link is useless if it
@@ -28,10 +30,10 @@ function providerConfigured() {
 /**
  * Hand a message to the configured provider.
  *
- * Deliberately unimplemented: choosing between SMTP, Resend, SendGrid and the
- * rest is a decision with cost and deliverability attached, and guessing here
- * would mean writing an integration against an account that does not exist.
- * The shape is fixed so the rest of the code can be written against it now.
+ * Gmail SMTP was chosen for this project: set SMTP_URL to a connection string
+ * like smtps://user%40gmail.com:app-password@smtp.gmail.com:465 (needs a Gmail
+ * App Password). Development with no provider prints the message to the
+ * server log; production refuses to pretend a message was sent.
  */
 async function deliver({ to, subject, text }) {
   if (!providerConfigured()) {
@@ -50,10 +52,18 @@ async function deliver({ to, subject, text }) {
     return { delivered: false, logged: true };
   }
 
-  throw new Error(
-    'An email provider is configured but no transport is implemented yet. ' +
-    'Fill in deliver() in utils/mailer.js for the provider you chose.'
-  );
+  if (!process.env.SMTP_URL) {
+    throw new Error(
+      'EMAIL_API_KEY is set but that provider transport is not implemented. ' +
+      'Configure SMTP_URL to send mail.'
+    );
+  }
+
+  const transport = nodemailer.createTransport(process.env.SMTP_URL);
+  const from = process.env.SMTP_FROM ||
+    decodeURIComponent(new URL(process.env.SMTP_URL).username);
+  await transport.sendMail({ from: `YAHEALTHY <${from}>`, to, subject, text });
+  return { delivered: true };
 }
 
 async function sendPasswordResetEmail(to, resetToken) {

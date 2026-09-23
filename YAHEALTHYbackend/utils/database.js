@@ -166,6 +166,22 @@ async function getUserByEmail(email) {
 }
 
 /**
+ * Get all users (weekly summary email job)
+ */
+async function getAllUsers() {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return Array.from(memoryDb.usersById.values());
+  }
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, email, name, created_at');
+  
+  if (error) throw error;
+  return data || [];
+}
+
+/**
  * Create user
  */
 async function createUser(email, passwordHash, name) {
@@ -1731,6 +1747,7 @@ module.exports = {
   // Users
   getUser,
   getUserByEmail,
+  getAllUsers,
   createUser,
   updateUserPasswordHash,
   bumpTokenVersion,
