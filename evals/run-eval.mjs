@@ -115,7 +115,19 @@ const Verdict = z.object({
   quote: z.string(),
 });
 
-const client = new Anthropic();
+// Bare `new Anthropic()` only reads ANTHROPIC_API_KEY -- an org-level key not
+// scoped to one workspace gets rejected with a 400 (invalid_request_error)
+// unless this header names which workspace to use. utils/whapi-brain.js
+// already handles this the same way; this harness never did, so every run
+// against a workspace-scoped key failed instantly, at every case, with no
+// bot or judge call actually made -- confirmed live (400 on case 1, every
+// case, both eval sessions today worked around it with an uncommitted local
+// script instead of finding this).
+const client = new Anthropic(
+  process.env.ANTHROPIC_WORKSPACE_ID
+    ? { defaultHeaders: { 'anthropic-workspace-id': process.env.ANTHROPIC_WORKSPACE_ID } }
+    : undefined
+);
 
 const JUDGE_SYSTEM = `You grade a chatbot's reply against written criteria.
 
