@@ -17,27 +17,10 @@ const db = require('../utils/database');
 
 const router = express.Router();
 
-/**
- * Terms that mean a human has to answer, never an automated reply.
- * Kept in sync with the safety gate in docs/bot/chef-bot-prompt.md and
- * docs/bot/nuri-bot-prompt.md. Substring matching on purpose: Hebrew inflects,
- * and a false escalation costs nothing while a miss can harm someone.
- */
-const HEALTH_FLAGS = [
-  'הריון', 'בהריון', 'היריון', 'מניקה', 'הנקה',
-  'סוכרת', 'סוכרתי', 'סוכרתית', 'אינסולין',
-  'אנורקסי', 'בולימי', 'הפרעת אכילה', 'הקאות',
-  'תרופ', 'כרונית', 'כרוני', 'בלוטת התריס', 'תירואיד',
-  'כליות', 'לחץ דם', 'בריאטרי', 'קיצור קיבה',
-  'אלרגי', 'אלרגיה', 'צליאק', 'גלוטן',
-  'קטין', 'בן 16', 'בת 16', 'בן 17', 'בת 17',
-  'הילד שלי', 'הבת שלי', 'הבן שלי',
-];
-
-const flagsIn = (text) => {
-  const t = String(text || '');
-  return HEALTH_FLAGS.filter((f) => t.includes(f));
-};
+// The flag list moved to utils/health-flags.js so the app reads the same one.
+// It guarded this webhook alone, which meant the boundary held on WhatsApp and
+// did not exist in the product people actually pay for.
+const { flagsIn } = require('../utils/health-flags');
 
 /**
  * POST /api/whatsapp/webhook

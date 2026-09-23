@@ -16,7 +16,8 @@
     "test:phone": "node tests/phone.test.js",
     "approvals:hash": "node scripts/approvals-hash.js",
     "test:clinical": "node tests/clinical-approval.test.js",
-    "test:staff": "node tests/staff-access.test.js"
+    "test:staff": "node tests/staff-access.test.js",
+    "test:boundary": "node tests/health-boundary.test.js"
   },
   "keywords": [],
   "author": "",

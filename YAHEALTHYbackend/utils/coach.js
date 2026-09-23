@@ -7,6 +7,7 @@
 
 const db = require('./database');
 const { calculateStreak } = require('./health-calculations');
+const { flagsIn } = require('./health-flags');
 
 const todayStr = () => new Date().toISOString().split('T')[0];
 
@@ -151,8 +152,28 @@ async function generateInsights(userId, lang = 'en') {
  * Rule-based coach answers grounded in the user's data.
  */
 async function answer(userId, message, lang = 'en') {
-  const data = await collectUserData(userId);
   const L = lang === 'he';
+
+  // Before anything else, and before we have even read their data.
+  //
+  // The WhatsApp number refuses to auto-answer somebody who mentions a
+  // pregnancy, diabetes, an eating disorder or a child, and hands them to a
+  // person instead. This coach answered that same person with a calorie-deficit
+  // prescription, because the flag list guarded one channel and this is the
+  // other one. Same list now, same refusal.
+  //
+  // A hand-off rather than an error: somebody who has just disclosed a
+  // pregnancy should not be met with a failure message.
+  if (flagsIn(message).length) {
+    // Neither the matched terms nor the message text go in the log. What a
+    // person discloses here is exactly what logs must not keep.
+    console.warn(`[coach] health flag in a question from user ${userId} — handed off, not answered`);
+    return L
+      ? 'מה שכתבת נוגע במצב בריאותי, ובזה אני לא יכול לעזור — תשובה תזונתית כללית עלולה להזיק דווקא כאן. אשת המקצוע שלנו תענה לך אישית: אפשר לכתוב לנו בוואטסאפ ונחזור אליך.'
+      : 'What you wrote touches on a medical situation, and that is not something I can help with — general nutrition advice is exactly what could do harm here. Our dietitian will answer you personally: message us on WhatsApp and we will come back to you.';
+  }
+
+  const data = await collectUserData(userId);
   const msg = (message || '').toLowerCase();
   const has = (...words) => words.some((w) => msg.includes(w));
 

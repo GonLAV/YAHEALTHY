@@ -19,8 +19,13 @@ const {
   validateHeight, 
   validateAge, 
   validateGender,
-  normalizeLifestyle
+  normalizeLifestyle,
+  HEALTH_CONSTANTS
 } = require('./utils/constants');
+
+// One floor for a calorie target, read from the table rather than repeated at
+// each call site — PUT /api/targets carried its own 1000 and undercut this.
+const { MIN_DAILY_CALORIES, MAX_DAILY_CALORIES } = HEALTH_CONSTANTS;
 
 const {
   calculateBMI,
@@ -45,6 +50,8 @@ const {
 const auth = require('./utils/auth');
 const db = require('./utils/database');
 const coach = require('./utils/coach');
+const { checkGoalWeight } = require('./utils/weight-goal-safety');
+const clinicalApproval = require('./utils/clinical-approval');
 
 const { apiLimiter, authLimiter } = require('./middleware/rateLimit');
 const { requestContext } = require('./middleware/requestContext');
@@ -720,6 +727,24 @@ app.post('/api/weight-goals', auth.authMiddleware, async (req, res) => {
 
     if (!validateWeight(startWeightKg) || !validateWeight(targetWeightKg)) {
       return res.status(400).json({ error: 'Invalid weight values' });
+    }
+
+    // validateWeight only asks whether the number is between 30 and 300 kg. It
+    // says nothing about the body it belongs to, so a 1.65 m person could set a
+    // target of 32 kg and the app would draw a goal line to it. The height comes
+    // from the survey when there is one; when there is not, checkGoalWeight
+    // falls back to a floor no adult height makes safe.
+    const survey = await db.getLatestSurvey(userId);
+    const verdict = checkGoalWeight(targetWeightKg, survey?.height_cm ?? null);
+
+    if (!verdict.ok) {
+      // Says what the floor is, so the person can pick a reachable number
+      // instead of guessing at what was refused. No diagnosis, no advice.
+      return res.status(400).json({
+        error: 'Target weight is below a healthy range',
+        minimumKg: verdict.minimumKg,
+        requestId: req.id
+      });
     }
 
     const goal = await db.createWeightGoal(userId, {
@@ -3594,7 +3619,10 @@ app.get('/api/insights/daily', auth.authMiddleware, async (req, res) => {
     const foodLogs = await db.getFoodLogs(userId) || [];
     const dayLogs = foodLogs.filter(log => log.date === date);
 
-    const survey = db.getLatestSurvey(userId);
+    // Was missing its await. getLatestSurvey is async, so this held a Promise,
+    // every survey?.x read was undefined, and the endpoint reported null for
+    // fields it believed it had found.
+    const survey = await db.getLatestSurvey(userId);
     const targetCalories = survey?.daily_calories?.targetDailyCalories || null;
     const macroTargets = survey ? {
       protein_grams: survey.protein_target_g,
@@ -3700,19 +3728,47 @@ app.get('/api/badges', auth.authMiddleware, async (req, res) => {
 app.get('/api/targets', auth.authMiddleware, async (req, res) => {
   try {
     const userId = req.user.userId;
-    const survey = db.getLatestSurvey(userId);
+    // Was missing its await. getLatestSurvey is async, so this held a Promise,
+    // every survey?.x read was undefined, and calories came back null for
+    // everyone — while source still reported 'survey', because a Promise is
+    // truthy. Adding the await is what makes the approval check below matter:
+    // until now there was no computed target reaching anybody.
+    const survey = await db.getLatestSurvey(userId);
     const prefs = await db.getUserPreferences(userId);
 
-    let targets = {
-      calories: survey?.daily_calories?.targetDailyCalories || null,
-      protein_grams: survey?.protein_target_g || null,
-      carbs_grams: prefs?.macroTargets?.carbs_grams || null,
-      fat_grams: prefs?.macroTargets?.fat_grams || null
+    // A number the person set for themselves is theirs, and needs no clinical
+    // approval to show back to them. A number we derived from their body is a
+    // clinical claim, and that one is gated.
+    const override = prefs?.macroTargets?.calorieOverride ?? null;
+    const computed = survey?.daily_calories?.targetDailyCalories ?? null;
+
+    const clinical = clinicalApproval.statusFor(
+      'app-calorie-target',
+      path.join(__dirname, 'utils', 'health-calculations.js')
+    );
+
+    // Withheld rather than shown unapproved. The registry's own scope note
+    // names a personal calculated calorie target as the thing that requires a
+    // registered professional, and this is that number on the home screen.
+    const computedIsShowable = clinical.approved ? computed : null;
+    const calories = override ?? computedIsShowable;
+
+    const targets = {
+      calories,
+      protein_grams: prefs?.macroTargets?.protein_grams ?? (clinical.approved ? survey?.protein_target_g ?? null : null),
+      carbs_grams: prefs?.macroTargets?.carbs_grams ?? null,
+      fat_grams: prefs?.macroTargets?.fat_grams ?? null
     };
+
+    const source = override != null ? 'user' : (calories != null ? 'survey' : 'none');
 
     return res.json({
       targets,
-      source: survey ? 'survey' : 'preferences',
+      source,
+      // So the client can say "your dietitian has not approved this yet"
+      // instead of "you have not set targets", which is a different sentence
+      // and the only honest one when a computed target is being withheld.
+      withheldPendingApproval: computed != null && override == null && !clinical.approved,
       surveyId: survey?.id || null,
       lastUpdated: survey?.created_at || null
     });
@@ -3730,28 +3786,48 @@ app.put('/api/targets', auth.authMiddleware, async (req, res) => {
     const userId = req.user.userId;
     const { calories, protein_grams, carbs_grams, fat_grams } = req.body;
 
-    // Validate
-    if (calories && (calories < 1000 || calories > 5000)) {
-      return res.status(400).json({ error: 'Invalid input', details: 'Calories must be between 1000 and 5000' });
+    // 1000 here contradicted MIN_DAILY_CALORIES (1200) in utils/constants.js.
+    // Two floors for the same thing means the lower one is the real one, and
+    // the lower one sat on the path a person can call directly.
+    if (calories != null && (calories < MIN_DAILY_CALORIES || calories > MAX_DAILY_CALORIES)) {
+      return res.status(400).json({
+        error: 'Invalid input',
+        details: `Calories must be between ${MIN_DAILY_CALORIES} and ${MAX_DAILY_CALORIES}`,
+        requestId: req.id
+      });
     }
 
-    // Store in preferences
-    const updated = db.setUserPreferences(userId, {
+    // Was db.setUserPreferences, which utils/database.js does not export — the
+    // call threw on every request and this endpoint returned 500 every single
+    // time. There was no working way to set a calorie target in the product.
+    const existing = (await db.getUserPreferences(userId)) || {};
+
+    const updated = await db.updateUserPreferences(userId, {
+      ...existing,
       macroTargets: {
-        calorieOverride: calories,
-        protein_grams: protein_grams || null,
-        carbs_grams: carbs_grams || null,
-        fat_grams: fat_grams || null
+        ...(existing.macroTargets || {}),
+        calorieOverride: calories ?? null,
+        protein_grams: protein_grams ?? null,
+        carbs_grams: carbs_grams ?? null,
+        fat_grams: fat_grams ?? null
       }
     });
 
+    if (!updated) {
+      return res.status(404).json({ error: 'User not found', requestId: req.id });
+    }
+
+    // Read back what was stored rather than echoing the request, so the
+    // response cannot report a target that did not persist.
+    const saved = updated.preferences?.macroTargets || {};
     return res.json({
       targets: {
-        calories,
-        protein_grams,
-        carbs_grams,
-        fat_grams
+        calories: saved.calorieOverride ?? null,
+        protein_grams: saved.protein_grams ?? null,
+        carbs_grams: saved.carbs_grams ?? null,
+        fat_grams: saved.fat_grams ?? null
       },
+      source: 'user',
       message: 'Targets updated'
     });
   } catch (error) {
@@ -3769,7 +3845,9 @@ app.get('/api/progress/overview', auth.authMiddleware, async (req, res) => {
   try {
     const userId = req.user.userId;
     const foodLogs = await db.getFoodLogs(userId) || [];
-    const weightLogs = db.getWeightLogs(userId) || [];
+    // Same missing await. A Promise is truthy, so the || [] never fired and
+    // .length was undefined — latestWeight came back null for everyone.
+    const weightLogs = (await db.getWeightLogs(userId)) || [];
 
     const today = new Date().toISOString().split('T')[0];
     const todayLogs = foodLogs.filter(log => log.date === today);
