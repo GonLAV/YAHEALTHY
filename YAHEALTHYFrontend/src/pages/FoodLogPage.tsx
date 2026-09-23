@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Trash2, UtensilsCrossed, X } from 'lucide-react';
+import { Plus, Trash2, UtensilsCrossed, X, Bookmark, BookmarkCheck } from 'lucide-react';
 import { foodLogApi, FoodLog } from '@/services/api';
 import { useLanguage } from '@/i18n/LanguageContext';
 import PageHeader from '@/components/ui/PageHeader';
@@ -32,6 +32,29 @@ export const FoodLogPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({ ...emptyForm });
+
+  // Which logs have been saved as a reusable meal. The dashboard offers a
+  // one-tap re-log of these; until now nothing in the app could create one, so
+  // that list was empty for everybody and the feature never appeared at all.
+  const [savedTemplates, setSavedTemplates] = useState<Record<string, 'saving' | 'done' | 'error'>>({});
+
+  const saveAsTemplate = async (log: FoodLog) => {
+    if (savedTemplates[log.id]) return;
+    setSavedTemplates((s) => ({ ...s, [log.id]: 'saving' }));
+    try {
+      await foodLogApi.saveTemplate({
+        name: log.name,
+        calories: log.calories,
+        mealType: log.meal_type || undefined,
+        proteinGrams: log.protein_grams ?? undefined,
+        carbsGrams: log.carbs_grams ?? undefined,
+        fatGrams: log.fat_grams ?? undefined,
+      });
+      setSavedTemplates((s) => ({ ...s, [log.id]: 'done' }));
+    } catch {
+      setSavedTemplates((s) => ({ ...s, [log.id]: 'error' }));
+    }
+  };
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -315,7 +338,28 @@ export const FoodLogPage = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="num font-semibold text-slate-700">{log.calories} kcal</span>
+                      <span className="font-semibold text-slate-700">
+                        {/* .num on the number; "kcal" was a hardcoded Latin
+                            word inside it, in a Hebrew-first UI. */}
+                        <span className="num">{log.calories}</span> {t('common.kcal')}
+                      </span>
+                      {/* Feeds the one-tap re-log on the dashboard. A meal
+                          somebody eats every week should be typed once. */}
+                      <button
+                        onClick={() => saveAsTemplate(log)}
+                        disabled={savedTemplates[log.id] === 'saving' || savedTemplates[log.id] === 'done'}
+                        title={t(savedTemplates[log.id] === 'done' ? 'foodLog.templateSaved' : 'foodLog.saveTemplate')}
+                        aria-label={t(savedTemplates[log.id] === 'done' ? 'foodLog.templateSaved' : 'foodLog.saveTemplate')}
+                        className={`rounded-lg p-2 transition ${
+                          savedTemplates[log.id] === 'done'
+                            ? 'text-emerald-500'
+                            : savedTemplates[log.id] === 'error'
+                              ? 'text-rose-500'
+                              : 'text-slate-300 hover:bg-emerald-50 hover:text-emerald-500'
+                        }`}
+                      >
+                        {savedTemplates[log.id] === 'done' ? <BookmarkCheck size={17} /> : <Bookmark size={17} />}
+                      </button>
                       <button
                         onClick={() => handleDelete(log.id)}
                         className="rounded-lg p-2 text-slate-300 transition hover:bg-rose-50 hover:text-rose-500"

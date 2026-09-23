@@ -14,6 +14,11 @@ const HydrationPage = lazy(() => import('@/pages/HydrationPage').then((m) => ({ 
 const SleepPage = lazy(() => import('@/pages/SleepPage').then((m) => ({ default: m.SleepPage })));
 const WeightPage = lazy(() => import('@/pages/WeightPage').then((m) => ({ default: m.WeightPage })));
 const CoachingPage = lazy(() => import('@/pages/CoachingPage').then((m) => ({ default: m.CoachingPage })));
+// RecipesPage was built, exported, backed by four API endpoints and a Hebrew
+// recipe file on disk — and never imported here or listed in the nav. The chef
+// product docs/product-truth.md calls the differentiator had no door.
+const RecipesPage = lazy(() => import('@/pages/RecipesPage').then((m) => ({ default: m.RecipesPage })));
+const TargetsPage = lazy(() => import('@/pages/TargetsPage').then((m) => ({ default: m.TargetsPage })));
 
 const PageLoader = () => (
   <div className="flex min-h-screen items-center justify-center">
@@ -82,6 +87,26 @@ const AppRoutes = () => (
           <PrivateRoute>
             <AppLayout>
               <CoachingPage />
+            </AppLayout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/recipes"
+        element={
+          <PrivateRoute>
+            <AppLayout>
+              <RecipesPage />
+            </AppLayout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/targets"
+        element={
+          <PrivateRoute>
+            <AppLayout>
+              <TargetsPage />
             </AppLayout>
           </PrivateRoute>
         }

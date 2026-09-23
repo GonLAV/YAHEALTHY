@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, UtensilsCrossed, Droplets, Moon, Scale,
-  MessageCircleHeart, LogOut, Languages, Heart,
+  MessageCircleHeart, LogOut, Languages, Heart, ChefHat, Target,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/i18n/LanguageContext';
@@ -11,16 +11,29 @@ interface NavItem {
   to: string;
   key: string;
   icon: ReactNode;
+  /**
+   * Whether it also earns a place in the bottom bar on a phone. Six items
+   * already crowd that bar at 360px — each gets about 51px, and a label plus
+   * its padding needs more than that in both languages — so the bar keeps what
+   * people open every day and the sidebar carries everything.
+   */
+  mobile?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { to: '/dashboard', key: 'nav.dashboard', icon: <LayoutDashboard size={20} /> },
-  { to: '/food-log', key: 'nav.foodLog', icon: <UtensilsCrossed size={20} /> },
-  { to: '/hydration', key: 'nav.hydration', icon: <Droplets size={20} /> },
+  { to: '/dashboard', key: 'nav.dashboard', icon: <LayoutDashboard size={20} />, mobile: true },
+  { to: '/food-log', key: 'nav.foodLog', icon: <UtensilsCrossed size={20} />, mobile: true },
+  { to: '/hydration', key: 'nav.hydration', icon: <Droplets size={20} />, mobile: true },
   { to: '/sleep', key: 'nav.sleep', icon: <Moon size={20} /> },
-  { to: '/weight', key: 'nav.weight', icon: <Scale size={20} /> },
-  { to: '/coaching', key: 'nav.coaching', icon: <MessageCircleHeart size={20} /> },
+  { to: '/weight', key: 'nav.weight', icon: <Scale size={20} />, mobile: true },
+  // Built, backed by four endpoints and a Hebrew recipe file on disk, and
+  // unreachable until now: no route, no link, no way in.
+  { to: '/recipes', key: 'nav.recipes', icon: <ChefHat size={20} /> },
+  { to: '/coaching', key: 'nav.coaching', icon: <MessageCircleHeart size={20} />, mobile: true },
+  { to: '/targets', key: 'nav.targets', icon: <Target size={20} /> },
 ];
+
+const MOBILE_NAV_ITEMS = NAV_ITEMS.filter((item) => item.mobile);
 
 const LangToggle = ({ className = '' }: { className?: string }) => {
   const { lang, toggleLang, t } = useLanguage();
@@ -126,20 +139,27 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
       {/* Mobile bottom nav */}
       <nav
         aria-label={t('a11y.mobileNav')}
-        className="fixed inset-x-0 bottom-0 z-30 flex justify-around border-t border-slate-200 bg-white/95 py-1.5 backdrop-blur md:hidden"
+        /* Keeps the last row clear of the iPhone home indicator — without it
+           the tap targets sit under the gesture bar. */
+        style={{ paddingBottom: 'max(0.375rem, env(safe-area-inset-bottom))' }}
+        className="fixed inset-x-0 bottom-0 z-30 flex border-t border-slate-200 bg-white/95 pt-1.5 backdrop-blur md:hidden"
       >
-        {NAV_ITEMS.map((item) => (
+        {MOBILE_NAV_ITEMS.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             className={({ isActive }) =>
-              `flex min-w-[14.2%] flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 text-[10px] font-medium transition ${
+              /* basis-0 flex-1 shares the width evenly however many items there
+                 are; min-w-0 with truncate shortens a long label instead of
+                 wrapping it and leaving the row ragged, which is what
+                 min-w-[14.2%] did at phone width. */
+              `flex min-w-0 flex-1 basis-0 flex-col items-center gap-0.5 rounded-xl px-1 py-1.5 text-[11px] font-medium transition ${
                 isActive ? 'text-emerald-600' : 'text-slate-400'
               }`
             }
           >
             {item.icon}
-            {t(item.key)}
+            <span className="w-full truncate text-center">{t(item.key)}</span>
           </NavLink>
         ))}
       </nav>
