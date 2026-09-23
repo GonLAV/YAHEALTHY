@@ -4,6 +4,8 @@ import { hydrationApi, HydrationLog } from '@/services/api';
 import { useLanguage } from '@/i18n/LanguageContext';
 import PageHeader from '@/components/ui/PageHeader';
 import ProgressRing from '@/components/ui/ProgressRing';
+import Num from '@/components/ui/Num';
+import { COLOR } from '@/theme';
 
 const DAILY_GOAL_LITERS = 2.5;
 
@@ -91,8 +93,8 @@ export const HydrationPage = () => {
           value={totalLiters}
           target={DAILY_GOAL_LITERS}
           size={200}
-          color="#0284c7"
-          trackColor="#e0f2fe"
+          color={COLOR.water}
+          trackColor={COLOR.waterTrack}
         >
           <span className="num text-4xl font-extrabold text-sky-600">
             {totalLiters.toFixed(2)}
@@ -191,7 +193,9 @@ export const HydrationPage = () => {
 
       <div className="mt-4 flex items-center gap-2 rounded-2xl bg-sky-50 p-4 text-xs text-sky-600">
         <Droplets size={16} className="shrink-0" />
-        {t('water.dailyGoal')}: {DAILY_GOAL_LITERS} {t('common.liters')}
+        {/* Hebrew label, a colon and a number with no isolation at all — the
+            colon is bidi-neutral and lands on whichever side the run decides. */}
+        {t('water.dailyGoal')}: <Num unit={t('common.liters')}>{DAILY_GOAL_LITERS}</Num>
       </div>
     </div>
   );

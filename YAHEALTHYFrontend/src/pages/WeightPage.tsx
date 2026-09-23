@@ -10,6 +10,8 @@ import { useLanguage } from '@/i18n/LanguageContext';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import Confetti from '@/components/ui/Confetti';
+import Num from '@/components/ui/Num';
+import { COLOR } from '@/theme';
 
 export const WeightPage = () => {
   const { t, lang } = useLanguage();
@@ -265,14 +267,17 @@ export const WeightPage = () => {
             <div className="mb-3 flex items-center justify-between">
               <span className="font-medium text-slate-700">{t('weight.progress')}</span>
               <div className="flex items-center gap-3">
+                {/* .num used to wrap this whole span, including the Hebrew
+                    label and the colon — which forced the sentence to LTR and
+                    made it read last word first. Only the figure is isolated. */}
                 {remaining != null && (
-                  <span className="num flex items-center gap-1 text-sm font-medium text-slate-500">
+                  <span className="flex items-center gap-1 text-sm font-medium text-slate-500">
                     {goal.target_weight_kg <= goal.start_weight_kg ? (
                       <TrendingDown size={15} className="text-emerald-500" />
                     ) : (
                       <TrendingUp size={15} className="text-sky-500" />
                     )}
-                    {t('weight.remainingToGoal')}: {remaining.toFixed(1)} {t('common.kg')}
+                    {t('weight.remainingToGoal')}: <Num unit={t('common.kg')}>{remaining.toFixed(1)}</Num>
                   </span>
                 )}
                 <span className="num rounded-full bg-emerald-100 px-3 py-0.5 text-sm font-bold text-emerald-700">
@@ -295,7 +300,7 @@ export const WeightPage = () => {
               <div className="h-64" style={{ direction: 'ltr' }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData} margin={{ top: 5, right: 10, bottom: 5, left: -20 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <CartesianGrid strokeDasharray="3 3" stroke={COLOR.track} />
                     <XAxis
                       dataKey="date"
                       tick={{ fontSize: 11 }}
@@ -304,14 +309,14 @@ export const WeightPage = () => {
                     <YAxis tick={{ fontSize: 11 }} domain={['dataMin - 1', 'dataMax + 1']} />
                     <Tooltip
                       formatter={(value: number) => [`${value} kg`, '']}
-                      contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0' }}
+                      contentStyle={{ borderRadius: 12, border: `1px solid ${COLOR.track}` }}
                     />
                     <Line
                       type="monotone"
                       dataKey="kg"
-                      stroke="#059669"
+                      stroke={COLOR.brand}
                       strokeWidth={3}
-                      dot={{ r: 5, fill: '#059669' }}
+                      dot={{ r: 5, fill: COLOR.brand }}
                       activeDot={{ r: 7 }}
                     />
                   </LineChart>
@@ -380,7 +385,9 @@ export const WeightPage = () => {
                         <Flag size={17} />
                       </span>
                       <div>
-                        <span className="num font-bold text-slate-900">{log.weight_kg} {t('common.kg')}</span>
+                        <span className="font-bold text-slate-900">
+                          <Num unit={t('common.kg')}>{log.weight_kg}</Num>
+                        </span>
                         <div className="text-xs text-slate-400">{fmtDate(log.created_at || log.date)}</div>
                       </div>
                     </div>

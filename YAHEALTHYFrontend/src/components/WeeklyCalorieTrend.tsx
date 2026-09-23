@@ -5,6 +5,7 @@ import { foodLogApi } from '@/services/api';
 import { useLanguage } from '@/i18n/LanguageContext';
 import ChartCard, { TICK_STYLE, useAxisDate } from '@/components/ui/ChartCard';
 import EmptyState from '@/components/ui/EmptyState';
+import { COLOR } from '@/theme';
 
 /**
  * The last seven days of logged calories.
@@ -115,7 +116,7 @@ export const WeeklyCalorieTrend = ({ target }: { target: number | null }) => {
           {target != null && (
             <ReferenceLine
               y={target}
-              stroke="#94a3b8"
+              stroke={COLOR.muted}
               strokeDasharray="4 4"
               label={{ value: String(target), position: 'insideTopRight', ...TICK_STYLE }}
             />
@@ -126,7 +127,7 @@ export const WeeklyCalorieTrend = ({ target }: { target: number | null }) => {
               /* A day with nothing logged is drawn hollow rather than as a
                  zero-calorie day. "I didn't log" and "I ate nothing" are not
                  the same fact and the chart should not merge them. */
-              <Cell key={d.date} fill={d.logged ? '#059669' : '#e2e8f0'} />
+              <Cell key={d.date} fill={d.logged ? COLOR.brand : COLOR.track} />
             ))}
           </Bar>
         </BarChart>

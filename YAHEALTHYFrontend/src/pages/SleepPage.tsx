@@ -3,6 +3,7 @@ import { Moon, Plus, X, Star } from 'lucide-react';
 import { sleepApi, SleepLog } from '@/services/api';
 import { useLanguage } from '@/i18n/LanguageContext';
 import PageHeader from '@/components/ui/PageHeader';
+import Num from '@/components/ui/Num';
 import EmptyState from '@/components/ui/EmptyState';
 
 const QUALITY_OPTIONS = [
@@ -224,8 +225,9 @@ export const SleepPage = () => {
                   <Moon size={20} />
                 </span>
                 <div>
-                  <div className="num font-bold text-slate-900">
-                    {log.sleep_hours.toFixed(1)}h
+                  <div className="font-bold text-slate-900">
+                    {/* Was a hardcoded Latin "h" inside the isolate. */}
+                    <Num unit={t('common.hours')}>{log.sleep_hours.toFixed(1)}</Num>
                   </div>
                   <div className="text-xs text-slate-400">{formatDate(log.date)}</div>
                 </div>

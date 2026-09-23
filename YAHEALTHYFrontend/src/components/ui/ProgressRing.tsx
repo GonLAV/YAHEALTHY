@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import { COLOR } from '@/theme';
 
 interface ProgressRingProps {
   value: number; // current
@@ -15,8 +16,8 @@ export const ProgressRing = ({
   target,
   size = 180,
   strokeWidth = 14,
-  color = '#059669',
-  trackColor = '#e2e8f0',
+  color = COLOR.brand,
+  trackColor = COLOR.track,
   children,
 }: ProgressRingProps) => {
   const radius = (size - strokeWidth) / 2;

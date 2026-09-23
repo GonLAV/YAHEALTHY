@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { useLanguage } from '@/i18n/LanguageContext';
+import { COLOR } from '@/theme';
 
 /**
  * The wrapper every chart in this app should sit in.
@@ -54,7 +55,7 @@ export const ChartCard = ({
  * swap in index.css — without `fontFamily: 'inherit'` a Hebrew chart labels
  * itself in Inter while everything around it is Heebo.
  */
-export const TICK_STYLE = { fontSize: 11, fill: '#94a3b8', fontFamily: 'inherit' } as const;
+export const TICK_STYLE = { fontSize: 11, fill: COLOR.muted, fontFamily: 'inherit' } as const;
 
 /**
  * Short date labels for an axis, in the reader's language.

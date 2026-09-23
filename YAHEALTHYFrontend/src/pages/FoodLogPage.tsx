@@ -4,6 +4,7 @@ import { foodLogApi, FoodLog } from '@/services/api';
 import { useLanguage } from '@/i18n/LanguageContext';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
+import Num from '@/components/ui/Num';
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 const MEAL_EMOJI: Record<string, string> = {
@@ -298,11 +299,14 @@ export const FoodLogPage = () => {
       {/* Today's totals */}
       <div className="mb-6 flex items-center justify-between rounded-2xl bg-emerald-50 px-5 py-4 ring-1 ring-emerald-100">
         <span className="text-sm font-semibold text-emerald-800">{t('food.totalToday')}</span>
-        <div className="num flex gap-4 text-sm font-medium text-emerald-700">
-          <span>{todayTotals.calories} kcal</span>
-          <span>P {todayTotals.protein.toFixed(0)}{t('common.grams')}</span>
-          <span>C {todayTotals.carbs.toFixed(0)}{t('common.grams')}</span>
-          <span>F {todayTotals.fat.toFixed(0)}{t('common.grams')}</span>
+        {/* .num sat on the flex row, so the Hebrew unit ג׳ was dragged inside
+            the LTR run with the digits. Each figure isolates itself now, and
+            "kcal" was hardcoded Latin with no key. */}
+        <div className="flex gap-4 text-sm font-medium text-emerald-700">
+          <span><Num unit={t('common.kcal')}>{todayTotals.calories}</Num></span>
+          <span>P <Num unit={t('common.grams')}>{todayTotals.protein.toFixed(0)}</Num></span>
+          <span>C <Num unit={t('common.grams')}>{todayTotals.carbs.toFixed(0)}</Num></span>
+          <span>F <Num unit={t('common.grams')}>{todayTotals.fat.toFixed(0)}</Num></span>
         </div>
       </div>
 
@@ -332,9 +336,9 @@ export const FoodLogPage = () => {
                             {log.quantity} {log.unit || 'g'}
                           </span>
                         )}
-                        <span className="num">P {(log.protein_grams || 0).toFixed(1)}{t('common.grams')}</span>
-                        <span className="num">C {(log.carbs_grams || 0).toFixed(1)}{t('common.grams')}</span>
-                        <span className="num">F {(log.fat_grams || 0).toFixed(1)}{t('common.grams')}</span>
+                        <span>P <Num unit={t('common.grams')}>{(log.protein_grams || 0).toFixed(1)}</Num></span>
+                        <span>C <Num unit={t('common.grams')}>{(log.carbs_grams || 0).toFixed(1)}</Num></span>
+                        <span>F <Num unit={t('common.grams')}>{(log.fat_grams || 0).toFixed(1)}</Num></span>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">

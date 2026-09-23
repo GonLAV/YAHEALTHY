@@ -112,7 +112,7 @@ export const RecipesPage = () => {
                   <button
                     onClick={() => setOpenId(isOpen ? null : recipe.id)}
                     aria-expanded={isOpen}
-                    className="w-full text-right p-5 hover:bg-gray-50"
+                    className="w-full text-start p-5 hover:bg-slate-50"
                   >
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                       <h2 className="text-xl font-bold text-gray-900">{recipe.name}</h2>

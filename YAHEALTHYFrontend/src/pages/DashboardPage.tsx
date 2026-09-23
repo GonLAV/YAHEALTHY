@@ -12,6 +12,8 @@ import { useLanguage } from '@/i18n/LanguageContext';
 import ProgressRing from '@/components/ui/ProgressRing';
 import ProgressBar from '@/components/ui/ProgressBar';
 import EmptyState from '@/components/ui/EmptyState';
+import Num from '@/components/ui/Num';
+import { COLOR } from '@/theme';
 import WeeklyCalorieTrend from '@/components/WeeklyCalorieTrend';
 import QuickLogTemplates from '@/components/QuickLogTemplates';
 import ConsistencyCalendar from '@/components/ConsistencyCalendar';
@@ -72,11 +74,6 @@ interface DashboardData {
 const EMPTY_TARGETS: NutritionTargets = {
   calories: null, protein_grams: null, carbs_grams: null, fat_grams: null,
 };
-
-/** A number, isolated from the Hebrew around it. Never wrap a sentence in this. */
-const Num = ({ children }: { children: React.ReactNode }) => (
-  <span className="num">{children}</span>
-);
 
 const Card = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => (
   <div className={`rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100 ${className}`}>
@@ -316,7 +313,7 @@ export const DashboardPage = () => {
                  against a number the app made up for a body it knows nothing
                  about. With no target the ring now shows the intake alone. */
               target={calorieTarget ?? 0}
-              color={caloriePct && caloriePct > 100 ? '#e11d48' : '#059669'}
+              color={caloriePct && caloriePct > 100 ? COLOR.over : COLOR.brand}
             >
               <Num>
                 <span className="text-3xl font-extrabold text-slate-900">

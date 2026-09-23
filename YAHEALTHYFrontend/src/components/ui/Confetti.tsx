@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { COLOR } from '@/theme';
 
 /**
  * A burst of confetti, drawn on a canvas.
@@ -17,7 +18,7 @@ import { useEffect, useRef } from 'react';
  */
 
 // The app's own palette: emerald, amber, sky, rose, violet.
-const COLORS = ['#059669', '#f59e0b', '#0ea5e9', '#f43f5e', '#8b5cf6'];
+const COLORS = [COLOR.brand, COLOR.fat, COLOR.carbs, COLOR.protein, COLOR.badge];
 
 const PARTICLE_COUNT = 90;
 const GRAVITY = 0.16;
