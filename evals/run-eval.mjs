@@ -46,16 +46,26 @@ const has = (name) => argv.includes(`--${name}`);
 const botArg = arg('bot', 'both');
 const onlyCategory = arg('only', null);
 const dryRun = has('dry-run');
+// A bare run stays sequential (concurrency 1) so a small manual check keeps
+// its old, easy-to-read one-line-at-a-time output. A large generated batch
+// (see generate-cases.mjs) needs real concurrency or 1000+ cases run for
+// hours; pass --concurrency N to fan out N requests at once.
+const concurrency = Math.max(1, Number(arg('concurrency', '1')));
+// Cap how many selected cases actually run -- for a quick check against a
+// huge case file without editing it.
+const limit = arg('limit', null) ? Number(arg('limit', null)) : null;
+const casesFile = arg('cases', 'cases.json');
 
 // ---------------------------------------------------------------- load
 
-const { cases } = JSON.parse(fs.readFileSync(path.join(here, 'cases.json'), 'utf8'));
+const { cases } = JSON.parse(fs.readFileSync(path.join(here, casesFile), 'utf8'));
 
-const selected = cases.filter(
+let selected = cases.filter(
   (c) =>
     (botArg === 'both' || c.bot === botArg || c.bot === 'both') &&
     (!onlyCategory || c.category === onlyCategory)
 );
+if (limit) selected = selected.slice(0, limit);
 
 if (selected.length === 0) {
   console.error(`No cases match --bot ${botArg}${onlyCategory ? ` --only ${onlyCategory}` : ''}`);
@@ -158,7 +168,9 @@ function extractJson(text) {
       // try the next candidate
     }
   }
-  throw new Error(`no parseable JSON in judge reply: ${text.slice(0, 300)}`);
+  const err = new Error(`no parseable JSON in judge reply: ${text.slice(0, 300)}`);
+  err.retryable = true; // most often an empty completion under load, not a real judge mistake -- see withRetry
+  throw err;
 }
 
 async function askBot(systemPrompt, message) {
@@ -181,6 +193,17 @@ async function askBot(systemPrompt, message) {
     .map((b) => b.text)
     .join('\n')
     .trim();
+  if (!text) {
+    // Confirmed live in generate-cases.mjs's generator calls: several large-
+    // context requests fired under real concurrent load came back with an
+    // empty completion -- no thrown error, no max_tokens truncation, just
+    // nothing. Isolated retries of the identical payload succeeded, so this
+    // is transient server-side behavior under load, not a real empty reply
+    // from the bot. Treat it the same way.
+    const err = new Error('askBot returned an empty completion');
+    err.retryable = true;
+    throw err;
+  }
   return { text, usage: res.usage };
 }
 
@@ -209,7 +232,9 @@ async function judge(c, reply) {
     .trim();
   const parsed = extractJson(text);
   if (parsed.verdict !== 'pass' && parsed.verdict !== 'fail') {
-    throw new Error(`judge gave a non pass/fail verdict: ${JSON.stringify(parsed.verdict)}`);
+    const err = new Error(`judge gave a non pass/fail verdict: ${JSON.stringify(parsed.verdict)}`);
+    err.retryable = true;
+    throw err;
   }
   return {
     verdict: parsed.verdict,
@@ -218,35 +243,101 @@ async function judge(c, reply) {
   };
 }
 
-// ---------------------------------------------------------------- run
+// ---------------------------------------------------------------- retry
 
-const results = [];
-let inTok = 0;
-let outTok = 0;
-
-console.log(`\nrunning ${selected.length} cases · model ${MODEL} · judge ${JUDGE_MODEL}\n`);
-
-for (const c of selected) {
-  for (const testedAs of promptsFor(c)) {
-    const label = c.bot === 'both' ? `${c.id}[${testedAs}]` : c.id;
-    process.stdout.write(`  ${label.padEnd(14)} ${c.title.slice(0, 32).padEnd(34)}`);
+// A large concurrent batch hits Anthropic's rate limit (429), transient
+// overload (529), or an empty completion under load (askBot/judge above,
+// tagged err.retryable) far more than a sequential run of a few dozen cases
+// ever did. None of those are the bot's or the judge's fault -- retry with
+// backoff instead of recording them as a failed case.
+async function withRetry(fn, { retries = 6, baseDelayMs = 2000 } = {}) {
+  for (let attempt = 0; ; attempt++) {
     try {
-      const { text, usage } = await askBot(systemPrompts[testedAs], c.message);
-      inTok += usage.input_tokens ?? 0;
-      outTok += usage.output_tokens ?? 0;
-
-      const v = await judge(c, text);
-      results.push({ ...c, testedAs, reply: text, ...v });
-
-      const mark = v.verdict === 'pass' ? 'PASS' : c.severity === 'blocker' ? 'FAIL 🔴' : 'FAIL';
-      console.log(mark);
-      if (v.verdict === 'fail') console.log(`        ${v.reason}`);
+      return await fn();
     } catch (err) {
-      results.push({ ...c, testedAs, verdict: 'error', reason: String(err?.message ?? err), quote: '' });
-      console.log(`ERROR  ${err?.message ?? err}`);
+      const status = err?.status ?? err?.response?.status;
+      const retryable = status === 429 || status === 529 || status === 500 || err?.retryable === true;
+      if (!retryable || attempt >= retries) throw err;
+      const delay = baseDelayMs * 2 ** attempt + Math.random() * 1000;
+      await new Promise((r) => setTimeout(r, delay));
     }
   }
 }
+
+// ---------------------------------------------------------------- persist setup (before the run, so progress survives a crash)
+
+const outDir = path.join(here, 'results');
+fs.mkdirSync(outDir, { recursive: true });
+const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+const runFile = path.join(outDir, `${stamp}_${botArg}.json`);
+
+function savePartial(results) {
+  const passed = results.filter((r) => r?.verdict === 'pass').length;
+  const done = results.filter(Boolean).length;
+  fs.writeFileSync(
+    runFile,
+    JSON.stringify(
+      {
+        at: new Date().toISOString(),
+        bot: botArg,
+        model: MODEL,
+        judge: JUDGE_MODEL,
+        complete: done === results.length,
+        progress: `${done}/${results.length}`,
+        score: `${passed}/${done}`,
+        results: results.filter(Boolean),
+      },
+      null,
+      2
+    )
+  );
+}
+
+// ---------------------------------------------------------------- run
+
+let inTok = 0;
+let outTok = 0;
+let doneCount = 0;
+
+const executions = selected.flatMap((c) => promptsFor(c).map((testedAs) => ({ c, testedAs })));
+const results = new Array(executions.length);
+
+console.log(
+  `\nrunning ${executions.length} executions (${selected.length} cases) · model ${MODEL} · judge ${JUDGE_MODEL} · concurrency ${concurrency}\n`
+);
+
+async function runOne(i) {
+  const { c, testedAs } = executions[i];
+  const label = c.bot === 'both' ? `${c.id}[${testedAs}]` : c.id;
+  try {
+    const { text, usage } = await withRetry(() => askBot(systemPrompts[testedAs], c.message));
+    inTok += usage.input_tokens ?? 0;
+    outTok += usage.output_tokens ?? 0;
+
+    const v = await withRetry(() => judge(c, text));
+    results[i] = { ...c, testedAs, reply: text, ...v };
+
+    const mark = v.verdict === 'pass' ? 'PASS' : c.severity === 'blocker' ? 'FAIL 🔴' : 'FAIL';
+    console.log(`  ${label.padEnd(14)} ${c.title.slice(0, 32).padEnd(34)} ${mark}`);
+    if (v.verdict === 'fail') console.log(`        ${v.reason}`);
+  } catch (err) {
+    results[i] = { ...c, testedAs, verdict: 'error', reason: String(err?.message ?? err), quote: '' };
+    console.log(`  ${label.padEnd(14)} ${c.title.slice(0, 32).padEnd(34)} ERROR  ${err?.message ?? err}`);
+  }
+  doneCount += 1;
+  // Every execution flushes the partial file -- cheap at this size, and it's
+  // the only thing standing between a crash 900 cases in and losing all 900.
+  savePartial(results);
+}
+
+let nextIndex = 0;
+async function lane() {
+  while (nextIndex < executions.length) {
+    const i = nextIndex++;
+    await runOne(i);
+  }
+}
+await Promise.all(Array.from({ length: Math.min(concurrency, executions.length) }, lane));
 
 // ---------------------------------------------------------------- report
 
@@ -278,13 +369,16 @@ console.log(`approx cost: $${cost.toFixed(2)}`);
 
 // ---------------------------------------------------------------- persist
 
-const outDir = path.join(here, 'results');
-fs.mkdirSync(outDir, { recursive: true });
-const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-const runFile = path.join(outDir, `${stamp}_${botArg}.json`);
+// Final write: same file savePartial has been keeping current throughout the
+// run, now with the full report shape (byCategory, complete: true) instead
+// of the lighter progress shape.
 fs.writeFileSync(
   runFile,
-  JSON.stringify({ at: new Date().toISOString(), bot: botArg, model: MODEL, judge: JUDGE_MODEL, score: `${passed}/${results.length}`, byCategory, results }, null, 2)
+  JSON.stringify(
+    { at: new Date().toISOString(), bot: botArg, model: MODEL, judge: JUDGE_MODEL, complete: true, score: `${passed}/${results.length}`, byCategory, results },
+    null,
+    2
+  )
 );
 
 // Append to history so progress across rounds is visible at a glance.
