@@ -51,6 +51,7 @@ const auth = require('./utils/auth');
 const db = require('./utils/database');
 const coach = require('./utils/coach');
 const { checkGoalWeight } = require('./utils/weight-goal-safety');
+const { assessWeighIn } = require('./utils/weight-progress');
 const clinicalApproval = require('./utils/clinical-approval');
 
 const { apiLimiter, authLimiter } = require('./middleware/rateLimit');
@@ -808,21 +809,35 @@ app.post('/api/weight-logs', auth.authMiddleware, async (req, res) => {
       return res.status(404).json({ error: 'Weight goal not found' });
     }
 
-    // Get all logs for this goal to check for celebration eligibility
+    // getWeightLogs returns newest first, so logs[0] is the previous weigh-in.
     const logs = await db.getWeightLogs(userId, goalId);
-    let celebration = null;
+    const previous = logs && logs.length > 0 ? logs[0] : null;
 
-    if (logs && logs.length > 0) {
-      const lastLog = logs[0];
-      const weightLost = lastLog.weight_kg - weightKg;
-      
-      if (weightLost > 0) {
-        celebration = {
-          message: `Great job! Lost ${weightLost.toFixed(1)}kg`,
-          remaining: Math.max(0, goal.target_weight_kg - weightKg).toFixed(1)
-        };
-      }
+    // Was: any decrease at all produced `Great job! Lost Xkg`, in English, in a
+    // Hebrew UI, with no floor, no rate check and no direction check. The rules
+    // now live in utils/weight-progress.js and can only ever withhold the
+    // celebration, never add advice.
+    const verdict = assessWeighIn({
+      previousKg: previous?.weight_kg,
+      previousAt: previous?.created_at,
+      currentKg: weightKg,
+      startKg: goal.start_weight_kg,
+      targetKg: goal.target_weight_kg
+    });
+
+    if (verdict.tooFast) {
+      // Not said to the user: telling somebody they are losing too quickly is
+      // clinical advice and needs a route to a person, which this app does not
+      // have yet. No weights in the log line — what somebody weighs is exactly
+      // the kind of thing logs should not keep.
+      console.warn(`[weight] rapid change for user ${userId}; celebration withheld`);
     }
+
+    // A code, not a sentence. The client owns the wording because the client
+    // knows which language the reader is in.
+    const celebration = verdict.code
+      ? { code: verdict.code, deltaKg: verdict.deltaKg, remainingKg: verdict.remainingKg }
+      : null;
 
     const log = await db.createWeightLog(userId, {
       goal_id: goalId,

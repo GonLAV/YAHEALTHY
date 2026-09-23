@@ -146,6 +146,9 @@ export const translations: Record<Lang, Record<string, string>> = {
 
     // Achievements
     'achievement.earned': 'New badge',
+    'weighIn.progress': '{n} kg closer to your goal',
+    'weighIn.goalReached': 'You reached the goal you set',
+    'weighIn.remaining': '{n} kg to go',
 
     // Food Log
     'food.title': 'Food Log',
@@ -387,6 +390,9 @@ export const translations: Record<Lang, Record<string, string>> = {
 
     // הישגים
     'achievement.earned': 'אות חדש',
+    'weighIn.progress': '{n} ק״ג קרוב יותר ליעד שלך',
+    'weighIn.goalReached': 'הגעת ליעד שהצבת',
+    'weighIn.remaining': 'נותרו {n} ק״ג',
 
     // Food Log
     'food.title': 'יומן מזון',

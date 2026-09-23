@@ -224,6 +224,20 @@ export interface WeightGoal {
   created_at?: string;
 }
 
+/**
+ * What the server decided about a weigh-in — a code, never a sentence.
+ *
+ * It used to hand back { message: "Great job! Lost 1.2kg" }, built on the
+ * server, in English, and rendered as-is inside the Hebrew UI. The rules behind
+ * it now live in utils/weight-progress.js; the wording lives here, where the
+ * reader's language is known.
+ */
+export interface WeighInVerdict {
+  code: 'goal_reached' | 'progress';
+  deltaKg: number | null;
+  remainingKg: number | null;
+}
+
 export interface WeightLog {
   id: string;
   goal_id: string;
@@ -231,7 +245,7 @@ export interface WeightLog {
   weight_kg: number;
   water_liters?: number;
   sleep_hours?: number;
-  celebration?: { message: string; remaining: string } | null;
+  celebration?: WeighInVerdict | null;
   created_at?: string;
 }
 
@@ -243,8 +257,9 @@ export const weightApi = {
     api.get<WeightGoal[]>('/api/weight-goals'),
 
   log: (data: { goalId: string; weightKg: number; waterLiters?: number; sleepHours?: number }) =>
-    api.post<WeightLog & { celebration?: { message: string; remaining: string } | null }>('/api/weight-logs', data),
+    api.post<WeightLog & { celebration?: WeighInVerdict | null }>('/api/weight-logs', data),
 
+  /** Newest first — the server orders by created_at descending. */
   getLogs: (params?: { goalId?: string }) =>
     api.get<WeightLog[]>('/api/weight-logs', { params }),
 };

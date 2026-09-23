@@ -5,10 +5,11 @@ import {
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
-import { weightApi, WeightGoal, WeightLog } from '@/services/api';
+import { weightApi, WeightGoal, WeightLog, WeighInVerdict } from '@/services/api';
 import { useLanguage } from '@/i18n/LanguageContext';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
+import Confetti from '@/components/ui/Confetti';
 
 export const WeightPage = () => {
   const { t, lang } = useLanguage();
@@ -19,7 +20,7 @@ export const WeightPage = () => {
   const [showLogForm, setShowLogForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [celebration, setCelebration] = useState<string | null>(null);
+  const [celebration, setCelebration] = useState<WeighInVerdict | null>(null);
 
   const [goalForm, setGoalForm] = useState({ start: '', target: '' });
   const [logForm, setLogForm] = useState('');
@@ -80,7 +81,7 @@ export const WeightPage = () => {
       const res = await weightApi.log({ goalId: goal!.id, weightKg: kg });
       setLogForm('');
       setShowLogForm(false);
-      setCelebration(res.data?.celebration?.message ?? null);
+      setCelebration(res.data?.celebration ?? null);
       await fetchAll();
     } catch (err: any) {
       setError(err.response?.data?.error || t('common.error'));
@@ -91,7 +92,13 @@ export const WeightPage = () => {
 
   const current = useMemo(() => {
     if (logs.length === 0) return goal?.start_weight_kg ?? null;
-    return logs[logs.length - 1].weight_kg;
+    // logs[0], not logs[length - 1]. The server orders newest first, and this
+    // read took the OLDEST weigh-in as the current weight — so the progress
+    // bar, the "left to goal" figure and everything derived from them were
+    // wrong the moment there was more than one entry. chartData twenty lines
+    // below already reverses the array, so the same list was being read with
+    // two opposite assumptions in one file.
+    return logs[0].weight_kg;
   }, [logs, goal]);
 
   const progressPct = useMemo(() => {
@@ -142,10 +149,26 @@ export const WeightPage = () => {
         icon={<Scale size={24} />}
       />
 
+      {/* Reaching a goal the person set for themselves is the one weight moment
+          worth marking. Ordinary progress gets a line, not an animation. */}
+      <Confetti fireKey={celebration?.code === 'goal_reached' ? 'weight-goal' : null} />
+
       {celebration && (
-        <div className="mb-6 flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-700">
-          <TrendingDown size={18} />
-          {celebration}
+        <div
+          role="status"
+          className="mb-6 flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-700"
+        >
+          {celebration.code === 'goal_reached' ? <Target size={18} /> : <TrendingDown size={18} />}
+          <span>
+            {celebration.code === 'goal_reached'
+              ? t('weighIn.goalReached')
+              : t('weighIn.progress', { n: celebration.deltaKg ?? 0 })}
+            {celebration.code === 'progress' && celebration.remainingKg != null && (
+              <span className="ms-2 font-normal text-emerald-600">
+                · {t('weighIn.remaining', { n: celebration.remainingKg })}
+              </span>
+            )}
+          </span>
         </div>
       )}
 
