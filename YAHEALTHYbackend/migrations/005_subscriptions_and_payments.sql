@@ -13,7 +13,7 @@ create table if not exists public.subscriptions (
   id         uuid primary key default gen_random_uuid(),
   user_id    uuid not null references public.users(id) on delete cascade,
 
-  -- 'base' — מסלול בסיס · 'chef' — מסלול עם שף אנושי (ADR-007)
+  -- 'base' — מסלול בסיס · 'yoni' — מסלול עם יוני (ADR-007, אוחד ב-009)
   plan       text not null,
 
   -- 'active' · 'cancelled' · 'expired'

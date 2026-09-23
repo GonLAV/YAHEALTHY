@@ -1,5 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const { randomUUID: uuidv4 } = require('crypto');
+const { normalizePhone } = require('./phone');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://your-supabase-url.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || 'your-supabase-anon-key';
@@ -599,66 +600,6 @@ async function recordPaymentEvent(event) {
 }
 
 /**
- * Chef requests — ADR-007. The chef is a person, so "we will have him get in
- * touch" has to be a row somebody can look at, not a sentence a bot said.
- */
-async function getOpenChefRequest(userId) {
-  if (USE_MEMORY_DB) {
-    maybeLogMemoryMode();
-    return memoryDb.chefRequests.find((row) => row.user_id === userId && row.status === 'open') || null;
-  }
-
-  const { data, error } = await supabase
-    .from('chef_requests')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('status', 'open')
-    .maybeSingle();
-
-  if (error && error.code !== 'PGRST116') throw error;
-  return data || null;
-}
-
-/**
- * Open a request, or hand back the one already open.
- *
- * Pressing the button twice must not put two conversations in front of the
- * chef, so the partial unique index decides rather than a read-then-write.
- */
-async function createChefRequest(userId, note) {
-  if (USE_MEMORY_DB) {
-    maybeLogMemoryMode();
-    const existing = await getOpenChefRequest(userId);
-    if (existing) return { request: existing, created: false };
-
-    const row = {
-      id: uuidv4(),
-      user_id: userId,
-      status: 'open',
-      note: note || null,
-      requested_at: new Date().toISOString(),
-      contacted_at: null
-    };
-    memoryDb.chefRequests.push(row);
-    return { request: row, created: true };
-  }
-
-  const { data, error } = await supabase
-    .from('chef_requests')
-    .insert([{ user_id: userId, note: note || null }])
-    .select()
-    .single();
-
-  if (error) {
-    if (error.code === '23505') {
-      return { request: await getOpenChefRequest(userId), created: false };
-    }
-    throw error;
-  }
-  return { request: data, created: true };
-}
-
-/**
  * Foods — nutrition values per 100 g, each one carrying its source.
  *
  * Nothing writes here except scripts/ingest-foods.js, and that script only
@@ -744,6 +685,102 @@ async function countFoods() {
   const { count, error } = await supabase.from('foods').select('id', { count: 'exact', head: true });
   if (error) throw error;
   return count || 0;
+}
+
+/**
+ * Phone identity — what links a WhatsApp sender to a paying account.
+ *
+ * Both sides normalise through utils/phone before touching the database, so
+ * "050-123-4567" and "972501234567@s.whatsapp.net" reach the same row. A
+ * number that cannot be normalised is refused rather than stored raw: a
+ * half-formed value here would match nobody, or worse, the wrong person.
+ */
+async function setUserPhone(userId, rawPhone) {
+  const phone = normalizePhone(rawPhone);
+  if (!phone) return null;
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const user = memoryDb.usersById.get(userId);
+    if (!user) return null;
+    // One account per number, enforced here the way the partial unique index
+    // enforces it in Postgres.
+    for (const [otherId, other] of memoryDb.usersById) {
+      if (otherId !== userId && other.phone === phone) {
+        const err = new Error('Phone already belongs to another account');
+        err.code = 'PHONE_TAKEN';
+        throw err;
+      }
+    }
+    const updated = { ...user, phone };
+    memoryDb.usersById.set(userId, updated);
+    memoryDb.usersByEmail.set(String(updated.email || '').toLowerCase(), updated);
+    return updated;
+  }
+
+  const { data, error } = await supabase
+    .from('users')
+    .update({ phone })
+    .eq('id', userId)
+    .select()
+    .single();
+
+  if (error) {
+    if (error.code === '23505') {
+      const err = new Error('Phone already belongs to another account');
+      err.code = 'PHONE_TAKEN';
+      throw err;
+    }
+    throw error;
+  }
+  return data;
+}
+
+async function getUserByPhone(rawPhone) {
+  const phone = normalizePhone(rawPhone);
+  if (!phone) return null;
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    for (const user of memoryDb.usersById.values()) {
+      if (user.phone === phone) return user;
+    }
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('phone', phone)
+    .maybeSingle();
+
+  if (error && error.code !== 'PGRST116') throw error;
+  return data || null;
+}
+
+/**
+ * What a WhatsApp sender is entitled to, answered in one call.
+ *
+ * Returns { user, plans, has(feature) }. `user` is null for a number nobody
+ * has claimed, which is an ordinary state: people message before they buy.
+ * Throws rather than returning "no access" when the lookup itself fails —
+ * the caller decides what to do, and a database outage must not read as a
+ * paying customer having lapsed.
+ */
+async function getWhatsappAccess(rawPhone) {
+  const phone = normalizePhone(rawPhone);
+  if (!phone) return { user: null, plans: [], has: () => false };
+
+  const user = await getUserByPhone(phone);
+  if (!user) return { user: null, plans: [], has: () => false };
+
+  const subscriptions = await getActiveSubscriptions(user.id);
+  const plans = subscriptions.map((row) => row.plan);
+  return {
+    user,
+    plans,
+    has: (plan) => plans.includes(plan)
+  };
 }
 
 /**
@@ -1611,11 +1648,11 @@ async function saveWhatsappMessage(msg) {
 }
 
 /**
- * WHAPI BOT CONVERSATIONS (Adi + the chef) -- see migrations/001 and 003.
+ * WHAPI BOT CONVERSATIONS (Adi + Yoni) -- see migrations/001, 003 and 008.
  *
  * migrations/003 renames the stored active_bot value from 'nuri' to 'adi'
  * and updates the check constraint to match. Everything above this file
- * (routes/whapi.js, whapi-brain.js) only ever deals in 'adi'/'chef' -- but
+ * (routes/whapi.js, whapi-brain.js) only ever deals in 'adi'/'yoni' -- but
  * this file can't assume migrations/003 has actually been run against a
  * given database yet, so it normalizes at the boundary instead of
  * requiring the two to be deployed in lockstep:
@@ -1627,8 +1664,12 @@ async function saveWhatsappMessage(msg) {
  * Once migrations/003 has run, every write succeeds on the first try and
  * this fallback simply never triggers again -- nothing to clean up later.
  */
-const LEGACY_ACTIVE_BOT = { adi: 'nuri' };
-const CANONICAL_ACTIVE_BOT = { nuri: 'adi' };
+// migrations/008 renames the chef persona to 'yoni' the same way 003 renamed
+// 'nuri' to 'adi', and is handled by the same boundary mapping: code above
+// this file only ever says 'adi'/'yoni', a database that has not run 008 yet
+// still says 'chef', and neither has to wait for the other to deploy.
+const LEGACY_ACTIVE_BOT = { adi: 'nuri', yoni: 'chef' };
+const CANONICAL_ACTIVE_BOT = { nuri: 'adi', chef: 'yoni' };
 const CHECK_VIOLATION = '23514';
 
 function normalizeActiveBot(row) {
@@ -1701,21 +1742,80 @@ async function getWhatsappMessages({ status = null, limit = 50 } = {}) {
   return data || [];
 }
 
-async function logWhapiMessage(phone, role, content) {
+/**
+ * @param {string|null} promptVersion which prompt produced this, e.g.
+ *   "adi:dc4acc971f59" — see migrations/011. Null for the customer's own
+ *   messages and for anything the system wrote without the model.
+ */
+async function logWhapiMessage(phone, role, content, promptVersion = null) {
+  const row = {
+    phone,
+    role,
+    content,
+    prompt_version: promptVersion,
+    created_at: new Date().toISOString()
+  };
+
   if (USE_MEMORY_DB) {
     maybeLogMemoryMode();
-    const row = { phone, role, content, created_at: new Date().toISOString() };
     memoryDb.whapiMessages.push(row);
     return row;
   }
+
   const { data, error } = await supabaseServiceRole
     .from('whapi_messages')
-    .insert([{ phone, role, content, created_at: new Date().toISOString() }])
+    .insert([row])
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    // A database that has not run migrations/011 yet has no such column
+    // (Postgres 42703, undefined_column). Losing the provenance stamp is bad;
+    // losing the message itself is worse, so retry without it and say so.
+    if (error.code === '42703' && promptVersion) {
+      console.warn('[db] whapi_messages has no prompt_version column yet — run migrations/011.');
+      const { prompt_version, ...withoutVersion } = row;
+      const retry = await supabaseServiceRole
+        .from('whapi_messages')
+        .insert([withoutVersion])
+        .select()
+        .single();
+      if (retry.error) throw retry.error;
+      return retry.data;
+    }
+    throw error;
+  }
   return data;
+}
+
+/**
+ * The full record of a conversation, for reading back rather than for
+ * replying.
+ *
+ * Deliberately separate from getRecentWhapiMessages: that one feeds the
+ * model, and the model's context should hold what was said and nothing else.
+ * This one is what a person opens when a customer disputes what the bot told
+ * them, so it keeps the timestamps and the prompt version that produced each
+ * reply.
+ *
+ * 🩺 These rows can contain health information someone volunteered. Reading
+ * them is a considered act, not a convenience.
+ */
+async function getWhapiTranscript(phone, limit = 50) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.whapiMessages.filter((m) => m.phone === phone).slice(-limit);
+  }
+
+  const { data, error } = await supabaseServiceRole
+    .from('whapi_messages')
+    .select('*')
+    .eq('phone', phone)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return (data || []).reverse();
 }
 
 async function getRecentWhapiMessages(phone, limit = 20) {
@@ -1762,8 +1862,9 @@ module.exports = {
   hasEntitlement,
   createSubscription,
   recordPaymentEvent,
-  getOpenChefRequest,
-  createChefRequest,
+  setUserPhone,
+  getUserByPhone,
+  getWhatsappAccess,
   upsertFoods,
   searchFoods,
   getFoodById,
@@ -1815,5 +1916,6 @@ module.exports = {
   getWhapiConversation,
   upsertWhapiConversation,
   logWhapiMessage,
-  getRecentWhapiMessages
+  getRecentWhapiMessages,
+  getWhapiTranscript
 };

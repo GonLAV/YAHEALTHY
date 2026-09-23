@@ -308,7 +308,7 @@ create table if not exists public.subscriptions (
   id         uuid primary key default gen_random_uuid(),
   user_id    uuid not null references public.users(id) on delete cascade,
 
-  -- 'base' — מסלול בסיס · 'chef' — מסלול עם שף אנושי (ADR-007)
+  -- 'base' — מסלול בסיס · 'yoni' — מסלול עם יוני (ADR-007, אוחד ב-009)
   plan       text not null,
 
   -- 'active' · 'cancelled' · 'expired'
@@ -486,3 +486,102 @@ create table if not exists public.ingredient_foods (
 
 alter table public.foods            enable row level security;
 alter table public.ingredient_foods enable row level security;
+
+-- שינוי שם הפרסונה: 'chef' → 'yoni'.
+--
+-- אותה תבנית בדיוק כמו migrations/003 (nuri → adi): הערך ב-active_bot הוא
+-- מזהה פרסונה שהקוד מתייחס אליו, ולכן הוא משתנה כאן. שם הקובץ
+-- chef-bot-prompt.md נשאר — לנתיב קובץ אין משמעות בזמן ריצה כמו שיש למפתח,
+-- ושינוי שלו הוא רעש בלי תועלת.
+--
+-- utils/database.js ממפה 'chef' → 'yoni' בקריאה, ונופל חזרה ל-'chef' בכתיבה
+-- אם האילוץ הישן עדיין בתוקף. כלומר הקוד והמיגרציה לא חייבים לעלות יחד,
+-- ושום שיחה לא נשברת בין הפריסות.
+--
+-- נתיב חזרה:
+--   alter table whapi_conversations drop constraint if exists whapi_conversations_active_bot_check;
+--   update whapi_conversations set active_bot = 'chef' where active_bot = 'yoni';
+--   alter table whapi_conversations
+--     add constraint whapi_conversations_active_bot_check check (active_bot in ('adi', 'chef'));
+
+alter table whapi_conversations
+  drop constraint if exists whapi_conversations_active_bot_check;
+
+update whapi_conversations set active_bot = 'yoni' where active_bot = 'chef';
+
+alter table whapi_conversations
+  add constraint whapi_conversations_active_bot_check
+  check (active_bot in ('adi', 'yoni'));
+
+-- איחוד: שף אחד, יוני, בוט בוואטסאפ.
+--
+-- ADR-007 קבע שהשף הוא אדם, ושלקוח מבקש שייצרו איתו קשר. במקביל נבנה בוט
+-- שעונה בצ'אט מיידית. שתי המערכות חיו זו לצד זו, ולקוח ששילם היה נכנס לתור
+-- שאיש לא מנהל בזמן שיוני עונה לו תוך שנייה. ההכרעה החדשה: רק יוני.
+--
+-- מה שנמחק כאן הוא מסלול-האדם בלבד. המנוי עצמו נשאר — הוא פשוט קונה את יוני.
+--
+-- נתיב חזרה: git מחזיר את routes/chef.js ואת migrations/006, והטבלה נוצרת
+-- מחדש משם. שם המסלול חוזר עם:
+--   update public.subscriptions   set plan = 'chef' where plan = 'yoni';
+--   update public.payment_events  set plan = 'chef' where plan = 'yoni';
+
+-- שם אחד לפרסונה ולמסלול שקונה אותה.
+update public.subscriptions  set plan = 'yoni' where plan = 'chef';
+update public.payment_events set plan = 'yoni' where plan = 'chef';
+
+-- מסלול-האדם. אין לו יותר endpoint, ואין לו מי שמנהל את התור שהוא יוצר.
+drop table if exists public.chef_requests;
+
+-- קישור בין מספר טלפון לחשבון — התנאי לגבייה על יוני.
+--
+-- הבעיה: וואטסאפ מזהה אנשים לפי מספר טלפון, ומנויים רשומים על חשבון עם
+-- אימייל. לא היה ביניהם שום קשר, ולכן השרת לא ידע מי כותב לו — ולא יכול
+-- היה לדעת אם שילם.
+--
+-- 🔴 מספר טלפון הוא לא הוכחת זהות. הוא מספיק כדי להחליט מי מקבל בוט
+-- בישול; הוא לא מספיק לשום דבר חמור מזה. אין כאן מפתח לחשבון.
+--
+-- נתיב חזרה:
+--   alter table public.users drop column phone;
+--   alter table whapi_conversations drop column user_id;
+
+-- E.164 בלי הפלוס: 972501234567. צורה אחת בלבד, כי השוואה בין
+-- "050-123-4567" ל-"+972501234567" היא באג שמחכה לקרות.
+alter table public.users
+  add column if not exists phone text;
+
+-- ייחודי, אבל רק על מה שקיים: שני חשבונות על אותו מספר הם תמיד תקלה,
+-- ורוב החשבונות לא ימסרו מספר בכלל.
+create unique index if not exists users_phone_key
+  on public.users (phone)
+  where phone is not null;
+
+-- מי מדבר איתנו בוואטסאפ, אם ידוע. null = מספר שלא זוהה, וזה מצב
+-- לגיטימי: אדם יכול לכתוב לפני שקנה.
+alter table whapi_conversations
+  add column if not exists user_id uuid references public.users(id) on delete set null;
+
+create index if not exists whapi_conversations_user_idx
+  on whapi_conversations (user_id);
+
+-- איזו גרסת פרומפט ענתה ללקוח.
+--
+-- הבוט אומר לאנשים מה לאכול ובאיזה יעד קלורי. ההצדקה לכך היא שאשת מקצוע
+-- כתבה ואישרה את הנוסח. ההצדקה הזו שווה משהו רק אם אפשר להראות **איזה**
+-- נוסח היה בתוקף כשנאמר מה שנאמר — שיחה משישה חודשים אחורה מול פרומפט
+-- שהשתנה מאז היא בדיוק המצב שבו אי אפשר להגן על כלום.
+--
+-- הערך הוא persona:12 התווים הראשונים של sha256 של קובץ הפרומפט, למשל
+-- "adi:dc4acc971f59". מי שמשווה אותו ל-data/clinical-approvals.json יודע
+-- מיד אם הגרסה שענתה היא הגרסה שאושרה.
+--
+-- null מותר: שורות שנכתבו לפני השינוי הזה, ותשובות מערכת שאינן מהמודל.
+--
+-- נתיב חזרה: alter table whapi_messages drop column prompt_version;
+
+alter table whapi_messages
+  add column if not exists prompt_version text;
+
+create index if not exists whapi_messages_prompt_version_idx
+  on whapi_messages (prompt_version);

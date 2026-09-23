@@ -20,15 +20,32 @@ const auth = require('../utils/auth');
 const db = require('../utils/database');
 const mailer = require('../utils/mailer');
 const payplus = require('../utils/payplus');
+const { normalizePhone, maskPhone } = require('../utils/phone');
 
 const callbackRouter = express.Router();
 const checkoutRouter = express.Router();
 
 // What may be sold. An unknown plan is refused rather than granted, so a typo
 // or a tampered field cannot mint access to something that does not exist.
+// Two tiers, set by the business owner: 150 for coaching, 250 for coaching
+// with Yoni. The amounts still come from the environment rather than from
+// here — a price changes on a business's schedule, not on a deploy's — and a
+// plan with no price refuses to sell rather than taking nothing for something.
+//
+// `includes` is what the gate reads. Keeping it on the plan means the answer
+// to "does this person get Yoni?" lives next to what they bought, instead of
+// being an `if` repeated wherever someone remembers to write it.
 const PLANS = {
-  base: { amount: Number(process.env.PLAN_BASE_AMOUNT || 0), label: 'מסלול בסיס' },
-  chef: { amount: Number(process.env.PLAN_CHEF_AMOUNT || 0), label: 'מסלול עם שף' }
+  base: {
+    amount: Number(process.env.PLAN_BASE_AMOUNT || 0),
+    label: 'ליווי',
+    includes: []
+  },
+  yoni: {
+    amount: Number(process.env.PLAN_YONI_AMOUNT || 0),
+    label: 'ליווי עם יוני',
+    includes: ['yoni']
+  }
 };
 
 // PayPlus reports the outcome as a code. '000' is approved on every PayPlus
@@ -48,9 +65,21 @@ checkoutRouter.post('/checkout', async (req, res) => {
     const email = String(req.body?.email || '').trim().toLowerCase();
     const plan = String(req.body?.plan || '').trim();
     const name = req.body?.name ? String(req.body.name).trim() : null;
+    const phone = normalizePhone(req.body?.phone);
 
     if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
       return res.status(400).json({ error: 'A valid email is required', requestId: req.id });
+    }
+
+    // The bot lives on WhatsApp, and WhatsApp knows people by phone number.
+    // Without one, a customer pays and then messages a number the server
+    // cannot recognise — so the number is collected here rather than asked
+    // for afterwards, when they are already annoyed.
+    if (!phone) {
+      return res.status(400).json({
+        error: 'A valid Israeli mobile number is required — it is how the bot recognises you',
+        requestId: req.id
+      });
     }
     if (!Object.prototype.hasOwnProperty.call(PLANS, plan)) {
       return res.status(400).json({ error: 'Unknown plan', requestId: req.id });
@@ -76,6 +105,7 @@ checkoutRouter.post('/checkout', async (req, res) => {
       amount,
       customerName: name,
       email,
+      phone,
       plan,
       callbackUrl: `${apiUrl}/api/payments/callback`,
       successUrl: `${appUrl}/welcome`,
@@ -120,6 +150,7 @@ callbackRouter.post('/callback', async (req, res) => {
 
   const plan = transaction.more_info || null;
   const email = String(transaction.more_info_2 || '').trim().toLowerCase() || null;
+  const phone = normalizePhone(transaction.more_info_3);
   const approved = String(transaction.status_code) === APPROVED_STATUS_CODE;
 
   try {
@@ -162,6 +193,23 @@ callbackRouter.post('/callback', async (req, res) => {
       const unusable = await auth.hashPassword(require('crypto').randomBytes(32).toString('hex'));
       user = await db.createUser(email, unusable, null);
       isNewAccount = true;
+    }
+
+    // The number they gave at checkout is what WhatsApp will present when they
+    // message, and the only thing tying the two together. Recorded even for an
+    // existing account: someone renewing may have changed number.
+    if (phone) {
+      try {
+        await db.setUserPhone(user.id, phone);
+      } catch (phoneError) {
+        // One number, one account. If it already belongs to someone else, the
+        // payment still stands — refusing it would take money and give nothing
+        // — but a person will have to untangle it, so it is logged loudly and
+        // with the number masked.
+        console.error(
+          `[payments] could not attach ${maskPhone(phone)} to the account: ${phoneError.message}`
+        );
+      }
     }
 
     await db.createSubscription(user.id, plan);
