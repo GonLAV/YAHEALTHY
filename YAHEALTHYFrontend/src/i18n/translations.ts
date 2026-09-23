@@ -45,6 +45,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     'common.hours': 'h',
     'common.kcal': 'kcal',
     'common.retry': 'Try again',
+    'common.close': 'Close',
 
     // Auth
     'auth.signInTitle': 'Welcome back',
@@ -142,6 +143,9 @@ export const translations: Record<Lang, Record<string, string>> = {
     'plan.yoni': 'Coaching with Yoni',
     'plan.endsIn': 'Ends in {n} days',
     'plan.until': 'Until',
+
+    // Achievements
+    'achievement.earned': 'New badge',
 
     // Food Log
     'food.title': 'Food Log',
@@ -282,6 +286,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     'common.hours': 'ש׳',
     'common.kcal': 'קק״ל',
     'common.retry': 'נסו שוב',
+    'common.close': 'סגירה',
 
     // Auth
     'auth.signInTitle': 'ברוכים השבים',
@@ -379,6 +384,9 @@ export const translations: Record<Lang, Record<string, string>> = {
     'plan.yoni': 'ליווי עם יוני',
     'plan.endsIn': 'מסתיים בעוד {n} ימים',
     'plan.until': 'עד',
+
+    // הישגים
+    'achievement.earned': 'אות חדש',
 
     // Food Log
     'food.title': 'יומן מזון',

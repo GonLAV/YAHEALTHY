@@ -18,6 +18,9 @@ import ConsistencyCalendar from '@/components/ConsistencyCalendar';
 import MacroSplit from '@/components/MacroSplit';
 import MealRhythm from '@/components/MealRhythm';
 import PlanStatus from '@/components/PlanStatus';
+import Confetti from '@/components/ui/Confetti';
+import AchievementToast from '@/components/AchievementToast';
+import useNewAchievements from '@/hooks/useNewAchievements';
 
 const BADGE_ICONS: Record<string, JSX.Element> = {
   'first-log': <Salad size={22} />,
@@ -100,6 +103,12 @@ export const DashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
 
+  // Fires when a badge appears that was not there last time we looked. Badges
+  // are all earned by logging — first entry, seven days, thirty days, a hundred
+  // logs — so every celebration in this app is for something the person did,
+  // never for what their body did. See the note in the commit.
+  const { earned, dismiss } = useNewAchievements(data?.badges);
+
   const load = useCallback(async () => {
     setLoading(true);
     setFailed(false);
@@ -180,6 +189,15 @@ export const DashboardPage = () => {
     weekday: 'long', day: 'numeric', month: 'long',
   });
 
+  const celebration = (
+    <>
+      {/* Keyed on the badge so a second achievement re-fires rather than
+          reusing a spent animation. */}
+      <Confetti fireKey={earned.length ? earned[0].id : null} />
+      <AchievementToast badges={earned} onDismiss={dismiss} />
+    </>
+  );
+
   const header = (
     <div className="mb-6">
       <h1 className="text-2xl font-bold text-slate-900 md:text-3xl">{t('dash.greeting')}</h1>
@@ -192,6 +210,7 @@ export const DashboardPage = () => {
     return (
       <div className="mx-auto max-w-6xl p-4 md:p-8">
         {header}
+        {celebration}
         <Card className="flex flex-col items-center gap-4 py-10 text-center">
           <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-rose-500">
             <AlertCircle size={26} />
@@ -221,6 +240,7 @@ export const DashboardPage = () => {
     return (
       <div className="mx-auto max-w-6xl p-4 md:p-8">
         {header}
+        {celebration}
         <div className="grid gap-6 lg:grid-cols-5">
           <Card className="lg:col-span-2"><Skeleton className="mx-auto h-44 w-44 rounded-full" /></Card>
           <div className="space-y-4 lg:col-span-3">
@@ -243,6 +263,7 @@ export const DashboardPage = () => {
     return (
       <div className="mx-auto max-w-6xl p-4 md:p-8">
         {header}
+        {celebration}
         <Card className="flex flex-col items-center gap-5 py-12 text-center">
           <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
             <UtensilsCrossed size={30} />
@@ -278,6 +299,7 @@ export const DashboardPage = () => {
   return (
     <div className="mx-auto max-w-6xl p-4 md:p-8">
       {header}
+      {celebration}
 
       <div className="grid gap-6 lg:grid-cols-5">
         {/* Calories */}
