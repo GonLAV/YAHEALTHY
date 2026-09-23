@@ -68,11 +68,24 @@ if (selected.length === 0) {
   process.exit(1);
 }
 
-/** Which prompt to test a case against. 'both' cases run against the chef. */
-const promptFor = (c) => (c.bot === 'nuri' ? 'nuri' : 'chef');
+/**
+ * Which prompt(s) to test a case against. A 'nuri'/'chef' case only ever
+ * needs that one prompt. A 'both' case represents a rule that has to hold
+ * independently in each persona (allergy handling, minor users, price
+ * questions...), so it has to actually run against each one -- this used to
+ * hardcode 'both' -> chef regardless of --bot, so `--bot nuri` never once
+ * exercised nuri's prompt for any shared safety case, silently. With a
+ * specific --bot selected, a 'both' case runs against that persona (which is
+ * the whole point of choosing --bot); with the default --bot both it runs
+ * against both prompts, as two separate results, instead of picking one.
+ */
+function promptsFor(c) {
+  if (c.bot !== 'both') return [c.bot];
+  return botArg === 'both' ? ['nuri', 'chef'] : [botArg];
+}
 
 const systemPrompts = {};
-for (const key of new Set(selected.map(promptFor))) {
+for (const key of new Set(selected.flatMap(promptsFor))) {
   const p = path.join(repo, PROMPTS[key]);
   if (!fs.existsSync(p)) {
     console.error(`Missing prompt: ${p}`);
@@ -122,7 +135,14 @@ Rules:
 async function askBot(systemPrompt, message) {
   const res = await client.messages.create({
     model: MODEL,
-    max_tokens: 2000,
+    // 2000 used to be enough, until a harder/more adversarial case (a
+    // customer demanding "no explanations, just fix it") pushed adaptive
+    // thinking to ~1500 tokens on its own, leaving nothing in the budget
+    // for the actual reply -- confirmed live: same prompt, same message,
+    // 2000 came back with zero text blocks, 4000 came back with a normal,
+    // correct answer. The harder the case, the more thinking it can cost,
+    // which is exactly the kind of case this harness exists to catch.
+    max_tokens: 4000,
     thinking: { type: 'adaptive' },
     system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
     messages: [{ role: 'user', content: message }],
@@ -138,7 +158,7 @@ async function askBot(systemPrompt, message) {
 async function judge(c, reply) {
   const res = await client.beta.messages.parse({
     model: JUDGE_MODEL,
-    max_tokens: 2000,
+    max_tokens: 4000, // same reasoning as askBot's -- see the comment there
     thinking: { type: 'adaptive' },
     system: JUDGE_SYSTEM,
     messages: [
@@ -167,21 +187,24 @@ let outTok = 0;
 console.log(`\nrunning ${selected.length} cases · model ${MODEL} · judge ${JUDGE_MODEL}\n`);
 
 for (const c of selected) {
-  process.stdout.write(`  ${c.id.padEnd(5)} ${c.title.slice(0, 38).padEnd(40)}`);
-  try {
-    const { text, usage } = await askBot(systemPrompts[promptFor(c)], c.message);
-    inTok += usage.input_tokens ?? 0;
-    outTok += usage.output_tokens ?? 0;
+  for (const testedAs of promptsFor(c)) {
+    const label = c.bot === 'both' ? `${c.id}[${testedAs}]` : c.id;
+    process.stdout.write(`  ${label.padEnd(14)} ${c.title.slice(0, 32).padEnd(34)}`);
+    try {
+      const { text, usage } = await askBot(systemPrompts[testedAs], c.message);
+      inTok += usage.input_tokens ?? 0;
+      outTok += usage.output_tokens ?? 0;
 
-    const v = await judge(c, text);
-    results.push({ ...c, reply: text, ...v });
+      const v = await judge(c, text);
+      results.push({ ...c, testedAs, reply: text, ...v });
 
-    const mark = v.verdict === 'pass' ? 'PASS' : c.severity === 'blocker' ? 'FAIL 🔴' : 'FAIL';
-    console.log(mark);
-    if (v.verdict === 'fail') console.log(`        ${v.reason}`);
-  } catch (err) {
-    results.push({ ...c, verdict: 'error', reason: String(err?.message ?? err), quote: '' });
-    console.log(`ERROR  ${err?.message ?? err}`);
+      const mark = v.verdict === 'pass' ? 'PASS' : c.severity === 'blocker' ? 'FAIL 🔴' : 'FAIL';
+      console.log(mark);
+      if (v.verdict === 'fail') console.log(`        ${v.reason}`);
+    } catch (err) {
+      results.push({ ...c, testedAs, verdict: 'error', reason: String(err?.message ?? err), quote: '' });
+      console.log(`ERROR  ${err?.message ?? err}`);
+    }
   }
 }
 
