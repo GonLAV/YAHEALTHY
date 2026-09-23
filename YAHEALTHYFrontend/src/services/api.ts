@@ -100,7 +100,87 @@ export const foodLogApi = {
 
   getMacrosDistribution: (params?: { date?: string }) =>
     api.get('/api/food-logs/macros-distribution', { params }),
+
+  /**
+   * A day's totals, which is what a dashboard actually wants.
+   *
+   * The dashboard used to build this from getStats. That endpoint returns
+   * `totalCalories` in camelCase and computes no macros at all, while the
+   * dashboard read `total_calories`, `total_protein`, `total_carbs` and
+   * `total_fat` — so the calorie ring and all three macro bars read zero for
+   * every user on every day. It also took `start`/`end`, not the
+   * `startDate`/`endDate` sent above, so its date filter never applied.
+   *
+   * /api/food-summary returns exactly the four totals, for one date, and is
+   * validated server-side.
+   */
+  getDaySummary: (date: string) =>
+    api.get<FoodDaySummary>('/api/food-summary', { params: { date } }),
+
+  /**
+   * Per-day totals across a range, aggregated server-side.
+   *
+   * One request for a whole week instead of seven, and it fills gaps: a day
+   * with nothing logged comes back with zero totals rather than being absent,
+   * which is what a chart needs to show a break in the habit rather than
+   * silently closing the gap.
+   */
+  getRangeSummary: (start: string, end: string) =>
+    api.get<FoodRangeSummary>('/api/food-summary/range', { params: { start, end } }),
+
+  /**
+   * Which dates have at least one log. The lightest payload in the API —
+   * dates and nothing else — which is what a consistency calendar needs.
+   */
+  getLoggedDays: (start: string, end: string) =>
+    api.get<{ start: string; end: string; daysCount: number; days: string[] }>(
+      '/api/food-days',
+      { params: { start, end } },
+    ),
+
+  /** Saved meals, for logging a repeat without retyping it. */
+  getTemplates: (limit = 6) =>
+    api.get<FoodLogTemplate[]>('/api/food-logs/templates', { params: { limit } }),
+
+  saveTemplate: (data: Omit<FoodLogInput, 'date'>) =>
+    api.post<FoodLogTemplate>('/api/food-logs/template', data),
+
+  deleteTemplate: (id: string) =>
+    api.delete(`/api/food-logs/templates/${id}`),
 };
+
+export interface FoodLogTemplate {
+  id: string;
+  name: string;
+  calories: number;
+  meal_type?: string | null;
+  protein_grams?: number | null;
+  carbs_grams?: number | null;
+  fat_grams?: number | null;
+  notes?: string | null;
+}
+
+export interface FoodRangeSummary {
+  start: string;
+  end: string;
+  days: Array<{
+    date: string;
+    count: number;
+    totals: { calories: number; protein_grams: number; carbs_grams: number; fat_grams: number };
+  }>;
+  totals: { calories: number; protein_grams: number; carbs_grams: number; fat_grams: number };
+}
+
+export interface FoodDaySummary {
+  date: string;
+  count: number;
+  totals: {
+    calories: number;
+    protein_grams: number;
+    carbs_grams: number;
+    fat_grams: number;
+  };
+}
 
 export interface HydrationLog {
   id: string;
@@ -178,7 +258,43 @@ export interface NutritionTargets {
 
 export const targetsApi = {
   get: () =>
-    api.get<{ targets: NutritionTargets; source: string }>('/api/targets'),
+    api.get<{
+      targets: NutritionTargets;
+      /** 'user' when they set it themselves, 'survey' when we derived it, 'none' when there isn't one. */
+      source: 'user' | 'survey' | 'none';
+      /**
+       * True when a target exists but is being withheld because the formula
+       * that produces it has no clinical approval recorded. "Your dietitian
+       * hasn't approved this yet" and "you haven't set targets" are different
+       * sentences, and the screen should not use the second for the first.
+       */
+      withheldPendingApproval?: boolean;
+    }>('/api/targets'),
+
+  /** The person's own number, which needs no clinical approval to show back to them. */
+  set: (targets: Partial<NutritionTargets>) =>
+    api.put<{ targets: NutritionTargets; source: 'user' }>('/api/targets', targets),
+};
+
+export interface ActivePlan {
+  plan: string;
+  status: string;
+  startedAt: string | null;
+  /** null means open-ended, which is the normal case for a live subscription. */
+  endsAt: string | null;
+}
+
+/**
+ * What the signed-in person is entitled to.
+ *
+ * Worth surfacing for its own sake, and worth surfacing because of what the
+ * server used to do here: getActiveSubscriptions tested status and never read
+ * ends_at, so a plan that ended months ago still granted access — and once that
+ * was fixed, a renewal after expiry silently granted nothing at all. A person
+ * who can see their own plan and its end date can notice both.
+ */
+export const paymentsApi = {
+  getMyPlans: () => api.get<{ plans: ActivePlan[] }>('/api/payments/my-plans'),
 };
 
 export interface StreakInfo {

@@ -13,6 +13,8 @@ export const translations: Record<Lang, Record<string, string>> = {
     'nav.sleep': 'Sleep',
     'nav.weight': 'Weight',
     'nav.coaching': 'AI Coaching',
+    'nav.recipes': 'Recipes',
+    'nav.targets': 'Targets',
     'nav.logout': 'Logout',
 
     // Accessibility
@@ -40,6 +42,9 @@ export const translations: Record<Lang, Record<string, string>> = {
     'common.consumed': 'Consumed',
     'common.target': 'Target',
     'common.of': 'of',
+    'common.hours': 'h',
+    'common.kcal': 'kcal',
+    'common.retry': 'Try again',
 
     // Auth
     'auth.signInTitle': 'Welcome back',
@@ -78,7 +83,65 @@ export const translations: Record<Lang, Record<string, string>> = {
     'dash.waterToday': 'Water Today',
     'dash.sleepToday': 'Sleep Today',
     'dash.noSleepLogged': 'Not logged yet',
-    'dash.noTargets': 'Set your targets for accurate tracking',
+    'dash.noTarget': 'No target set',
+    'dash.targetPending': 'Awaiting professional approval',
+    'dash.loadFailed': 'We could not load your data',
+    'dash.loadFailedHint': 'This is a connection problem — nothing you logged has been lost.',
+    'dash.cardFailed': 'Could not load',
+    'dash.firstDayTitle': 'Let us start with one meal',
+    'dash.firstDayBody': 'Log what you ate and this page starts filling in. Nothing to set up first.',
+    'dash.firstDayCta': 'Log your first meal',
+
+    // Targets
+    'targets.title': 'Your targets',
+    'targets.subtitle': 'The numbers your dashboard measures against. You set them; we do not.',
+    'targets.calories': 'Daily calories',
+    'targets.protein': 'Protein',
+    'targets.carbs': 'Carbs',
+    'targets.fat': 'Fat',
+    'targets.save': 'Save targets',
+    'targets.saved': 'Saved',
+    'targets.clear': 'Clear',
+    'targets.optional': 'Optional',
+    'targets.rangeHint': 'Between {min} and {max}',
+    'targets.outOfRange': 'That is outside the range we will accept',
+    'targets.saveFailed': 'Could not save. Please try again.',
+    'targets.notAdvice': 'These are numbers you choose for yourself. This app does not calculate a target for you, and nothing here is medical or nutritional advice. If you are unsure what is right for you, speak to a dietitian or your doctor.',
+
+    // Weekly trend
+    'trend.title': 'The last 7 days',
+    'trend.calories': 'Calories logged',
+    'trend.needMoreDays': 'Log on a few more days and a trend appears here.',
+    'trend.daysLogged': '{n} of the last 7 days logged',
+    'trend.average': 'Daily average',
+
+    // Quick log
+    'quickLog.title': 'Log again',
+    'quickLog.manage': 'Food log',
+    'quickLog.logAria': 'Log {name} again',
+    'quickLog.failed': 'Could not log that. Please try again.',
+
+    // Consistency
+    'consistency.title': 'Last 30 days',
+    'consistency.logged': 'logged',
+    'consistency.notLogged': 'not logged',
+    'consistency.footer': 'You logged on {n} of the last 30 days.',
+
+    // Macro split
+    'macroSplit.title': 'What today was made of',
+
+    // Meal rhythm
+    'rhythm.title': 'Across the day',
+
+    // Saved meals
+    'foodLog.saveTemplate': 'Save as a repeat meal',
+    'foodLog.templateSaved': 'Saved — one tap from your dashboard',
+
+    // Plan
+    'plan.base': 'Coaching',
+    'plan.yoni': 'Coaching with Yoni',
+    'plan.endsIn': 'Ends in {n} days',
+    'plan.until': 'Until',
 
     // Food Log
     'food.title': 'Food Log',
@@ -187,6 +250,8 @@ export const translations: Record<Lang, Record<string, string>> = {
     'nav.sleep': 'שינה',
     'nav.weight': 'משקל',
     'nav.coaching': 'ליווי AI',
+    'nav.recipes': 'מתכונים',
+    'nav.targets': 'יעדים',
     'nav.logout': 'התנתקות',
 
     // נגישות
@@ -214,6 +279,9 @@ export const translations: Record<Lang, Record<string, string>> = {
     'common.consumed': 'נצרך',
     'common.target': 'יעד',
     'common.of': 'מתוך',
+    'common.hours': 'ש׳',
+    'common.kcal': 'קק״ל',
+    'common.retry': 'נסו שוב',
 
     // Auth
     'auth.signInTitle': 'ברוכים השבים',
@@ -252,7 +320,65 @@ export const translations: Record<Lang, Record<string, string>> = {
     'dash.waterToday': 'מים היום',
     'dash.sleepToday': 'שינה היום',
     'dash.noSleepLogged': 'טרם נרשם',
-    'dash.noTargets': 'הגדירו יעדים למעקב מדויק',
+    'dash.noTarget': 'לא הוגדר יעד',
+    'dash.targetPending': 'ממתין לאישור מקצועי',
+    'dash.loadFailed': 'לא הצלחנו לטעון את הנתונים שלך',
+    'dash.loadFailedHint': 'זו תקלת תקשורת — שום דבר שרשמת לא אבד.',
+    'dash.cardFailed': 'לא נטען',
+    'dash.firstDayTitle': 'מתחילים מארוחה אחת',
+    'dash.firstDayBody': 'רשמו מה אכלתם והעמוד הזה מתחיל להתמלא. אין מה להגדיר קודם.',
+    'dash.firstDayCta': 'רשמו את הארוחה הראשונה',
+
+    // יעדים
+    'targets.title': 'היעדים שלך',
+    'targets.subtitle': 'המספרים שהדאשבורד נמדד מולם. את/ה קובע/ת אותם, לא אנחנו.',
+    'targets.calories': 'קלוריות ליום',
+    'targets.protein': 'חלבון',
+    'targets.carbs': 'פחמימות',
+    'targets.fat': 'שומן',
+    'targets.save': 'שמירת יעדים',
+    'targets.saved': 'נשמר',
+    'targets.clear': 'ניקוי',
+    'targets.optional': 'לא חובה',
+    'targets.rangeHint': 'בין {min} ל-{max}',
+    'targets.outOfRange': 'זה מחוץ לטווח שאנחנו מקבלים',
+    'targets.saveFailed': 'לא הצלחנו לשמור. נסו שוב.',
+    'targets.notAdvice': 'אלה מספרים שאת/ה בוחר/ת לעצמך. האפליקציה לא מחשבת עבורך יעד, ואין כאן ייעוץ רפואי או תזונתי. אם לא ברור לך מה מתאים לך — כדאי לדבר עם דיאטנית או עם הרופא/ה שלך.',
+
+    // מגמה שבועית
+    'trend.title': '7 הימים האחרונים',
+    'trend.calories': 'קלוריות שנרשמו',
+    'trend.needMoreDays': 'עוד כמה ימים של רישום ותופיע כאן מגמה.',
+    'trend.daysLogged': '{n} מתוך 7 הימים האחרונים נרשמו',
+    'trend.average': 'ממוצע יומי',
+
+    // רישום מהיר
+    'quickLog.title': 'לרשום שוב',
+    'quickLog.manage': 'יומן מזון',
+    'quickLog.logAria': 'רישום חוזר של {name}',
+    'quickLog.failed': 'לא הצלחנו לרשום. נסו שוב.',
+
+    // עקביות
+    'consistency.title': '30 הימים האחרונים',
+    'consistency.logged': 'נרשם',
+    'consistency.notLogged': 'לא נרשם',
+    'consistency.footer': 'רשמת ב-{n} מתוך 30 הימים האחרונים.',
+
+    // פילוח מאקרו
+    'macroSplit.title': 'ממה היום הזה הורכב',
+
+    // קצב היום
+    'rhythm.title': 'לאורך היום',
+
+    // ארוחות שמורות
+    'foodLog.saveTemplate': 'שמירה כארוחה חוזרת',
+    'foodLog.templateSaved': 'נשמר — הקשה אחת מהדאשבורד',
+
+    // מנוי
+    'plan.base': 'ליווי',
+    'plan.yoni': 'ליווי עם יוני',
+    'plan.endsIn': 'מסתיים בעוד {n} ימים',
+    'plan.until': 'עד',
 
     // Food Log
     'food.title': 'יומן מזון',
