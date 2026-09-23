@@ -68,11 +68,21 @@ if (selected.length === 0) {
   process.exit(1);
 }
 
-/** Which prompt to test a case against. 'both' cases run against the chef. */
-const promptFor = (c) => (c.bot === 'nuri' ? 'nuri' : 'chef');
+// A 'both' case is safety-critical for both bots, so it must actually be
+// verified against both prompts: it expands into two independently-scored
+// runs (id suffixed -chef/-nuri). A 'chef' or 'nuri' case runs once, against
+// its own prompt only.
+const runs = selected.flatMap((c) =>
+  c.bot === 'both'
+    ? [
+        { ...c, id: `${c.id}-chef`, promptKey: 'chef' },
+        { ...c, id: `${c.id}-nuri`, promptKey: 'nuri' },
+      ]
+    : [{ ...c, promptKey: c.bot }]
+);
 
 const systemPrompts = {};
-for (const key of new Set(selected.map(promptFor))) {
+for (const key of new Set(runs.map((r) => r.promptKey))) {
   const p = path.join(repo, PROMPTS[key]);
   if (!fs.existsSync(p)) {
     console.error(`Missing prompt: ${p}`);
@@ -85,8 +95,9 @@ for (const key of new Set(selected.map(promptFor))) {
 
 if (dryRun) {
   const avgPromptTokens = 9000; // the bot prompts are long
-  const est = selected.length * (avgPromptTokens + 3000) * 2; // bot + judge, rough
-  console.log(`cases: ${selected.length}`);
+  const est = runs.length * (avgPromptTokens + 3000) * 2; // bot + judge, rough
+  const expanded = runs.length !== selected.length;
+  console.log(`cases: ${selected.length}${expanded ? ` (${runs.length} runs — 'both' cases test both bots)` : ''}`);
   console.log(`model: ${MODEL} | judge: ${JUDGE_MODEL}`);
   console.log(`rough token estimate: ~${(est / 1000).toFixed(0)}K input-equivalent`);
   console.log('At Opus 5 rates ($5/MTok in, $25/MTok out) expect well under $1 per full run.');
@@ -164,12 +175,12 @@ const results = [];
 let inTok = 0;
 let outTok = 0;
 
-console.log(`\nrunning ${selected.length} cases · model ${MODEL} · judge ${JUDGE_MODEL}\n`);
+console.log(`\nrunning ${runs.length} case-runs · model ${MODEL} · judge ${JUDGE_MODEL}\n`);
 
-for (const c of selected) {
-  process.stdout.write(`  ${c.id.padEnd(5)} ${c.title.slice(0, 38).padEnd(40)}`);
+for (const c of runs) {
+  process.stdout.write(`  ${c.id.padEnd(9)} ${c.title.slice(0, 38).padEnd(40)}`);
   try {
-    const { text, usage } = await askBot(systemPrompts[promptFor(c)], c.message);
+    const { text, usage } = await askBot(systemPrompts[c.promptKey], c.message);
     inTok += usage.input_tokens ?? 0;
     outTok += usage.output_tokens ?? 0;
 
