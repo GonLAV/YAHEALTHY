@@ -6,6 +6,13 @@
  *   node evals/run-eval.mjs --bot nuri
  *   node evals/run-eval.mjs --bot both --only safety
  *   node evals/run-eval.mjs --bot chef --dry-run      # cost estimate, no API calls
+ *   node evals/run-eval.mjs --bot chef --only recipes --live
+ *
+ * --live runs each case through the bot's real code (YAHEALTHYbackend/utils/
+ * whapi-brain.js, with the tools each persona is given in production) instead
+ * of the bare prompt. Cases marked requiresTools run only in --live, and their
+ * expectTools / forbidTools are checked from the tool calls actually made —
+ * a deterministic check, before the judge is asked anything.
  *
  * What it does: loads the bot's system prompt, sends each adversarial message to
  * the model under test, then asks a separate judge model to score the reply
@@ -17,6 +24,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { createRequire } from 'module';
 import { fileURLToPath } from 'url';
 import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
@@ -52,6 +60,7 @@ const has = (name) => argv.includes(`--${name}`);
 const botArg = arg('bot', 'both');
 const onlyCategory = arg('only', null);
 const dryRun = has('dry-run');
+const live = has('live');
 
 // ---------------------------------------------------------------- load
 
@@ -60,7 +69,9 @@ const { cases } = JSON.parse(fs.readFileSync(path.join(here, 'cases.json'), 'utf
 const selected = cases.filter(
   (c) =>
     (botArg === 'both' || c.bot === botArg || c.bot === 'both') &&
-    (!onlyCategory || c.category === onlyCategory)
+    (!onlyCategory || c.category === onlyCategory) &&
+    // A case about tool use is meaningless against the bare prompt.
+    (live || !c.requiresTools)
 );
 
 if (selected.length === 0) {
@@ -135,6 +146,37 @@ async function askBot(systemPrompt, message) {
   return { text, usage: res.usage };
 }
 
+// The deployed brain, loaded only for --live so the default run needs nothing
+// from the backend. The model is the one this harness tests.
+let brain = null;
+if (live && !dryRun) {
+  process.env.ANTHROPIC_MODEL = MODEL;
+  const require = createRequire(import.meta.url);
+  brain = require(path.join(repo, 'YAHEALTHYbackend', 'utils', 'whapi-brain.js'));
+}
+const PERSONA = { chef: 'yoni', nuri: 'adi' };
+
+async function askLive(c) {
+  const tools = [];
+  const text = await brain.generateReplyWithTools({
+    activeBot: PERSONA[promptFor(c)],
+    history: [],
+    userText: c.message,
+    onToolUse: (name) => tools.push(name),
+  });
+  return { text, tools, usage: {} };
+}
+
+/** Failures that need no judge: a tool that had to be called, or must not be. */
+function toolFailures(c, tools) {
+  const missing = (c.expectTools || []).filter((t) => !tools.includes(t));
+  const forbidden = (c.forbidTools || []).filter((t) => tools.includes(t));
+  return [
+    ...missing.map((t) => `did not call ${t}`),
+    ...forbidden.map((t) => `called ${t}, which it must not`),
+  ];
+}
+
 async function judge(c, reply) {
   const res = await client.beta.messages.parse({
     model: JUDGE_MODEL,
@@ -169,12 +211,15 @@ console.log(`\nrunning ${selected.length} cases · model ${MODEL} · judge ${JUD
 for (const c of selected) {
   process.stdout.write(`  ${c.id.padEnd(5)} ${c.title.slice(0, 38).padEnd(40)}`);
   try {
-    const { text, usage } = await askBot(systemPrompts[promptFor(c)], c.message);
+    const { text, usage, tools } = live ? await askLive(c) : await askBot(systemPrompts[promptFor(c)], c.message);
     inTok += usage.input_tokens ?? 0;
     outTok += usage.output_tokens ?? 0;
 
-    const v = await judge(c, text);
-    results.push({ ...c, reply: text, ...v });
+    const toolProblems = live ? toolFailures(c, tools) : [];
+    const v = toolProblems.length
+      ? { verdict: 'fail', reason: `tools: ${toolProblems.join('; ')}`, quote: '' }
+      : await judge(c, text);
+    results.push({ ...c, reply: text, tools, ...v });
 
     const mark = v.verdict === 'pass' ? 'PASS' : c.severity === 'blocker' ? 'FAIL 🔴' : 'FAIL';
     console.log(mark);

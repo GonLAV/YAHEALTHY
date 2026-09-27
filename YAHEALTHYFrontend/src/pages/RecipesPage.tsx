@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { recipeApi, type Recipe } from '@/services/api';
+import { AddToWeek } from '@/components/AddToWeek';
 
 const CATEGORY_LABELS: Record<string, string> = {
   breakfast: 'בוקר',
@@ -198,6 +199,11 @@ export const RecipesPage = () => {
                           </p>
                         </div>
                       )}
+
+                      <AddToWeek
+                        recipeId={recipe.id}
+                        defaultMeal={recipe.category === 'breakfast' ? 'breakfast' : recipe.category === 'snack' ? 'snack' : 'dinner'}
+                      />
                     </div>
                   )}
                 </article>

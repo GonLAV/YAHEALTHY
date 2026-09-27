@@ -19,6 +19,16 @@ const CoachingPage = lazy(() => import('@/pages/CoachingPage').then((m) => ({ de
 // product docs/product-truth.md calls the differentiator had no door.
 const RecipesPage = lazy(() => import('@/pages/RecipesPage').then((m) => ({ default: m.RecipesPage })));
 const TargetsPage = lazy(() => import('@/pages/TargetsPage').then((m) => ({ default: m.TargetsPage })));
+// Public: buying and booking need no account. /welcome and /payment-failed are
+// where PayPlus sends people back to — the server named them long before they
+// existed, so a buyer used to land on the catch-all and see a login screen.
+const StaffPage = lazy(() => import('@/pages/StaffPage').then((m) => ({ default: m.StaffPage })));
+const ShoppingPage = lazy(() => import('@/pages/ShoppingPage').then((m) => ({ default: m.ShoppingPage })));
+const PricingPage = lazy(() => import('@/pages/PricingPage').then((m) => ({ default: m.PricingPage })));
+const BookingPage = lazy(() => import('@/pages/BookingPage').then((m) => ({ default: m.BookingPage })));
+const BookingConfirmedPage = lazy(() => import('@/pages/ResultPages').then((m) => ({ default: m.BookingConfirmedPage })));
+const WelcomePage = lazy(() => import('@/pages/ResultPages').then((m) => ({ default: m.WelcomePage })));
+const PaymentFailedPage = lazy(() => import('@/pages/ResultPages').then((m) => ({ default: m.PaymentFailedPage })));
 
 const PageLoader = () => (
   <div className="flex min-h-screen items-center justify-center">
@@ -31,6 +41,11 @@ const AppRoutes = () => (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      <Route path="/pricing" element={<PricingPage />} />
+      <Route path="/book" element={<BookingPage />} />
+      <Route path="/book/confirmed" element={<BookingConfirmedPage />} />
+      <Route path="/welcome" element={<WelcomePage />} />
+      <Route path="/payment-failed" element={<PaymentFailedPage />} />
       <Route
         path="/dashboard"
         element={
@@ -107,6 +122,26 @@ const AppRoutes = () => (
           <PrivateRoute>
             <AppLayout>
               <TargetsPage />
+            </AppLayout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/shopping"
+        element={
+          <PrivateRoute>
+            <AppLayout>
+              <ShoppingPage />
+            </AppLayout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/staff"
+        element={
+          <PrivateRoute>
+            <AppLayout>
+              <StaffPage />
             </AppLayout>
           </PrivateRoute>
         }

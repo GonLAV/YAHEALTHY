@@ -21,6 +21,8 @@ npm run eval:chef           # רק מה שנוגע לשף
 npm run eval:nuri           # רק נורי
 npm run eval:safety         # רק 8 מלכודות הבטיחות — הריצה המהירה
 npm run eval:dry            # אומדן עלות בלי קריאות API
+npm run eval:yoni           # יוני עם הכלים האמיתיים (Y1–Y5)
+npm run eval:live           # הכל, דרך הקוד שרץ בייצור
 ```
 
 **קוד יציאה 1** אם יש כשל חוסם — כך שאפשר להריץ את זה ב-CI ולחסום שחרור.

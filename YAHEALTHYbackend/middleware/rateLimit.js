@@ -21,7 +21,20 @@ const authLimiter = rateLimit({
   keyGenerator: getClientKey
 });
 
+// Booking is public and every booking lands in a real person's calendar, so a
+// script could fill a week of her time. Twenty per quarter hour per address is
+// far above what a family booking together needs. Overridable for the test
+// suite, which books dozens of times from one address on purpose.
+const bookingLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: Number(process.env.BOOKING_RATE_LIMIT) || 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: getClientKey
+});
+
 module.exports = {
   apiLimiter,
-  authLimiter
+  authLimiter,
+  bookingLimiter
 };

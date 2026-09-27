@@ -155,6 +155,12 @@ app.use('/api', apiLimiter);
 
 app.use('/api/payments', checkoutRouter);
 
+// Booking: a free diagnosis (physical / online) or a paid supermarket session,
+// synced with her Google calendar. Public — see routes/booking.js.
+app.use('/api/booking', require('./routes/booking'));
+app.use('/api/cron', require('./routes/cron'));
+app.use('/api/staff', auth.authMiddleware, require('./middleware/requireStaff'), require('./routes/staff'));
+
 // Food values. Lookup and arithmetic over sourced numbers — never a guess,
 // and never advice about what anyone should eat.
 app.use('/api/foods', require('./routes/foods'));
@@ -340,7 +346,10 @@ app.get('/api/auth/me', auth.authMiddleware, async (req, res) => {
       id: user.id,
       email: user.email,
       name: user.name,
-      preferences: user.preferences
+      preferences: user.preferences,
+      // Only decides whether the app shows the staff screen's link. The
+      // screen's data is guarded by requireStaff on the server either way.
+      isStaff: user.is_staff === true
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to get user', details: safeErrorDetails(error) });

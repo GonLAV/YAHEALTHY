@@ -23,7 +23,10 @@ create table if not exists public.foods (
   -- נא · מבושל · אפוי · מטוגן · יבש · משומר.
   -- עדשים יבשות ועדשים מבושלות אינן אותו מזון: ספיחת מים משנה את הערך
   -- ל-100 גרם פי שלושה. בלי השדה הזה המאגר משקר בלי לשים לב.
-  state         text not null default raw,
+  -- 'raw' was once written without quotes, which Postgres reads as a column
+  -- name and refuses ("cannot use column reference in DEFAULT expression") —
+  -- so this whole file failed wherever it was run, and the table never existed.
+  state         text not null default 'raw',
 
   -- כמה גרם יש ביחידה אחת נפוצה - ביצה אחת, כף שמן, פרוסת לחם.
   -- null = לא ידוע, ואז לא ממירים יחידות לגרמים ולא מנחשים.

@@ -13,13 +13,18 @@
 - **`VITE_API_URL`** is left empty so the frontend uses same-origin relative paths through the Vite proxy (single-origin wiring).
 - **Backend env**: `ALLOW_MEMORY_DB=true` lets the backend start without Supabase. `JWT_SECRET` is auto-generated if missing in dev mode.
 - **AI Coach**: `utils/coach.js` (rule-based, data-grounded, bilingual) mounted at `/api/crm/users/:userId/insights` and `/ask` in index.js. The old `crm-routes.js`/`crm-ai-assistant.js` prototype (OpenAI + Postgres pool) was never integrated — do not wire it as-is.
+- **Booking**: `routes/booking.js` + `utils/appointments.js` + `utils/booking.js` (slots, Israel time). Google Calendar via `utils/google-calendar.js` (OAuth refresh token from `scripts/google-auth.js`). The supermarket session is paid: held as `pending_payment`, confirmed by the PayPlus callback. Customers cancel via a token link; staff use `/staff` (`routes/staff.js`, behind `requireStaff`; `/api/auth/me` returns `isStaff`). Run `migrations/014_appointments.sql`.
+- **Bot tools**: `TOOLS_BY_BOT` in `utils/whapi-brain.js` — Adi gets the nutrition calculators, Yoni gets `utils/recipe-tools.js` (recipe library, calories stripped). Health-flagged WhatsApp messages are written to `whatsapp_messages` as `escalated`.
+- **Scheduled**: `routes/cron.js` — WhatsApp reminders the evening before (Vercel Cron in `vercel.json`, needs `CRON_SECRET`). Run `migrations/015_payment_attention.sql` too.
+- **Evals with tools**: `cd evals && npm run eval:yoni` runs cases through the real brain (`--live`) and checks `expectTools`/`forbidTools`.
 - **RTL**: Tailwind logical utilities (`ms-`, `ps-`, `text-start`, `start-*`) are used throughout; avoid `ml-`/`mr-`/`space-x`. `.num` class keeps numbers LTR inside RTL text.
 
 ## Frontend structure
 - `src/i18n/` — translations + LanguageContext (add all user-facing strings here)
 - `src/components/layout/AppLayout.tsx` — sidebar (desktop) + bottom nav (mobile) + language toggle
 - `src/components/ui/` — PageHeader, StatCard, ProgressBar, ProgressRing, EmptyState
-- `src/pages/` — Login, Signup, Dashboard, FoodLog, Hydration, Sleep, Weight, Coaching
+- `src/pages/` — Login, Signup, Dashboard, FoodLog, Hydration, Sleep, Weight, Coaching, Recipes, Targets, Shopping, Staff
+- Public (no account, `PublicLayout`): Pricing, Booking, ResultPages (`/book/confirmed`, `/welcome`, `/payment-failed`)
 
 ## Verify It Works
 ```bash

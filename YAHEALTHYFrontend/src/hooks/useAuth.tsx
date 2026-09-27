@@ -4,6 +4,8 @@ import { authApi } from '@/services/api';
 interface User {
   id: string;
   email: string;
+  /** Shows the staff screen's link. The server guards the data regardless. */
+  isStaff?: boolean;
 }
 
 interface AuthContextType {

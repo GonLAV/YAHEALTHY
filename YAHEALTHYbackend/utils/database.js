@@ -34,6 +34,36 @@ if (!SUPABASE_CONFIGURED) {
 
 const USE_MEMORY_DB = !SUPABASE_CONFIGURED;
 
+/**
+ * Which kind of key SUPABASE_KEY is, read from the key itself: the new-style
+ * prefixes, or the role claim of a legacy JWT. Returns 'public', 'server' or
+ * 'unknown'. Never logs the key.
+ */
+function supabaseKeyKind(key) {
+  const k = String(key || '');
+  if (k.startsWith('sb_publishable_')) return 'public';
+  if (k.startsWith('sb_secret_')) return 'server';
+  try {
+    const role = JSON.parse(Buffer.from(k.split('.')[1] || '', 'base64url').toString()).role;
+    if (role === 'anon') return 'public';
+    if (role === 'service_role') return 'server';
+  } catch {
+    /* not a JWT */
+  }
+  return 'unknown';
+}
+
+// Every table has row level security on and no policies, so a public key
+// reaches nothing: sign-in, payments and meal plans would each fail with a
+// permission error that looks like a bug in whichever route hit it first.
+// Said once, at startup, where it can be read as the cause.
+if (SUPABASE_CONFIGURED && supabaseKeyKind(SUPABASE_KEY) === 'public' && !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.error(
+    '[db] SUPABASE_KEY is a public (anon/publishable) key. Every table has row level security ' +
+      'with no policies, so this key can read and write nothing. Use the secret key (sb_secret_...).'
+  );
+}
+
 // Initialize Supabase client (only used when configured)
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -66,7 +96,8 @@ const memoryDb = {
   paymentEvents: [],
   foods: [],
   whapiConversations: new Map(),
-  whapiMessages: []
+  whapiMessages: [],
+  appointments: []
 };
 
 function sortByCreatedAtDesc(items) {
@@ -635,6 +666,70 @@ async function recordPaymentEvent(event) {
     throw error;
   }
   return { created: true };
+}
+
+/**
+ * A payment a person has to look at (migrations/015). Reasons accumulate,
+ * comma-separated, so a second problem never hides the first.
+ */
+async function flagPaymentEvent(pageRequestUid, reason) {
+  const merge = (existing) => {
+    const reasons = String(existing || '').split(',').filter(Boolean);
+    return reasons.includes(reason) ? reasons.join(',') : [...reasons, reason].join(',');
+  };
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const row = memoryDb.paymentEvents.find((r) => r.page_request_uid === pageRequestUid);
+    if (row) row.needs_attention = merge(row.needs_attention);
+    return row || null;
+  }
+  const { data: current, error: readError } = await supabase
+    .from('payment_events')
+    .select('needs_attention')
+    .eq('page_request_uid', pageRequestUid)
+    .maybeSingle();
+  if (readError) throw readError;
+  if (!current) return null;
+  const { data, error } = await supabase
+    .from('payment_events')
+    .update({ needs_attention: merge(current.needs_attention) })
+    .eq('page_request_uid', pageRequestUid)
+    .select()
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
+async function listFlaggedPaymentEvents() {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.paymentEvents.filter((r) => r.needs_attention);
+  }
+  const { data, error } = await supabase
+    .from('payment_events')
+    .select('page_request_uid, email, plan, status, amount, currency, needs_attention, received_at')
+    .not('needs_attention', 'is', null)
+    .order('received_at', { ascending: false })
+    .limit(200);
+  if (error) throw error;
+  return data || [];
+}
+
+async function resolvePaymentEvent(pageRequestUid) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const row = memoryDb.paymentEvents.find((r) => r.page_request_uid === pageRequestUid);
+    if (row) row.needs_attention = null;
+    return row || null;
+  }
+  const { data, error } = await supabase
+    .from('payment_events')
+    .update({ needs_attention: null })
+    .eq('page_request_uid', pageRequestUid)
+    .select()
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
 }
 
 /**
@@ -1782,6 +1877,26 @@ const projectWhatsappMessage = (row) =>
 // unknown value is refused rather than passed through to the database.
 const WHATSAPP_STATUSES = ['pending', 'drafted', 'answered', 'escalated'];
 
+// A person marks an escalated message handled. Nothing else changes it: the
+// status is the record that someone looked.
+async function setWhatsappMessageStatus(id, status) {
+  if (!WHATSAPP_STATUSES.includes(status)) {
+    const err = new Error(`Unknown status: ${status}`);
+    err.code = 'BAD_STATUS';
+    throw err;
+  }
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const row = memoryDb.whatsappMessages.find((r) => r.id === id);
+    if (!row) return null;
+    row.status = status;
+    return row;
+  }
+  const { data, error } = await supabase.from('whatsapp_messages').update({ status }).eq('id', id).select().maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
 async function getWhatsappMessages({ status = null, limit = 50 } = {}) {
   if (status && !WHATSAPP_STATUSES.includes(status)) {
     const err = new Error(`Unknown status: ${status}`);
@@ -1913,9 +2028,168 @@ async function getRecentWhapiMessages(phone, limit = 20) {
   return (data || []).reverse().map(({ role, content }) => ({ role, content }));
 }
 
+
+/**
+ * Appointments — diagnosis sessions and paid supermarket sessions.
+ *
+ * Google Calendar decides what is busy; this table is our record of who booked
+ * and the lock between two people choosing the same minute. The unique index
+ * in migrations/014 is that lock in Postgres; the memory branch mirrors it.
+ * Service role, because the rows carry names, phones and health notes and the
+ * table has RLS with no policies.
+ */
+const LIVE_APPOINTMENT = ['booked', 'pending_payment'];
+
+// A hold that was never paid for gives its slot back. Run before every read
+// and write of slots, so nothing needs a scheduled job to stay correct.
+async function releaseExpiredHolds(holdMinutes) {
+  const cutoff = new Date(Date.now() - holdMinutes * 60_000).toISOString();
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    for (const row of memoryDb.appointments) {
+      if (row.status === 'pending_payment' && row.created_at < cutoff) {
+        Object.assign(row, { status: 'cancelled', cancelled_by: 'expired', cancelled_at: new Date().toISOString() });
+      }
+    }
+    return;
+  }
+  const { error } = await supabaseServiceRole
+    .from('appointments')
+    .update({ status: 'cancelled', cancelled_by: 'expired', cancelled_at: new Date().toISOString() })
+    .eq('status', 'pending_payment')
+    .lt('created_at', cutoff);
+  if (error) throw error;
+}
+
+async function listLiveAppointments(fromIso, toIso) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.appointments.filter(
+      (row) => LIVE_APPOINTMENT.includes(row.status) && row.start_at < toIso && row.end_at > fromIso
+    );
+  }
+  const { data, error } = await supabaseServiceRole
+    .from('appointments')
+    .select('id, type, start_at, end_at, status')
+    .in('status', LIVE_APPOINTMENT)
+    .lt('start_at', toIso)
+    .gt('end_at', fromIso);
+  if (error) throw error;
+  return data || [];
+}
+
+function slotTaken() {
+  const err = new Error('That time was just taken');
+  err.code = 'SLOT_TAKEN';
+  return err;
+}
+
+async function createAppointment(row) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    if (memoryDb.appointments.some((a) => LIVE_APPOINTMENT.includes(a.status) && a.start_at === row.start_at)) {
+      throw slotTaken();
+    }
+    const record = { id: uuidv4(), created_at: new Date().toISOString(), ...row };
+    memoryDb.appointments.push(record);
+    return record;
+  }
+  const { data, error } = await supabaseServiceRole.from('appointments').insert([row]).select().single();
+  if (error) {
+    if (error.code === '23505') throw slotTaken();
+    throw error;
+  }
+  return data;
+}
+
+/** Booked meetings starting in [fromIso, toIso) whose reminder has not gone out. */
+async function listAppointmentsNeedingReminder(fromIso, toIso) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.appointments.filter(
+      (a) => a.status === 'booked' && !a.reminder_sent_at && a.start_at >= fromIso && a.start_at < toIso
+    );
+  }
+  const { data, error } = await supabaseServiceRole
+    .from('appointments')
+    .select('*')
+    .eq('status', 'booked')
+    .is('reminder_sent_at', null)
+    .gte('start_at', fromIso)
+    .lt('start_at', toIso);
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * The staff screen's lists. 'upcoming' is what is on in the coming weeks,
+ * 'attention' is everything a person still has to settle, whenever it was
+ * booked, and 'recent' is the last month, for looking something up.
+ */
+async function listAppointmentsForStaff(scope) {
+  const now = new Date().toISOString();
+  const monthAgo = new Date(Date.now() - 30 * 86_400_000).toISOString();
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const rows = memoryDb.appointments.filter((a) =>
+      scope === 'attention'
+        ? a.needs_attention
+        : scope === 'recent'
+          ? a.start_at >= monthAgo && a.start_at < now
+          : a.start_at >= now && LIVE_APPOINTMENT.includes(a.status)
+    );
+    return rows.sort((x, y) => (scope === 'recent' ? (x.start_at < y.start_at ? 1 : -1) : x.start_at < y.start_at ? -1 : 1));
+  }
+
+  let query = supabaseServiceRole.from('appointments').select('*');
+  if (scope === 'attention') query = query.not('needs_attention', 'is', null).order('start_at', { ascending: true });
+  else if (scope === 'recent') query = query.gte('start_at', monthAgo).lt('start_at', now).order('start_at', { ascending: false });
+  else query = query.gte('start_at', now).in('status', LIVE_APPOINTMENT).order('start_at', { ascending: true });
+
+  const { data, error } = await query.limit(500);
+  if (error) throw error;
+  return data || [];
+}
+
+async function getAppointment(id) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.appointments.find((a) => a.id === id) || null;
+  }
+  const { data, error } = await supabaseServiceRole.from('appointments').select('*').eq('id', id).maybeSingle();
+  if (error && error.code !== 'PGRST116' && error.code !== '22P02') throw error;
+  return data || null;
+}
+
+// Throws SLOT_TAKEN when moving a row back to a live status collides with
+// someone who booked the same start meanwhile.
+async function updateAppointment(id, patch) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const row = memoryDb.appointments.find((a) => a.id === id);
+    if (!row) return null;
+    if (
+      patch.status && LIVE_APPOINTMENT.includes(patch.status) && !LIVE_APPOINTMENT.includes(row.status) &&
+      memoryDb.appointments.some((a) => a.id !== id && LIVE_APPOINTMENT.includes(a.status) && a.start_at === row.start_at)
+    ) {
+      throw slotTaken();
+    }
+    Object.assign(row, patch);
+    return row;
+  }
+  const { data, error } = await supabaseServiceRole.from('appointments').update(patch).eq('id', id).select().maybeSingle();
+  if (error) {
+    if (error.code === '23505') throw slotTaken();
+    throw error;
+  }
+  return data || null;
+}
+
 module.exports = {
   saveWhatsappMessage,
   getWhatsappMessages,
+  setWhatsappMessageStatus,
   supabase,
   initializeDatabase,
   isMemoryMode,
@@ -1992,5 +2266,16 @@ module.exports = {
   upsertWhapiConversation,
   logWhapiMessage,
   getRecentWhapiMessages,
-  getWhapiTranscript
+  getWhapiTranscript,
+  // Appointments
+  releaseExpiredHolds,
+  listLiveAppointments,
+  createAppointment,
+  getAppointment,
+  updateAppointment,
+  listAppointmentsForStaff,
+  listAppointmentsNeedingReminder,
+  flagPaymentEvent,
+  listFlaggedPaymentEvents,
+  resolvePaymentEvent
 };

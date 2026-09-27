@@ -18,6 +18,7 @@
 const express = require('express');
 const auth = require('../utils/auth');
 const db = require('../utils/database');
+const appointments = require('../utils/appointments');
 const mailer = require('../utils/mailer');
 const payplus = require('../utils/payplus');
 const { normalizePhone, maskPhone } = require('../utils/phone');
@@ -53,6 +54,17 @@ const PLANS = {
 // hard-coded: granting a paid plan on a guess about someone else's status code
 // is not a guess worth making silently.
 const APPROVED_STATUS_CODE = process.env.PAYPLUS_APPROVED_CODE || '000';
+
+// Money arrived and something about it needs a person. Recorded on the payment
+// (migrations/015) so the staff screen shows it; a failure to record must not
+// turn into a 500 that makes PayPlus retry a payment already handled.
+async function flagPayment(uid, reason) {
+  try {
+    await db.flagPaymentEvent(uid, reason);
+  } catch (err) {
+    console.error(`[payments] could not flag ${uid} (${reason}):`, err && err.message);
+  }
+}
 
 /**
  * POST /api/payments/checkout
@@ -176,10 +188,19 @@ callbackRouter.post('/callback', async (req, res) => {
       return res.json({ received: true });
     }
 
+    // A paid session is not a subscription: it confirms one appointment and
+    // grants nothing else. utils/appointments.js owns what that means.
+    if (plan === 'supermarket') {
+      const outcome = await appointments.confirmPaid(transaction.more_info_4 || null, transaction.amount ?? null);
+      if (outcome.noBooking) await flagPayment(uid, 'no_booking');
+      return res.json({ received: true, ...outcome });
+    }
+
     if (!email || !Object.prototype.hasOwnProperty.call(PLANS, plan)) {
       // Money changed hands but we cannot tell what for. Recorded above, so it
       // is recoverable by hand, and loud here so someone looks.
       console.error('[payments] approved payment with no usable email or plan:', uid);
+      await flagPayment(uid, 'unusable');
       return res.json({ received: true, needsAttention: true });
     }
 
@@ -209,6 +230,7 @@ callbackRouter.post('/callback', async (req, res) => {
         console.error(
           `[payments] could not attach ${maskPhone(phone)} to the account: ${phoneError.message}`
         );
+        await flagPayment(uid, 'phone_conflict');
       }
     }
 
@@ -233,6 +255,23 @@ callbackRouter.post('/callback', async (req, res) => {
     // recorded, so the retry will be treated as new rather than as a duplicate.
     return res.status(500).json({ error: 'Could not process the callback' });
   }
+});
+
+/**
+ * GET /api/payments/plans — what is for sale, for the pricing page.
+ *
+ * Public, and read from the same PLANS the checkout charges from, so the page
+ * cannot show a price the checkout would not take. A plan with no price is
+ * left out rather than shown as free.
+ */
+checkoutRouter.get('/plans', (req, res) => {
+  const { config } = require('../utils/booking');
+  const plans = Object.entries(PLANS)
+    .filter(([, p]) => p.amount > 0)
+    .map(([id, p]) => ({ id, label: p.label, amount: p.amount, includes: p.includes, billing: 'monthly' }));
+  const supermarket = config().price.supermarket;
+  const sessions = supermarket > 0 ? [{ id: 'supermarket', amount: supermarket, billing: 'once' }] : [];
+  return res.json({ plans, sessions });
 });
 
 /**

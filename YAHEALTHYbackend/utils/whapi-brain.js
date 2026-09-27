@@ -9,6 +9,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 const { calculateDailyTarget } = require('./nutrition-calculator');
 const { listFoods, calculateForItems } = require('./food-calculator');
 const clinical = require('./clinical-approval');
+const { RECIPE_TOOLS, executeRecipeTool } = require('./recipe-tools');
 
 // Vendored into YAHEALTHYbackend/docs/bot/ (copied from the repo-root
 // docs/bot/, which stays the source of truth for editing) because Vercel's
@@ -108,15 +109,12 @@ async function generateReply({ activeBot, history, userText, imageBase64, imageM
     .trim();
 }
 
-// --- Tool-use mechanism (not wired into the live bot) -----------------------
+// --- Tool use: what routes/whapi.js calls for every reply --------------------
 //
-// generateReply() above is untouched by everything below: no shared state,
-// no branching added to it. This is phase 1, proving the mechanism works --
-// the live prompts (docs/bot/nuri-bot-prompt.md and the chef prompt) still
-// explicitly forbid Adi from giving exact numeric nutrition targets, and
-// deciding to let the model call these calculators for real customers is a
-// separate, deliberate step nobody has taken yet. generateReplyWithTools is
-// exported alongside generateReply so a caller has to opt in by name.
+// generateReply() above is the tool-less path, kept for callers that want a
+// plain reply. Both live personas now go through generateReplyWithTools with
+// their own tool set (TOOLS_BY_BOT below): Adi since the owner allowed
+// calculated calorie targets, Yoni since the recipe library became a tool.
 //
 // Anthropic tool specs (Messages API tool-use format). snake_case input to
 // match how models name JSON fields; mapped to the calculators' camelCase.
@@ -174,6 +172,15 @@ const TOOLS = [
   }
 ];
 
+// Each persona gets the tools for its own job and no others. Adi calculates;
+// Yoni cooks from the owner's library (utils/recipe-tools.js). Giving Yoni the
+// calorie calculators would hand him exactly the numbers his prompt says are
+// not his to give.
+const TOOLS_BY_BOT = {
+  adi: TOOLS,
+  yoni: RECIPE_TOOLS
+};
+
 /** Runs one tool_use block against the real calculator it names. Throws on bad input/unknown ids -- the caller wraps this in try/catch per call. */
 function executeTool(name, input) {
   switch (name) {
@@ -192,6 +199,9 @@ function executeTool(name, input) {
       );
     case 'list_known_foods':
       return listFoods();
+    case 'find_recipes':
+    case 'get_recipe':
+      return executeRecipeTool(name, input);
     default:
       throw new Error(`Unknown tool: "${name}"`);
   }
@@ -209,7 +219,7 @@ const MAX_TOOL_ROUNDS = 5;
  * a model stuck calling tools returns whatever text it has instead of
  * looping forever.
  *
- * NOT called anywhere yet -- see the section header above.
+ * Called for every WhatsApp reply -- see the section header above.
  *
  * @param {'adi'|'yoni'} activeBot
  * @param {{role: 'user'|'assistant', content: string}[]} history - oldest first
@@ -217,7 +227,7 @@ const MAX_TOOL_ROUNDS = 5;
  * @param {string|null} imageBase64
  * @param {string|null} imageMediaType
  */
-async function generateReplyWithTools({ activeBot, history, userText, imageBase64, imageMediaType }) {
+async function generateReplyWithTools({ activeBot, history, userText, imageBase64, imageMediaType, onToolUse }) {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error('ANTHROPIC_API_KEY is not set -- cannot generate a reply.');
   }
@@ -244,10 +254,10 @@ async function generateReplyWithTools({ activeBot, history, userText, imageBase6
       // scratch tool-use test) that on this model, a tool round can spend
       // part of the budget on adaptive thinking before it reaches a
       // tool_use or text block, so 1024 could come back empty on a longer
-      // system prompt. Only affects this not-yet-activated path.
+      // system prompt.
       max_tokens: 4096,
       system: SYSTEM_PROMPTS[activeBot],
-      tools: TOOLS,
+      tools: TOOLS_BY_BOT[activeBot] || [],
       messages
     });
 
@@ -260,7 +270,14 @@ async function generateReplyWithTools({ activeBot, history, userText, imageBase6
     const toolResults = [];
     for (const block of response.content) {
       if (block.type !== 'tool_use') continue;
+      // Observation only (evals/run-eval.mjs --live): which tools the reply
+      // actually rested on. Never allowed to affect the reply itself.
+      try { onToolUse?.(block.name, block.input); } catch { /* observer's problem */ }
       try {
+        // A persona may only run the tools it was offered.
+        if (!(TOOLS_BY_BOT[activeBot] || []).some((t) => t.name === block.name)) {
+          throw new Error(`Tool "${block.name}" is not available here.`);
+        }
         const result = executeTool(block.name, block.input);
         toolResults.push({
           type: 'tool_result',
@@ -290,6 +307,7 @@ async function generateReplyWithTools({ activeBot, history, userText, imageBase6
 }
 
 module.exports = {
+  TOOLS_BY_BOT,
   PROMPT_VERSIONS,
   APPROVALS,
   generateReply,

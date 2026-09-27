@@ -73,7 +73,7 @@ export const authApi = {
   },
 
   getCurrentUser: () =>
-    api.get<{ id: string; email: string }>('/api/auth/me'),
+    api.get<{ id: string; email: string; isStaff?: boolean }>('/api/auth/me'),
 };
 
 export const foodLogApi = {
@@ -382,6 +382,167 @@ export const recipeApi = {
 
   shuffle: (count = 2) =>
     api.get<Recipe[]>('/api/recipes/shuffle', { params: { count } }),
+};
+
+// ── Purchase + booking (public: no account needed) ─────────────────────────
+
+export interface Plan {
+  id: string;
+  label: string;
+  amount: number;
+  includes: string[];
+  billing: 'monthly';
+}
+
+export interface Session {
+  id: 'supermarket';
+  amount: number;
+  billing: 'once';
+}
+
+export type AppointmentType = 'physical' | 'online' | 'supermarket';
+
+export interface BookingOption {
+  type: AppointmentType;
+  durationMin: number;
+  price: number;
+  paid: boolean;
+  location: string | null;
+}
+
+export interface Slot {
+  start: string; // ISO
+  end: string;
+}
+
+export interface Appointment {
+  id: string;
+  type: AppointmentType;
+  start: string;
+  end: string;
+  status: 'pending_payment' | 'booked' | 'cancelled';
+  meetLink: string | null;
+  location: string | null;
+  amount: number | null;
+}
+
+export interface BookingInput {
+  type: AppointmentType;
+  start: string;
+  name: string;
+  phone: string;
+  email?: string;
+  location?: string;
+  notes?: string;
+}
+
+export const purchaseApi = {
+  plans: () => api.get<{ plans: Plan[]; sessions: Session[] }>('/api/payments/plans'),
+
+  checkout: (data: { plan: string; name: string; email: string; phone: string }) =>
+    api.post<{ paymentPageLink: string }>('/api/payments/checkout', data),
+};
+
+export const bookingApi = {
+  options: () =>
+    api.get<{ timeZone: string; calendarConnected: boolean; types: BookingOption[] }>('/api/booking/options'),
+
+  slots: (type: AppointmentType) => api.get<{ slots: Slot[] }>('/api/booking/slots', { params: { type } }),
+
+  book: (data: BookingInput) =>
+    api.post<{ appointment: Appointment; cancelToken: string; paymentPageLink?: string }>('/api/booking', data),
+
+  get: (id: string) => api.get<{ appointment: Appointment }>(`/api/booking/${id}`),
+
+  cancel: (id: string, token: string) =>
+    api.post<{ appointment: Appointment }>(`/api/booking/${id}/cancel`, { token }),
+
+  moveSlots: (id: string, token: string) =>
+    api.get<{ slots: Slot[] }>(`/api/booking/${id}/slots`, { params: { t: token } }),
+
+  reschedule: (id: string, token: string, start: string) =>
+    api.post<{ appointment: Appointment }>(`/api/booking/${id}/reschedule`, { token, start }),
+};
+
+// ── Staff (server-side guarded by requireStaff) ────────────────────────────
+
+export interface StaffAppointment {
+  id: string;
+  type: AppointmentType;
+  start_at: string;
+  end_at: string;
+  status: Appointment['status'];
+  name: string;
+  phone: string;
+  email: string | null;
+  location: string | null;
+  notes: string | null;
+  amount: number | null;
+  meet_link: string | null;
+  cancelled_by: 'customer' | 'staff' | 'expired' | null;
+  needs_attention: string | null;
+}
+
+export interface Escalation {
+  id: string;
+  phone: string;
+  name: string | null;
+  body: string;
+  receivedAt: string | null;
+}
+
+export type StaffScope = 'upcoming' | 'attention' | 'recent';
+
+export interface FlaggedPayment {
+  uid: string;
+  email: string | null;
+  plan: string | null;
+  status: string;
+  amount: number | null;
+  currency: string | null;
+  needsAttention: string;
+  receivedAt: string | null;
+}
+
+export const staffApi = {
+  appointments: (scope: StaffScope) =>
+    api.get<{ appointments: StaffAppointment[] }>('/api/staff/appointments', { params: { scope } }),
+  cancel: (id: string) => api.post(`/api/staff/appointments/${id}/cancel`),
+  resolve: (id: string) => api.post(`/api/staff/appointments/${id}/resolve`),
+  escalations: () => api.get<{ messages: Escalation[] }>('/api/staff/escalations'),
+  handled: (id: string) => api.post(`/api/staff/escalations/${encodeURIComponent(id)}/handled`),
+  payments: () => api.get<{ payments: FlaggedPayment[] }>('/api/staff/payments'),
+  resolvePayment: (uid: string) => api.post(`/api/staff/payments/${encodeURIComponent(uid)}/resolve`),
+};
+
+// ── Meal plans + shopping list ──────────────────────────────────────────────
+
+export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+
+export interface MealPlan {
+  id: string;
+  recipe_id: string;
+  date: string; // YYYY-MM-DD
+  meal_type: MealType;
+}
+
+export interface GroceryItem {
+  item: string;
+  category: string | null;
+  count: number;
+  amounts: string[];
+}
+
+export const mealPlanApi = {
+  list: (start: string, end: string) => api.get<MealPlan[]>('/api/meal-plans', { params: { start, end } }),
+  add: (recipeId: string, date: string, mealType: MealType) =>
+    api.post<MealPlan>('/api/meal-plans', { recipeId, date, mealType }),
+  remove: (id: string) => api.delete(`/api/meal-plans/${id}`),
+};
+
+export const groceryApi = {
+  list: (start: string, end: string) =>
+    api.get<{ items: GroceryItem[]; mealPlansCount: number }>('/api/grocery-list', { params: { start, end } }),
 };
 
 export const analyticsApi = {

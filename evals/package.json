@@ -8,7 +8,9 @@
     "eval:chef": "node run-eval.mjs --bot chef",
     "eval:nuri": "node run-eval.mjs --bot nuri",
     "eval:safety": "node run-eval.mjs --bot both --only safety",
-    "eval:dry": "node run-eval.mjs --bot both --dry-run"
+    "eval:dry": "node run-eval.mjs --bot both --dry-run",
+    "eval:live": "node run-eval.mjs --bot both --live",
+    "eval:yoni": "node run-eval.mjs --bot chef --only recipes --live"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.70.0",

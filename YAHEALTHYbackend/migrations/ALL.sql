@@ -1,3 +1,17 @@
+-- YAHEALTHY — כל המיגרציות, לפי הסדר, בקובץ אחד.
+--
+-- 🔴 קובץ מחולל. לא לערוך ידנית: node scripts/build-all-sql.js
+--
+-- הרצה: Supabase Dashboard → SQL Editor → הדבק והרץ.
+-- בטוח גם על מסד ריק וגם על מסד שכבר יש בו חלק מזה או את כולו.
+-- טרנזקציה אחת: אם משהו נכשל — שום דבר לא משתנה.
+
+begin;
+
+-- ═══════════════════════════════════════════════════════════════
+-- 001_initial_schema.sql
+-- ═══════════════════════════════════════════════════════════════
+
 -- YAHEALTHY — סכימה ראשונית
 -- נגזרה מהקוד: utils/database.js (הטבלאות והשאילתות) ו-index.js (שדות ה-payload).
 -- ADR-001 קבע Supabase. זו המיגרציה הראשונה בפרויקט.
@@ -203,6 +217,54 @@ alter table public.meal_swaps         enable row level security;
 alter table public.offline_logs       enable row level security;
 alter table public.food_logs          enable row level security;
 alter table public.food_log_templates enable row level security;
+
+-- ═══════════════════════════════════════════════════════════════
+-- 001_whapi_bot_conversations.sql
+-- ═══════════════════════════════════════════════════════════════
+
+-- First migration in this repo (ADR-002 follow-up, decisions.md step 4).
+-- Run in the Supabase SQL editor before the WHAPI webhook goes live.
+--
+-- Rollback:
+--   drop table if exists whapi_messages;
+--   drop table if exists whapi_conversations;
+
+create table if not exists whapi_conversations (
+  phone text primary key,
+  active_bot text not null default 'nuri' check (active_bot in ('nuri', 'chef')),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists whapi_messages (
+  id bigint generated always as identity primary key,
+  phone text not null references whapi_conversations(phone) on delete cascade,
+  role text not null check (role in ('user', 'assistant')),
+  content text not null,
+  created_at timestamptz not null default now()
+);
+
+-- Covers both the FK lookup and the actual query pattern (recent messages per phone).
+create index if not exists whapi_messages_phone_created_idx
+  on whapi_messages (phone, created_at);
+
+-- These tables are written only by the backend server, never read directly by a
+-- client. RLS is enabled with no policies, so the anon/authenticated roles get
+-- zero access by default; only the Postgres service_role (which bypasses RLS)
+-- can read or write them.
+--
+-- The rest of this app's tables connect via SUPABASE_KEY, documented in
+-- .env.example as the anon key. If that is what's actually configured, the
+-- webhook's DB calls will fail against these two tables until the backend
+-- also has a service-role key. Add SUPABASE_SERVICE_ROLE_KEY (Supabase
+-- dashboard -> Settings -> API) and use it for the four whapi* functions in
+-- utils/database.js -- see the comment there.
+alter table whapi_conversations enable row level security;
+alter table whapi_messages enable row level security;
+
+-- ═══════════════════════════════════════════════════════════════
+-- 002_whatsapp_messages.sql
+-- ═══════════════════════════════════════════════════════════════
+
 -- WhatsApp — הודעות נכנסות מ-WHAPI
 -- נגזר מצורת ה-webhook האמיתית שנצפתה ב-20/09/2026.
 -- נתיב חזרה: drop table public.whatsapp_messages;
@@ -241,6 +303,56 @@ create index if not exists whatsapp_messages_chat_idx
 -- לפני שיש לו חשבון. RLS מופעל, בלי policies, כמו שאר הטבלאות.
 alter table public.whatsapp_messages enable row level security;
 
+-- ═══════════════════════════════════════════════════════════════
+-- 003_rename_nuri_to_adi.sql
+-- ═══════════════════════════════════════════════════════════════
+
+-- Renames the internal bot identifier from 'nuri' to 'adi'.
+--
+-- Persona history: Nuri -> Mor -> Adi. The first two renames only ever
+-- touched user-facing prose (docs/bot/nuri-bot-prompt.md, routes/whapi.js
+-- strings) -- migrations/001 hardcoded the original name as stored data
+-- (the default and the check constraint below), and that survived both
+-- renames until now.
+--
+-- No longer a hard prerequisite for deploying the code that writes 'adi' as
+-- active_bot: utils/database.js (getWhapiConversation/upsertWhapiConversation)
+-- now normalizes at the boundary -- a write of 'adi' that hits this
+-- constraint before it's been updated retries once with the legacy 'nuri'
+-- value instead of failing, and a row read back as 'nuri' is returned as
+-- 'adi' -- so an existing conversation never loses its system prompt
+-- (SYSTEM_PROMPTS keyed by 'adi', not 'nuri') either way. Run this whenever
+-- convenient regardless: it's the real fix (the stored data matches the
+-- code's vocabulary, so anyone reading the table directly -- e.g. in the
+-- Supabase dashboard -- isn't confused by a stale 'nuri'), the fallback in
+-- database.js is a safety net, not a replacement for it. Once this has run,
+-- that fallback path simply never triggers again.
+--
+-- Rollback:
+--   alter table whapi_conversations drop constraint if exists whapi_conversations_active_bot_check;
+--   update whapi_conversations set active_bot = 'nuri' where active_bot = 'adi';
+--   alter table whapi_conversations alter column active_bot set default 'nuri';
+--   alter table whapi_conversations add constraint whapi_conversations_active_bot_check check (active_bot in ('nuri', 'chef'));
+
+
+alter table whapi_conversations drop constraint if exists whapi_conversations_active_bot_check;
+
+update whapi_conversations set active_bot = 'adi' where active_bot = 'nuri';
+
+alter table whapi_conversations alter column active_bot set default 'adi';
+
+-- 'yoni' is allowed here too, although it arrives only in migrations/008.
+-- Without it this file cannot run twice: on a database where 008 has already
+-- renamed 'chef' to 'yoni', adding a constraint that forbids 'yoni' fails,
+-- and in ALL.sql that failure aborts the whole run. 008 then narrows the
+-- constraint to exactly ('adi', 'yoni'), so the end state is unchanged.
+alter table whapi_conversations
+  add constraint whapi_conversations_active_bot_check check (active_bot in ('adi', 'chef', 'yoni'));
+
+-- ═══════════════════════════════════════════════════════════════
+-- 003_token_version.sql
+-- ═══════════════════════════════════════════════════════════════
+
 -- token_version — הופך טוקן חתום לטוקן שאפשר לבטל.
 --
 -- עד כאן JWT היה תקף 7 ימים ואי אפשר היה לעצור אותו: "התנתקות" מחקה
@@ -256,6 +368,10 @@ alter table public.whatsapp_messages enable row level security;
 
 alter table public.users
   add column if not exists token_version integer not null default 0;
+
+-- ═══════════════════════════════════════════════════════════════
+-- 004_meal_plans.sql
+-- ═══════════════════════════════════════════════════════════════
 
 -- meal_plans — התוכנית השבועית שהלקוח משלם עליה.
 --
@@ -292,6 +408,64 @@ create index if not exists meal_plans_user_date_idx
 -- 🔴 תוכנית תזונה אישית היא מידע בריאותי. RLS מופעל, בלי policies,
 -- כמו שאר הטבלאות — ה-backend הוא השוער.
 alter table public.meal_plans enable row level security;
+
+-- ═══════════════════════════════════════════════════════════════
+-- 004_nutrition_engine_storage.sql
+-- ═══════════════════════════════════════════════════════════════
+
+-- Phase 1 storage for the deterministic nutrition engine
+-- (utils/nutrition-calculator.js, utils/food-calculator.js): a person's
+-- profile (what the calculator needs -- age/sex/height/weight/goal/activity)
+-- and their daily food log ("ledger" -- what they've actually logged eating,
+-- with calories/macros already computed by the engine, never by the model).
+--
+-- Not yet read or written by any live code path. This is the storage side
+-- of the engine being built before it's wired into the conversation --
+-- routes/whapi.js and docs/bot/nuri-bot-prompt.md still hold the current
+-- customer-facing boundary (general structure, no exact numbers) until
+-- that wiring is a deliberate, separately-tested step.
+--
+-- Rollback:
+--   drop table if exists food_log_entries;
+--   drop table if exists user_nutrition_profile;
+
+create table if not exists user_nutrition_profile (
+  phone text primary key references whapi_conversations(phone) on delete cascade,
+  age int check (age between 10 and 120),
+  sex text check (sex in ('male', 'female')),
+  height_cm numeric check (height_cm between 50 and 250),
+  weight_kg numeric check (weight_kg between 20 and 400),
+  goal text check (goal in ('lose', 'gain', 'maintain')),
+  activity_level text check (activity_level in ('sedentary', 'light', 'moderate', 'active', 'very_active')),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists food_log_entries (
+  id bigint generated always as identity primary key,
+  phone text not null references whapi_conversations(phone) on delete cascade,
+  logged_at timestamptz not null default now(),
+  description text not null,
+  calories numeric not null,
+  protein_g numeric not null,
+  carbs_g numeric not null,
+  fat_g numeric not null
+);
+
+-- Covers both the FK lookup and the actual query pattern (today's entries /
+-- running total per phone), same reasoning as whapi_messages_phone_created_idx
+-- in migrations/001.
+create index if not exists food_log_entries_phone_logged_idx
+  on food_log_entries (phone, logged_at);
+
+-- Same posture as whapi_conversations/whapi_messages (migrations/001): written
+-- only by the backend server via the service-role key, never read directly by
+-- a client. RLS on with no policies means anon/authenticated get zero access.
+alter table user_nutrition_profile enable row level security;
+alter table food_log_entries enable row level security;
+
+-- ═══════════════════════════════════════════════════════════════
+-- 005_subscriptions_and_payments.sql
+-- ═══════════════════════════════════════════════════════════════
 
 -- מנויים ואירועי תשלום — ADR-007.
 --
@@ -357,6 +531,10 @@ create index if not exists payment_events_email_idx
 alter table public.subscriptions  enable row level security;
 alter table public.payment_events enable row level security;
 
+-- ═══════════════════════════════════════════════════════════════
+-- 006_chef_requests.sql
+-- ═══════════════════════════════════════════════════════════════
+
 -- chef_requests — "נדאג שהשף יצור איתך קשר" כמצב בדאטה, לא כמשפט.
 --
 -- ADR-007: השף הוא אדם. הבטחה שנאמרת ללקוח ולא נרשמת בשום מקום היא
@@ -388,6 +566,10 @@ create index if not exists chef_requests_status_idx
 
 alter table public.chef_requests enable row level security;
 
+-- ═══════════════════════════════════════════════════════════════
+-- 007_foods.sql
+-- ═══════════════════════════════════════════════════════════════
+
 -- foods — ערכים תזונתיים לכל 100 גרם, עם מקור לכל שורה.
 --
 -- שתי הכרעות שמעצבות את הטבלה:
@@ -413,7 +595,10 @@ create table if not exists public.foods (
   -- נא · מבושל · אפוי · מטוגן · יבש · משומר.
   -- עדשים יבשות ועדשים מבושלות אינן אותו מזון: ספיחת מים משנה את הערך
   -- ל-100 גרם פי שלושה. בלי השדה הזה המאגר משקר בלי לשים לב.
-  state         text not null default raw,
+  -- 'raw' was once written without quotes, which Postgres reads as a column
+  -- name and refuses ("cannot use column reference in DEFAULT expression") —
+  -- so this whole file failed wherever it was run, and the table never existed.
+  state         text not null default 'raw',
 
   -- כמה גרם יש ביחידה אחת נפוצה - ביצה אחת, כף שמן, פרוסת לחם.
   -- null = לא ידוע, ואז לא ממירים יחידות לגרמים ולא מנחשים.
@@ -487,6 +672,10 @@ create table if not exists public.ingredient_foods (
 alter table public.foods            enable row level security;
 alter table public.ingredient_foods enable row level security;
 
+-- ═══════════════════════════════════════════════════════════════
+-- 008_rename_chef_to_yoni.sql
+-- ═══════════════════════════════════════════════════════════════
+
 -- שינוי שם הפרסונה: 'chef' → 'yoni'.
 --
 -- אותה תבנית בדיוק כמו migrations/003 (nuri → adi): הערך ב-active_bot הוא
@@ -513,6 +702,10 @@ alter table whapi_conversations
   add constraint whapi_conversations_active_bot_check
   check (active_bot in ('adi', 'yoni'));
 
+-- ═══════════════════════════════════════════════════════════════
+-- 009_unify_on_yoni.sql
+-- ═══════════════════════════════════════════════════════════════
+
 -- איחוד: שף אחד, יוני, בוט בוואטסאפ.
 --
 -- ADR-007 קבע שהשף הוא אדם, ושלקוח מבקש שייצרו איתו קשר. במקביל נבנה בוט
@@ -532,6 +725,10 @@ update public.payment_events set plan = 'yoni' where plan = 'chef';
 
 -- מסלול-האדם. אין לו יותר endpoint, ואין לו מי שמנהל את התור שהוא יוצר.
 drop table if exists public.chef_requests;
+
+-- ═══════════════════════════════════════════════════════════════
+-- 010_phone_identity.sql
+-- ═══════════════════════════════════════════════════════════════
 
 -- קישור בין מספר טלפון לחשבון — התנאי לגבייה על יוני.
 --
@@ -565,6 +762,10 @@ alter table whapi_conversations
 create index if not exists whapi_conversations_user_idx
   on whapi_conversations (user_id);
 
+-- ═══════════════════════════════════════════════════════════════
+-- 011_prompt_provenance.sql
+-- ═══════════════════════════════════════════════════════════════
+
 -- איזו גרסת פרומפט ענתה ללקוח.
 --
 -- הבוט אומר לאנשים מה לאכול ובאיזה יעד קלורי. ההצדקה לכך היא שאשת מקצוע
@@ -585,6 +786,10 @@ alter table whapi_messages
 
 create index if not exists whapi_messages_prompt_version_idx
   on whapi_messages (prompt_version);
+
+-- ═══════════════════════════════════════════════════════════════
+-- 012_staff_role.sql
+-- ═══════════════════════════════════════════════════════════════
 
 -- is_staff — מי מורשה לקרוא הודעות של לקוחות.
 --
@@ -609,6 +814,10 @@ alter table public.users
 
 create index if not exists users_staff_idx
   on public.users (is_staff) where is_staff = true;
+
+-- ═══════════════════════════════════════════════════════════════
+-- 013_missing_columns.sql
+-- ═══════════════════════════════════════════════════════════════
 
 -- העמודות שהקוד כותב אליהן ולא היו קיימות.
 --
@@ -656,3 +865,93 @@ alter table public.sleep_logs
 -- ל-JSON, ולכן זה נכשל רק כשבאמת נשלח ערך — הסוג הגרוע של באג לתפוס.
 alter table public.hydration_logs
   add column if not exists source text;
+
+-- ═══════════════════════════════════════════════════════════════
+-- 014_appointments.sql
+-- ═══════════════════════════════════════════════════════════════
+
+-- תורים: אבחון (פיזי / אונליין, חינם) ופגישה בסופר (בתשלום).
+--
+-- יומן הגוגל של המאבחנת הוא מקור האמת למה שתפוס. הטבלה הזו קיימת בשביל מה
+-- שגוגל לא נותן: רשומה שלנו של מי קבע ומתי, ומנעול. שני אנשים שלוחצים על
+-- אותה שעה באותה שנייה — ה-unique index כאן מכריע ביניהם לפני שמשהו נכתב
+-- ליומן.
+--
+-- פגישה בסופר נקבעת לפני התשלום ונשמרת כ-pending_payment. השעה מוחזקת לזמן
+-- קצוב (BOOKING_HOLD_MINUTES בקוד); החזקה שפגה משוחררת ל-cancelled לפני כל
+-- הזמנה חדשה. רק callback מאושר של PayPlus הופך אותה ל-booked ויוצר אירוע
+-- ביומן — תור שלא שולם לא מגיע ליומן שלה.
+--
+-- פרטים אישיים: שם, טלפון, ולפעמים הערה על מצב בריאותי. לכן RLS פעיל בלי
+-- policies, כמו whapi_*: רק השרת, עם service role, קורא וכותב.
+--
+-- נתיב חזרה:
+--   drop table if exists public.appointments;
+
+create table if not exists public.appointments (
+  id uuid primary key default gen_random_uuid(),
+  type text not null check (type in ('physical', 'online', 'supermarket')),
+  start_at timestamptz not null,
+  end_at timestamptz not null,
+  status text not null default 'booked'
+    check (status in ('pending_payment', 'booked', 'cancelled')),
+  name text not null,
+  phone text not null,
+  email text,
+  -- לפגישה בסופר: איזה סופר / איזה אזור. הלקוח בוחר, לא אנחנו.
+  location text,
+  notes text,
+  amount numeric,
+  google_event_id text,
+  meet_link text,
+  -- The customer's link to cancel their own booking. It unlocks exactly one
+  -- action on exactly one row, which is why it sits here in plain text: anyone
+  -- who can read this table can already do more than it allows.
+  cancel_token text,
+  cancelled_at timestamptz,
+  cancelled_by text check (cancelled_by in ('customer', 'staff', 'expired')),
+  -- Set when something needs a person, comma-separated when there is more than
+  -- one: underpaid, slot_taken, calendar_failed,
+  -- refund_requested, calendar_cleanup. The staff screen lists these;
+  -- clearing it is how a person marks the matter as settled.
+  needs_attention text,
+  -- The evening-before WhatsApp reminder (routes/cron.js). Set once sent, and
+  -- cleared on a reschedule so the new time gets its own reminder.
+  reminder_sent_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+-- שעת התחלה אחת לכל תור חי. מבוטל לא תופס את השעה; ממתין-לתשלום כן.
+create unique index if not exists appointments_one_per_start
+  on public.appointments (start_at)
+  where status in ('booked', 'pending_payment');
+
+create index if not exists appointments_start_idx on public.appointments (start_at);
+create index if not exists appointments_attention_idx
+  on public.appointments (created_at) where needs_attention is not null;
+
+alter table public.appointments enable row level security;
+
+-- ═══════════════════════════════════════════════════════════════
+-- 015_payment_attention.sql
+-- ═══════════════════════════════════════════════════════════════
+
+-- תשלום שדורש אדם.
+--
+-- עד עכשיו, כשכסף נכנס ולא היה ברור על מה — תשלום על פגישה בסופר בלי תור
+-- תואם, תשלום בלי מייל או מסלול שאפשר לזהות, או מספר טלפון שכבר שייך לחשבון
+-- אחר — זה נרשם רק בלוג. ביומן של שרת, שאף אחד לא קורא, זה כסף שנעלם.
+--
+-- עכשיו זה נרשם על התשלום עצמו, ומסך הצוות מציג אותו עד שמישהו מסמן שטופל.
+-- כמה סיבות באותו תשלום נשמרות מופרדות בפסיק, כמו ב-appointments.
+--
+-- נתיב חזרה:
+--   alter table public.payment_events drop column needs_attention;
+
+alter table public.payment_events
+  add column if not exists needs_attention text;
+
+create index if not exists payment_events_attention_idx
+  on public.payment_events (received_at) where needs_attention is not null;
+
+commit;

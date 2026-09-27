@@ -118,6 +118,10 @@ export const LoginPage = () => {
               {t('auth.signUp')}
             </Link>
           </p>
+          <div className="mt-4 flex justify-center gap-4 border-t border-slate-100 pt-4 text-sm">
+            <Link to="/pricing" className="font-semibold text-emerald-600 hover:text-emerald-700">{t('nav.pricing')}</Link>
+            <Link to="/book" className="font-semibold text-emerald-600 hover:text-emerald-700">{t('nav.book')}</Link>
+          </div>
         </div>
       </div>
     </div>

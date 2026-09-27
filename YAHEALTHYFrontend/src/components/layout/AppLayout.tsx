@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, UtensilsCrossed, Droplets, Moon, Scale,
-  MessageCircleHeart, LogOut, Languages, Heart, ChefHat, Target,
+  MessageCircleHeart, LogOut, Languages, Heart, ChefHat, Target, CalendarCheck, Sparkles, ShoppingCart, ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/i18n/LanguageContext';
@@ -18,6 +18,8 @@ interface NavItem {
    * people open every day and the sidebar carries everything.
    */
   mobile?: boolean;
+  /** Listed only for staff. The server refuses everyone else regardless. */
+  staff?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -29,8 +31,14 @@ const NAV_ITEMS: NavItem[] = [
   // Built, backed by four endpoints and a Hebrew recipe file on disk, and
   // unreachable until now: no route, no link, no way in.
   { to: '/recipes', key: 'nav.recipes', icon: <ChefHat size={20} /> },
+  { to: '/shopping', key: 'nav.shopping', icon: <ShoppingCart size={20} /> },
   { to: '/coaching', key: 'nav.coaching', icon: <MessageCircleHeart size={20} />, mobile: true },
   { to: '/targets', key: 'nav.targets', icon: <Target size={20} /> },
+  // Public pages, linked from here too: a signed-in person upgrading to Yoni
+  // or booking a supermarket session should not have to sign out to find them.
+  { to: '/book', key: 'nav.book', icon: <CalendarCheck size={20} /> },
+  { to: '/pricing', key: 'nav.pricing', icon: <Sparkles size={20} /> },
+  { to: '/staff', key: 'nav.staff', icon: <ShieldCheck size={20} />, staff: true },
 ];
 
 const MOBILE_NAV_ITEMS = NAV_ITEMS.filter((item) => item.mobile);
@@ -88,7 +96,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
         </div>
 
         <nav aria-label={t('a11y.mainNav')} className="flex-1 space-y-1 px-4">
-          {NAV_ITEMS.map((item) => (
+          {NAV_ITEMS.filter((item) => !item.staff || user?.isStaff).map((item) => (
             <NavLink key={item.to} to={item.to} className={navLinkClass}>
               {item.icon}
               {t(item.key)}

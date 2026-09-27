@@ -33,7 +33,12 @@ update whapi_conversations set active_bot = 'adi' where active_bot = 'nuri';
 
 alter table whapi_conversations alter column active_bot set default 'adi';
 
+-- 'yoni' is allowed here too, although it arrives only in migrations/008.
+-- Without it this file cannot run twice: on a database where 008 has already
+-- renamed 'chef' to 'yoni', adding a constraint that forbids 'yoni' fails,
+-- and in ALL.sql that failure aborts the whole run. 008 then narrows the
+-- constraint to exactly ('adi', 'yoni'), so the end state is unchanged.
 alter table whapi_conversations
-  add constraint whapi_conversations_active_bot_check check (active_bot in ('adi', 'chef'));
+  add constraint whapi_conversations_active_bot_check check (active_bot in ('adi', 'chef', 'yoni'));
 
 commit;

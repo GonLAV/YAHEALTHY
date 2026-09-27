@@ -15,6 +15,8 @@ const { waitUntil } = require('@vercel/functions');
 const db = require('../utils/database');
 const whapi = require('../utils/whapi');
 const brain = require('../utils/whapi-brain');
+const { decideYoniAccess } = require('../utils/yoni-gate');
+const { isFlagged } = require('../utils/health-flags');
 
 const router = express.Router();
 
@@ -124,6 +126,16 @@ async function handleIncomingMessage(message) {
     const rawText = (message.text?.body || message.image?.caption || '').trim();
     const switchTo = SWITCH_COMMANDS[rawText.toLowerCase()];
     if (switchTo) {
+      // A switch word carries no health content, so the gate is asked with no
+      // text: the answer is only ever "Yoni" or "Adi, and here is why".
+      if (switchTo === 'yoni') {
+        const gate = await decideYoniAccess({ phone, text: '', getAccess: db.getWhatsappAccess });
+        if (gate.bot !== 'yoni') {
+          if (conversation.active_bot !== 'adi') await db.upsertWhapiConversation(phone, 'adi');
+          await sendWithTyping(phone, gate.notice);
+          return;
+        }
+      }
       await db.upsertWhapiConversation(phone, switchTo);
       await sendWithTyping(
         phone,
@@ -152,17 +164,29 @@ async function handleIncomingMessage(message) {
 
     if (!rawText && !imageBase64) return; // nothing usable to respond to
 
+    // Being on Yoni is re-checked on every message, not only at the switch: a
+    // subscription ends, and a conversation set to Yoni before this gate
+    // existed would otherwise keep him forever. See utils/yoni-gate.js for why
+    // a health-flagged message gets Adi with no word about a price.
+    let activeBot = conversation.active_bot;
+    if (activeBot === 'yoni') {
+      const gate = await decideYoniAccess({ phone, text: rawText, getAccess: db.getWhatsappAccess });
+      if (gate.bot !== 'yoni') {
+        activeBot = 'adi';
+        await db.upsertWhapiConversation(phone, 'adi');
+        if (gate.notice) await sendWithTyping(phone, gate.notice);
+      }
+    }
+
     await whapi.sendTyping(phone);
 
     const history = await db.getRecentWhapiMessages(phone, 20);
-    // Adi gets the nutrition-calculator tools (calculate_daily_target,
-    // calculate_meal_nutrition, list_known_foods) so a calorie target or
-    // gram-level menu comes from real arithmetic, never a guess -- see
-    // nuri-bot-prompt.md's "מסע 0" for how she's instructed to use them.
-    // Yoni (the chef) has no use for them and keeps the plain path.
-    const generate = conversation.active_bot === 'adi' ? brain.generateReplyWithTools : brain.generateReply;
-    const reply = await generate({
-      activeBot: conversation.active_bot,
+    // Both personas run with tools, each with its own set (TOOLS_BY_BOT in
+    // utils/whapi-brain.js): Adi's nutrition calculators, so a calorie target
+    // comes from arithmetic rather than a guess, and Yoni's recipe library, so
+    // a recipe he gives is one the owner wrote rather than one he made up.
+    const reply = await brain.generateReplyWithTools({
+      activeBot,
       history,
       userText: rawText,
       imageBase64,
@@ -170,6 +194,28 @@ async function handleIncomingMessage(message) {
     });
 
     await db.logWhapiMessage(phone, 'user', rawText || '[תמונה]');
+
+    // Both prompts answer a health flag with "I'll pass this on to a
+    // professional". Until now nothing passed anything on: the promise lived
+    // only in the reply. The message goes into the same escalation queue the
+    // staff screen reads, so a person actually sees it. Best effort — a failed
+    // write must not cost the customer their reply.
+    if (isFlagged(rawText)) {
+      await db
+        .saveWhatsappMessage({
+          id: message.id || `whapi_${Date.now()}`,
+          chat_id: phone,
+          from_number: message.from || phone,
+          from_name: message.from_name ?? null,
+          from_me: false,
+          type: message.type,
+          body: rawText,
+          sent_at: message.timestamp ? new Date(message.timestamp * 1000).toISOString() : null,
+          status: 'escalated',
+          raw: { source: 'whapi-bot', active_bot: activeBot }
+        })
+        .catch((err) => console.error('[whapi] could not escalate a health-flagged message:', err.message));
+    }
     // The reply carries the prompt version that produced it. Reading a
     // conversation back months later against whatever the prompt says today
     // proves nothing; reading it against the version in force at the time is
@@ -178,7 +224,7 @@ async function handleIncomingMessage(message) {
       phone,
       'assistant',
       reply,
-      brain.PROMPT_VERSIONS[conversation.active_bot] || null
+      brain.PROMPT_VERSIONS[activeBot] || null
     );
     await sendReplyInChunks(phone, reply);
   } catch (err) {
@@ -208,3 +254,6 @@ module.exports = router;
 // standing up WHAPI and Anthropic. A router is a function; hanging one
 // property off it costs nothing and keeps the mapping in one place.
 module.exports.SWITCH_COMMANDS = SWITCH_COMMANDS;
+// Same reason: tests/yoni-gate.test.js drives one message through with WHAPI
+// and the brain stubbed, to see which persona it actually reached.
+module.exports.handleIncomingMessage = handleIncomingMessage;
