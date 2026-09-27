@@ -158,6 +158,7 @@ app.use('/api/referrals', require('./routes/referrals'));
 app.use('/api/engagement', require('./routes/engagement')); // streaks, Health Score, achievements (auth per-route)
 app.use('/api/marketing', require('./routes/marketing'));
 app.use('/api/onboarding', require('./routes/onboarding')); // wizard status + targets preview (auth)
+app.use('/api/analytics', require('./routes/analytics')); // staff-only marketing dashboard (auth + requireStaff inside)
 
 // WhatsApp inbound. The webhook is public (guarded by a path secret); the
 // listing endpoint underneath it requires auth because it returns message text.
@@ -383,7 +384,10 @@ app.get('/api/auth/me', auth.authMiddleware, async (req, res) => {
       id: user.id,
       email: user.email,
       name: user.name,
-      preferences: user.preferences
+      preferences: user.preferences,
+      // Only decides whether the UI shows staff pages; every staff route
+      // re-checks is_staff in the database (middleware/requireStaff).
+      isStaff: user.is_staff === true
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to get user', details: safeErrorDetails(error) });

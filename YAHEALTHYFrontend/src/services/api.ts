@@ -84,7 +84,7 @@ export const authApi = {
   },
 
   getCurrentUser: () =>
-    api.get<{ id: string; email: string }>('/api/auth/me'),
+    api.get<{ id: string; email: string; name?: string; isStaff?: boolean }>('/api/auth/me'),
 };
 
 export const foodLogApi = {

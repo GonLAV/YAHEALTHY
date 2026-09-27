@@ -2,7 +2,7 @@ import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, UtensilsCrossed, Droplets, Moon, Scale,
-  MessageCircleHeart, LogOut, Languages, Heart, BarChart3, Gift, Trophy,
+  MessageCircleHeart, LogOut, Languages, Heart, BarChart3, Gift, Trophy, Megaphone,
   MoreHorizontal, X,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -16,6 +16,8 @@ interface NavItem {
   mobile: 'tab' | 'more';
   /** Shorter label for the narrow bottom-bar tab. */
   shortKey?: string;
+  /** Shown only when /api/auth/me says isStaff (the server enforces it regardless). */
+  staffOnly?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -28,6 +30,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/weight', key: 'nav.weight', icon: <Scale size={20} />, mobile: 'more' },
   { to: '/coaching', key: 'nav.coaching', icon: <MessageCircleHeart size={20} />, mobile: 'tab', shortKey: 'nav.coachingShort' },
   { to: '/invite', key: 'nav.invite', icon: <Gift size={20} />, mobile: 'more' },
+  { to: '/admin/marketing', key: 'nav.marketing', icon: <Megaphone size={20} />, mobile: 'more', staffOnly: true },
 ];
 
 // Mobile bottom bar: four primary tabs in this order, then "More".
@@ -140,7 +143,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
         </div>
 
         <nav aria-label={t('a11y.mainNav')} className="flex-1 space-y-1 px-4">
-          {NAV_ITEMS.map((item) => (
+          {NAV_ITEMS.filter((item) => !item.staffOnly || user?.isStaff).map((item) => (
             <NavLink key={item.to} to={item.to} className={navLinkClass}>
               {item.icon}
               {t(item.key)}
@@ -248,7 +251,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
             </div>
 
             <ul className="grid grid-cols-2 gap-2">
-              {MORE_ITEMS.map((item) => (
+              {MORE_ITEMS.filter((item) => !item.staffOnly || user?.isStaff).map((item) => (
                 <li key={item.to}>
                   <NavLink
                     to={item.to}

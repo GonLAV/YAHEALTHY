@@ -4,6 +4,8 @@ import { authApi, SignupExtras } from '@/services/api';
 interface User {
   id: string;
   email: string;
+  /** Only hides/shows staff pages; the server re-checks on every staff request. */
+  isStaff?: boolean;
 }
 
 interface AuthContextType {
