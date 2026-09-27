@@ -224,7 +224,7 @@ export const ProgressPage = () => {
                 <LineChart data={daily}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                  <YAxis dir="ltr" />
+                  <YAxis />
                   <Tooltip />
                   <Line
                     type="monotone"
@@ -250,7 +250,7 @@ export const ProgressPage = () => {
                 <BarChart data={daily}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                  <YAxis dir="ltr" />
+                  <YAxis />
                   <Tooltip />
                   <Bar
                     dataKey="liters"
@@ -274,7 +274,7 @@ export const ProgressPage = () => {
                 <BarChart data={daily}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                  <YAxis dir="ltr" />
+                  <YAxis />
                   <Tooltip />
                   <Bar
                     dataKey="sleepHours"
@@ -295,7 +295,7 @@ export const ProgressPage = () => {
                 <LineChart data={weightSeries}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                  <YAxis domain={['auto', 'auto']} dir="ltr" />
+                  <YAxis domain={['auto', 'auto']} />
                   <Tooltip />
                   <Line
                     type="monotone"
