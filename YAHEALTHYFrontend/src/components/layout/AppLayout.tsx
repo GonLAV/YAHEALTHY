@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, UtensilsCrossed, Droplets, Moon, Scale,
-  MessageCircleHeart, LogOut, Languages, Heart, BarChart3,
+  MessageCircleHeart, LogOut, Languages, Heart, BarChart3, Trophy,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/i18n/LanguageContext';
@@ -16,6 +16,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { to: '/dashboard', key: 'nav.dashboard', icon: <LayoutDashboard size={20} /> },
   { to: '/progress', key: 'nav.progress', icon: <BarChart3 size={20} /> },
+  { to: '/achievements', key: 'nav.achievements', icon: <Trophy size={20} /> },
   { to: '/food-log', key: 'nav.foodLog', icon: <UtensilsCrossed size={20} /> },
   { to: '/hydration', key: 'nav.hydration', icon: <Droplets size={20} /> },
   { to: '/sleep', key: 'nav.sleep', icon: <Moon size={20} /> },

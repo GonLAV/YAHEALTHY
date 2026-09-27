@@ -4,11 +4,15 @@ import {
   Flame, UtensilsCrossed, Droplets, Moon, Salad, Trophy, Medal,
   Plus, Dumbbell, Beef, Wheat, Croissant,
 } from 'lucide-react';
-import { foodLogApi, hydrationApi, sleepApi, targetsApi, streakApi, badgesApi, Badge } from '@/services/api';
+import {
+  foodLogApi, hydrationApi, sleepApi, targetsApi, streakApi, badgesApi, engagementApi,
+  Badge, EngagementSummary,
+} from '@/services/api';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/i18n/LanguageContext';
 import ProgressRing from '@/components/ui/ProgressRing';
 import ProgressBar from '@/components/ui/ProgressBar';
+import { HealthScoreCard, StreaksStrip, NextMilestoneCard } from '@/components/engagement/EngagementWidgets';
 
 const BADGE_ICONS: Record<string, JSX.Element> = {
   'first-log': <Salad size={22} />,
@@ -41,6 +45,28 @@ export const DashboardPage = () => {
   const { t, lang } = useLanguage();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [engagement, setEngagement] = useState<EngagementSummary | null>(null);
+  const [engagementError, setEngagementError] = useState(false);
+
+  // Engagement loads on its own so a slow/failed summary never blocks the
+  // rest of the dashboard.
+  useEffect(() => {
+    let cancelled = false;
+    engagementApi
+      .getSummary(lang)
+      .then((res) => {
+        if (!cancelled) {
+          setEngagement(res.data);
+          setEngagementError(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setEngagementError(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [lang]);
 
   useEffect(() => {
     const load = async () => {
@@ -120,6 +146,23 @@ export const DashboardPage = () => {
         </h1>
         <p className="mt-1 text-sm text-slate-500">{dateStr}</p>
       </div>
+
+      {/* Engagement: Health Score + streaks + next milestone */}
+      {engagement ? (
+        <div className="mb-6 grid gap-6 lg:grid-cols-5">
+          <div className="lg:col-span-3">
+            <HealthScoreCard summary={engagement} />
+          </div>
+          <div className="space-y-6 lg:col-span-2">
+            <StreaksStrip summary={engagement} />
+            <NextMilestoneCard milestone={engagement.nextMilestone} />
+          </div>
+        </div>
+      ) : engagementError ? (
+        <p role="alert" className="mb-6 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-rose-100">
+          {t('eng.loadError')}
+        </p>
+      ) : null}
 
       {/* Top grid: calorie ring + macros */}
       <div className="grid gap-6 lg:grid-cols-5">
