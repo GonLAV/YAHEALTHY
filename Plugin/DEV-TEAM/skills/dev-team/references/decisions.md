@@ -228,4 +228,5 @@ const USE_MEMORY_DB = !process.env.SUPABASE_URL || !process.env.SUPABASE_KEY || 
 
 ### 🔴 מה שנשאר — ורק אדם יכול
 - **שני הפרומפטים (עדי ויוני) לא אושרו קלינית** (`data/clinical-approvals.json`). בייצור הבוט מסרב לענות עד שיעל מאשרת. זה קדם לכל העבודה כאן.
-- **הענף מאחורי `origin/main` בכ-20 קומיטים**, כולל תיקון ההשבתה (12def5a) ושכתוב של `evals/run-eval.mjs`. צריך מיזוג עם פתרון קונפליקטים לפני PR.
+- **המסד (פרויקט `mgcazxdczmzvecagvpgd`) מכיל רק את 001 ואת טבלאות הוואטסאפ** — בדיקת סכימה לקריאה בלבד, 27/09. חסרות 003–015: מנויים ותשלומים, תכנון ארוחות, foods, token_version, is_staff, תורים. הפתרון: להריץ `migrations/ALL.sql` ב-SQL Editor.
+- **`007_foods` לא יכלה לרוץ מעולם** (`default raw` בלי מרכאות) — תוקן. `ALL.sql` מחולל עכשיו (`scripts/build-all-sql.js`), ונבדק על Postgres אמיתי (PGlite): מסד ריק, המצב הנוכחי עם שורות `nuri`/`chef` ישנות, הרצה חוזרת, וכשל שמתגלגל אחורה.
