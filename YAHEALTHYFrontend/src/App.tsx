@@ -1,11 +1,12 @@
 import { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from '@/hooks/useAuth';
+import { AuthProvider, useAuth } from '@/hooks/useAuth';
 import { LanguageProvider } from '@/i18n/LanguageContext';
 import { PrivateRoute } from '@/components/PrivateRoute';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { WhatsAppWidget } from '@/components/WhatsAppWidget';
 
+const LandingPage = lazy(() => import('@/pages/LandingPage').then((m) => ({ default: m.LandingPage })));
 const LoginPage = lazy(() => import('@/pages/LoginPage').then((m) => ({ default: m.LoginPage })));
 const SignupPage = lazy(() => import('@/pages/SignupPage').then((m) => ({ default: m.SignupPage })));
 const DashboardPage = lazy(() => import('@/pages/DashboardPage').then((m) => ({ default: m.DashboardPage })));
@@ -23,6 +24,14 @@ const PageLoader = () => (
     <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
   </div>
 );
+
+// The public front door. Someone already signed in has no use for the pitch,
+// so they go straight to their dashboard.
+const HomeRoute = () => {
+  const { isAuthenticated, loading } = useAuth();
+  if (loading) return <PageLoader />;
+  return isAuthenticated ? <Navigate to="/dashboard" replace /> : <LandingPage />;
+};
 
 const AppRoutes = () => (
   <Suspense fallback={<PageLoader />}>
@@ -119,8 +128,9 @@ const AppRoutes = () => (
           </PrivateRoute>
         }
       />
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/" element={<HomeRoute />} />
+      {/* Unknown paths land on "/", which sends signed-in users on to /dashboard. */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   </Suspense>
 );
