@@ -67,7 +67,9 @@ const memoryDb = {
   chefRequests: [],
   foods: [],
   whapiConversations: new Map(),
-  whapiMessages: []
+  whapiMessages: [],
+  referrals: [],
+  referralRewards: []
 };
 
 function sortByCreatedAtDesc(items) {
@@ -318,12 +320,265 @@ async function deleteUser(userId) {
         memoryDb[key] = value.filter((row) => row.user_id !== userId);
       }
     }
+    // Referrals key on two user columns rather than user_id.
+    memoryDb.referrals = memoryDb.referrals.filter(
+      (row) => row.referrer_id !== userId && row.referee_id !== userId
+    );
     return true;
   }
 
   const { error } = await supabase.from('users').delete().eq('id', userId);
   if (error) throw error;
   return true;
+}
+
+/**
+ * Referrals — who invited whom, and what that earned.
+ *
+ * Three pieces of state: a code on the user row (generated lazily, the first
+ * time someone asks for it), a referrals row per referee, and a rewards row
+ * per earned reward. Uniqueness lives in constraints (users.referral_code,
+ * referrals.referee_id, referral_rewards.referral_id) so two concurrent
+ * signups cannot both win; memory mode mirrors those checks by hand.
+ */
+function replaceMemoryUser(updated) {
+  memoryDb.usersById.set(updated.id, updated);
+  memoryDb.usersByEmail.set(String(updated.email || '').toLowerCase(), updated);
+  return updated;
+}
+
+async function getUserByReferralCode(code) {
+  if (!code) return null;
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    for (const user of memoryDb.usersById.values()) {
+      if (user.referral_code === code) return user;
+    }
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, email, name, referral_code')
+    .eq('referral_code', code)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+/**
+ * The user's referral code, created on first request.
+ *
+ * A collision with someone else's code is retried with a fresh one; a race
+ * with a concurrent request for the *same* user resolves to whichever write
+ * landed first, because the update only applies while the column is null.
+ */
+async function ensureReferralCode(userId, generate) {
+  const MAX_ATTEMPTS = 5;
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const user = memoryDb.usersById.get(userId);
+    if (!user) return null;
+    if (user.referral_code) return user.referral_code;
+
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      const code = generate();
+      if (await getUserByReferralCode(code)) continue;
+      replaceMemoryUser({ ...user, referral_code: code });
+      return code;
+    }
+    throw new Error(`Could not allocate a referral code for user ${userId}`);
+  }
+
+  const current = await getUser(userId);
+  if (!current) return null;
+  if (current.referral_code) return current.referral_code;
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    const code = generate();
+    const { error } = await supabase
+      .from('users')
+      .update({ referral_code: code })
+      .eq('id', userId)
+      .is('referral_code', null);
+
+    // 23505: another user already holds this code. Try a different one.
+    if (error && error.code === '23505') continue;
+    if (error) throw error;
+
+    // Re-read rather than trusting `code`: a concurrent request may have set
+    // the column first, in which case our conditional update matched nothing.
+    const after = await getUser(userId);
+    if (after && after.referral_code) return after.referral_code;
+  }
+  throw new Error(`Could not allocate a referral code for user ${userId}`);
+}
+
+/**
+ * First-touch marketing attribution, stored once at signup.
+ */
+async function setUserAttribution(userId, attribution) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const user = memoryDb.usersById.get(userId);
+    if (!user) return null;
+    return replaceMemoryUser({ ...user, attribution });
+  }
+
+  const { data, error } = await supabase
+    .from('users')
+    .update({ attribution })
+    .eq('id', userId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Record that `refereeId` signed up through `referrerId`'s code.
+ *
+ * Returns { created: false, reason } instead of throwing for the refusals a
+ * caller has to expect: a self-referral, and a referee who has already been
+ * attributed to someone (the first referral wins; it is never reassigned).
+ */
+async function createReferral({ referrerId, refereeId, code }) {
+  if (!referrerId || !refereeId) return { created: false, reason: 'invalid' };
+  if (referrerId === refereeId) return { created: false, reason: 'self' };
+
+  const row = {
+    referrer_id: referrerId,
+    referee_id: refereeId,
+    code,
+    status: 'signed_up'
+  };
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    if (memoryDb.referrals.some((r) => r.referee_id === refereeId)) {
+      return { created: false, reason: 'duplicate' };
+    }
+    const referral = { id: uuidv4(), ...row, created_at: new Date().toISOString() };
+    memoryDb.referrals.push(referral);
+
+    const referee = memoryDb.usersById.get(refereeId);
+    if (referee) replaceMemoryUser({ ...referee, referred_by: referrerId });
+    return { created: true, referral };
+  }
+
+  const { data, error } = await supabase.from('referrals').insert([row]).select().single();
+  if (error) {
+    if (error.code === '23505') return { created: false, reason: 'duplicate' };
+    throw error;
+  }
+
+  // Denormalised onto the user for cheap "who brought this person" reads. The
+  // referrals row is the record; a failure here is not worth failing over.
+  const { error: userError } = await supabase
+    .from('users')
+    .update({ referred_by: referrerId })
+    .eq('id', refereeId);
+  if (userError) console.warn(`[referrals] could not set referred_by: ${userError.message}`);
+
+  return { created: true, referral: data };
+}
+
+async function getReferralsByReferrer(referrerId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return sortByCreatedAtDesc(memoryDb.referrals.filter((r) => r.referrer_id === referrerId));
+  }
+
+  const { data, error } = await supabase
+    .from('referrals')
+    .select('id, referee_id, status, created_at')
+    .eq('referrer_id', referrerId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * How many of these users currently hold an active subscription. Read-only:
+ * it is how a referral counts as converted, and it never touches billing.
+ */
+async function countSubscribedUsers(userIds) {
+  if (!userIds.length) return 0;
+  const now = new Date().toISOString();
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const wanted = new Set(userIds);
+    const subscribed = new Set(
+      memoryDb.subscriptions
+        .filter((s) => wanted.has(s.user_id) && s.status === 'active' && (!s.ends_at || s.ends_at > now))
+        .map((s) => s.user_id)
+    );
+    return subscribed.size;
+  }
+
+  const { data, error } = await supabase
+    .from('subscriptions')
+    .select('user_id')
+    .in('user_id', userIds)
+    .eq('status', 'active')
+    .or(`ends_at.is.null,ends_at.gt.${now}`);
+
+  if (error) throw error;
+  return new Set((data || []).map((row) => row.user_id)).size;
+}
+
+/**
+ * Record an earned reward, once per referral. `created: false` means it was
+ * already recorded — a retried signup handler must not pay out twice.
+ */
+async function createReferralReward({ userId, referralId, type, amount, reason }) {
+  const row = {
+    user_id: userId,
+    referral_id: referralId,
+    type,
+    amount,
+    reason,
+    status: 'earned'
+  };
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    if (memoryDb.referralRewards.some((r) => r.referral_id === referralId && r.user_id === userId)) {
+      return { created: false };
+    }
+    const reward = { id: uuidv4(), ...row, created_at: new Date().toISOString() };
+    memoryDb.referralRewards.push(reward);
+    return { created: true, reward };
+  }
+
+  const { data, error } = await supabase.from('referral_rewards').insert([row]).select().single();
+  if (error) {
+    if (error.code === '23505') return { created: false };
+    throw error;
+  }
+  return { created: true, reward: data };
+}
+
+async function getReferralRewards(userId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return sortByCreatedAtDesc(memoryDb.referralRewards.filter((r) => r.user_id === userId));
+  }
+
+  const { data, error } = await supabase
+    .from('referral_rewards')
+    .select('id, type, amount, reason, status, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
 }
 
 /**
@@ -2010,5 +2265,14 @@ module.exports = {
   upsertWhapiConversation,
   logWhapiMessage,
   getRecentWhapiMessages,
-  getWhapiTranscript
+  getWhapiTranscript,
+  // Referrals
+  getUserByReferralCode,
+  ensureReferralCode,
+  setUserAttribution,
+  createReferral,
+  getReferralsByReferrer,
+  countSubscribedUsers,
+  createReferralReward,
+  getReferralRewards
 };
