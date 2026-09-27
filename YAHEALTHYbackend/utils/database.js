@@ -440,6 +440,29 @@ async function setUserAttribution(userId, attribution) {
 }
 
 /**
+ * Marks onboarding done (finished or skipped). Only the first call writes:
+ * re-running the wizard later keeps the original date.
+ */
+async function setOnboardingCompletedAt(userId, at = new Date().toISOString()) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const user = memoryDb.usersById.get(userId);
+    if (!user) return null;
+    if (user.onboarding_completed_at) return user;
+    return replaceMemoryUser({ ...user, onboarding_completed_at: at });
+  }
+
+  const { error } = await supabase
+    .from('users')
+    .update({ onboarding_completed_at: at })
+    .eq('id', userId)
+    .is('onboarding_completed_at', null);
+
+  if (error) throw error;
+  return getUser(userId);
+}
+
+/**
  * Record that `refereeId` signed up through `referrerId`'s code.
  *
  * Returns { created: false, reason } instead of throwing for the refusals a
@@ -2270,6 +2293,8 @@ module.exports = {
   getUserByReferralCode,
   ensureReferralCode,
   setUserAttribution,
+  // Onboarding
+  setOnboardingCompletedAt,
   createReferral,
   getReferralsByReferrer,
   countSubscribedUsers,
