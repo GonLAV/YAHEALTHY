@@ -9,6 +9,7 @@ import { weightApi, WeightGoal, WeightLog } from '@/services/api';
 import { useLanguage } from '@/i18n/LanguageContext';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
+import { localDateISO } from '@/utils/date';
 
 export const WeightPage = () => {
   const { t, lang } = useLanguage();
@@ -108,7 +109,11 @@ export const WeightPage = () => {
   }, [goal, current]);
 
   const chartData = useMemo(() => {
-    const points = [...logs].reverse().map((l) => ({ kg: l.weight_kg, date: l.date || l.created_at }));
+    // Timestamps → the user's local calendar day, not the UTC one.
+    const points = [...logs].reverse().map((l) => ({
+      kg: l.weight_kg,
+      date: l.date || (l.created_at ? localDateISO(new Date(l.created_at)) : undefined),
+    }));
     return [
       ...(goal ? [{ kg: goal.start_weight_kg, date: 'start' }] : []),
       ...points,

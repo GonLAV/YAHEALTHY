@@ -11,15 +11,11 @@ import {
 import { useLanguage } from '@/i18n/LanguageContext';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
+import { addDaysISO, localDateISO, parseLocalDate } from '@/utils/date';
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 const RANGE_DAYS = 14;
 
 const MACRO_COLORS = ['#10b981', '#3b82f6', '#f59e0b'];
-
-// Local dates, not UTC — the server stores date strings as entered locally.
-const localIso = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 const ChartCard = ({
   title,
@@ -36,7 +32,9 @@ const ChartCard = ({
   >
     <h2 className="mb-4 text-base font-semibold text-slate-900">{title}</h2>
     <figure>
-      <div role="img" aria-label={title} className="h-64">
+      {/* Charts stay LTR in Hebrew too (time runs left→right, numbers stay LTR),
+          matching WeightPage; YAxis has no `dir` prop, so set it on the container. */}
+      <div role="img" aria-label={title} dir="ltr" className="h-64">
         {children}
       </div>
       <figcaption className="sr-only">{summary}</figcaption>
@@ -90,8 +88,7 @@ export const ProgressPage = () => {
         // Day buckets for the range window
         const byKey = new Map<string, { calories: number; liters: number; sleepHours: number }>();
         for (let i = 0; i < RANGE_DAYS; i++) {
-          const d = new Date(Date.now() - i * DAY_MS);
-          byKey.set(localIso(d), { calories: 0, liters: 0, sleepHours: 0 });
+          byKey.set(addDaysISO(-i), { calories: 0, liters: 0, sleepHours: 0 });
         }
         const inWindow = (date: string) => byKey.has(String(date || '').slice(0, 10));
 
@@ -108,8 +105,8 @@ export const ProgressPage = () => {
         // Oldest → newest for the charts
         const points: DailyPoint[] = [];
         for (let i = RANGE_DAYS - 1; i >= 0; i--) {
-          const d = new Date(Date.now() - i * DAY_MS);
-          const key = localIso(d);
+          const key = addDaysISO(-i);
+          const d = parseLocalDate(key);
           const bucket = byKey.get(key)!;
           points.push({
             key,
@@ -123,11 +120,14 @@ export const ProgressPage = () => {
 
         // Weight trend — every log with a usable date, oldest first
         const weightPoints = weights
-          .map((w) => ({ date: String(w.date || w.created_at || '').slice(0, 10), weight: w.weight_kg }))
+          .map((w) => ({
+            date: w.date ? w.date.slice(0, 10) : w.created_at ? localDateISO(new Date(w.created_at)) : '',
+            weight: w.weight_kg,
+          }))
           .filter((w) => w.date)
           .sort((a, b) => a.date.localeCompare(b.date))
           .map((w) => ({
-            label: dayLabel(new Date(`${w.date}T00:00:00`)),
+            label: dayLabel(parseLocalDate(w.date)),
             weight: w.weight,
           }));
         setWeightSeries(weightPoints);
@@ -224,7 +224,7 @@ export const ProgressPage = () => {
                 <LineChart data={daily}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                  <YAxis dir="ltr" />
+                  <YAxis />
                   <Tooltip />
                   <Line
                     type="monotone"
@@ -250,7 +250,7 @@ export const ProgressPage = () => {
                 <BarChart data={daily}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                  <YAxis dir="ltr" />
+                  <YAxis />
                   <Tooltip />
                   <Bar
                     dataKey="liters"
@@ -274,7 +274,7 @@ export const ProgressPage = () => {
                 <BarChart data={daily}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                  <YAxis dir="ltr" />
+                  <YAxis />
                   <Tooltip />
                   <Bar
                     dataKey="sleepHours"
@@ -295,7 +295,7 @@ export const ProgressPage = () => {
                 <LineChart data={weightSeries}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                  <YAxis domain={['auto', 'auto']} dir="ltr" />
+                  <YAxis domain={['auto', 'auto']} />
                   <Tooltip />
                   <Line
                     type="monotone"

@@ -4,6 +4,7 @@ import { sleepApi, SleepLog } from '@/services/api';
 import { useLanguage } from '@/i18n/LanguageContext';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
+import { parseLocalDate, todayISO } from '@/utils/date';
 
 const QUALITY_OPTIONS = [
   { value: 'excellent', stars: 4 },
@@ -56,6 +57,7 @@ export const SleepPage = () => {
     setSubmitting(true);
     try {
       await sleepApi.add({
+        date: todayISO(),
         sleepHours: h,
         sleepQuality: quality,
         notes: notes.trim() || undefined,
@@ -76,13 +78,13 @@ export const SleepPage = () => {
     'w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100';
 
   const formatDate = (date: string) =>
-    new Date(date).toLocaleDateString(lang === 'he' ? 'he-IL' : 'en-US', {
+    parseLocalDate(date).toLocaleDateString(lang === 'he' ? 'he-IL' : 'en-US', {
       weekday: 'short',
       day: 'numeric',
       month: 'short',
     });
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = todayISO();
   const todayLog = logs.find((l) => l.date === todayStr);
 
   return (

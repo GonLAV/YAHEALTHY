@@ -4,6 +4,7 @@ import { foodLogApi, FoodLog } from '@/services/api';
 import { useLanguage } from '@/i18n/LanguageContext';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
+import { todayISO } from '@/utils/date';
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 const MEAL_EMOJI: Record<string, string> = {
@@ -33,7 +34,7 @@ export const FoodLogPage = () => {
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({ ...emptyForm });
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayISO();
 
   const fetchFoodLogs = async () => {
     try {
