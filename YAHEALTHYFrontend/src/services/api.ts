@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { Attribution } from '@/utils/attribution';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? '';
 
@@ -52,9 +53,18 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+export interface SignupExtras {
+  referralCode?: string;
+  attribution?: Attribution;
+}
+
 export const authApi = {
-  signup: (email: string, password: string) =>
-    api.post<AuthToken>('/api/auth/signup', { email, password }),
+  signup: (email: string, password: string, extras: SignupExtras = {}) =>
+    api.post<AuthToken & { referralApplied?: boolean }>('/api/auth/signup', {
+      email,
+      password,
+      ...extras,
+    }),
 
   login: (email: string, password: string) =>
     api.post<AuthToken>('/api/auth/login', { email, password }),
@@ -251,6 +261,33 @@ export const recipeApi = {
 
   shuffle: (count = 2) =>
     api.get<Recipe[]>('/api/recipes/shuffle', { params: { count } }),
+};
+
+// Referrals
+export interface ReferralSummary {
+  code: string;
+  shareUrl: string;
+  invitedCount: number;
+  convertedCount: number;
+  rewards: {
+    type: string;
+    perReferral: number;
+    maxRewardedReferrals: number;
+    earnedCount: number;
+    earnedPremiumDays: number;
+  };
+}
+
+export interface ReferralValidation {
+  valid: boolean;
+  referrerFirstName?: string;
+}
+
+export const referralApi = {
+  getMe: () => api.get<ReferralSummary>('/api/referrals/me'),
+
+  validate: (code: string) =>
+    api.get<ReferralValidation>(`/api/referrals/validate/${encodeURIComponent(code)}`),
 };
 
 export const analyticsApi = {

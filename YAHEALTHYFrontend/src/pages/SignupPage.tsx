@@ -1,8 +1,10 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Heart, Mail, Lock, AlertCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { Heart, Mail, Lock, AlertCircle, Gift } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/i18n/LanguageContext';
+import { referralApi, ReferralValidation } from '@/services/api';
+import { clearAttribution, getReferralCode, getSignupAttribution } from '@/utils/attribution';
 
 export const SignupPage = () => {
   const [email, setEmail] = useState('');
@@ -10,9 +12,31 @@ export const SignupPage = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [invite, setInvite] = useState<ReferralValidation | null>(null);
   const { signup } = useAuth();
   const { t, toggleLang } = useLanguage();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Stored first-touch code first; the URL is the fallback for browsers where
+  // storage is unavailable and capture could not persist it.
+  const referralCode = getReferralCode() || searchParams.get('ref')?.trim() || undefined;
+
+  useEffect(() => {
+    if (!referralCode) return;
+    let cancelled = false;
+    referralApi
+      .validate(referralCode)
+      .then((res) => {
+        if (!cancelled && res.data.valid) setInvite(res.data);
+      })
+      .catch(() => {
+        /* the banner is a nicety; signup works without it */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [referralCode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,7 +49,12 @@ export const SignupPage = () => {
 
     setLoading(true);
     try {
-      await signup(email, password);
+      const growth = getSignupAttribution();
+      await signup(email, password, {
+        ...growth,
+        referralCode: growth.referralCode || referralCode,
+      });
+      clearAttribution();
       navigate('/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.error || err.response?.data?.message || t('auth.signupFailed'));
@@ -62,6 +91,22 @@ export const SignupPage = () => {
             >
               {t('nav.dashboard') === 'Dashboard' ? 'עברית' : 'English'}
             </button>
+          </div>
+
+          <div role="status" aria-live="polite">
+            {invite?.valid && (
+              <div className="mb-5 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                <Gift size={18} className="mt-0.5 shrink-0 text-emerald-600" aria-hidden="true" />
+                <div>
+                  <p className="font-semibold">
+                    {invite.referrerFirstName
+                      ? t('referral.invitedBy', { name: invite.referrerFirstName })
+                      : t('referral.invitedByFriend')}
+                  </p>
+                  <p className="mt-0.5 text-emerald-700">{t('referral.invitedBonus')}</p>
+                </div>
+              </div>
+            )}
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">

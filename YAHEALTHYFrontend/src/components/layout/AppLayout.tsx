@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, UtensilsCrossed, Droplets, Moon, Scale,
-  MessageCircleHeart, LogOut, Languages, Heart, BarChart3,
+  MessageCircleHeart, LogOut, Languages, Heart, BarChart3, Gift,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/i18n/LanguageContext';
@@ -11,6 +11,8 @@ interface NavItem {
   to: string;
   key: string;
   icon: ReactNode;
+  /** false keeps it out of the crowded mobile bottom bar (it gets a header icon instead). */
+  mobile?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -21,6 +23,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/sleep', key: 'nav.sleep', icon: <Moon size={20} /> },
   { to: '/weight', key: 'nav.weight', icon: <Scale size={20} /> },
   { to: '/coaching', key: 'nav.coaching', icon: <MessageCircleHeart size={20} /> },
+  { to: '/invite', key: 'nav.invite', icon: <Gift size={20} />, mobile: false },
 ];
 
 const LangToggle = ({ className = '' }: { className?: string }) => {
@@ -110,6 +113,15 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
           <span className="font-bold text-slate-900">YAHealthy</span>
         </div>
         <div className="flex items-center gap-2">
+          <NavLink
+            to="/invite"
+            className={({ isActive }) =>
+              `rounded-full p-2 transition ${isActive ? 'bg-emerald-100 text-emerald-700' : 'text-emerald-600 hover:bg-emerald-50'}`
+            }
+            aria-label={t('nav.invite')}
+          >
+            <Gift size={18} aria-hidden="true" />
+          </NavLink>
           <LangToggle />
           <button
             onClick={handleLogout}
@@ -129,7 +141,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
         aria-label={t('a11y.mobileNav')}
         className="fixed inset-x-0 bottom-0 z-30 flex justify-around border-t border-slate-200 bg-white/95 py-1.5 backdrop-blur md:hidden"
       >
-        {NAV_ITEMS.map((item) => (
+        {NAV_ITEMS.filter((item) => item.mobile !== false).map((item) => (
           <NavLink
             key={item.to}
             to={item.to}

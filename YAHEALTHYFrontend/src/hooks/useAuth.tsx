@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { authApi } from '@/services/api';
+import { authApi, SignupExtras } from '@/services/api';
 
 interface User {
   id: string;
@@ -11,7 +11,7 @@ interface AuthContextType {
   loading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string) => Promise<void>;
+  signup: (email: string, password: string, extras?: SignupExtras) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -48,8 +48,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(userResponse.data);
   };
 
-  const signup = async (email: string, password: string) => {
-    const response = await authApi.signup(email, password);
+  const signup = async (email: string, password: string, extras?: SignupExtras) => {
+    const response = await authApi.signup(email, password, extras);
     const token = response.data.access_token || response.data.token || '';
     if (token) localStorage.setItem('token', token);
     else localStorage.removeItem('token');
