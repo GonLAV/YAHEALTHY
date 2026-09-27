@@ -46,6 +46,7 @@ const auth = require('./utils/auth');
 const db = require('./utils/database');
 const coach = require('./utils/coach');
 const referrals = require('./utils/referrals');
+const { resolveRequestDate } = require('./utils/log-date');
 const cron = require('node-cron');
 const { sendWeeklySummaryEmail, runWeeklySummaryJob } = require('./utils/weekly-summary');
 
@@ -889,15 +890,19 @@ app.get('/api/weight-logs', auth.authMiddleware, async (req, res) => {
  */
 app.post('/api/hydration-logs', auth.authMiddleware, async (req, res) => {
   try {
-    const { date, litersConsumed, timeOfDay, source } = req.body;
+    const { date, tz, litersConsumed, timeOfDay, source } = req.body;
     const userId = req.user.userId;
 
     if (!litersConsumed || litersConsumed < 0 || litersConsumed > 10) {
       return res.status(400).json({ error: 'Hydration must be between 0 and 10 liters' });
     }
 
+    // Omitted date → today in the client's time zone (tz), not server UTC.
+    const day = resolveRequestDate({ date, tz });
+    if (day.error) return res.status(400).json({ error: day.error });
+
     const log = await db.createHydrationLog(userId, {
-      date: date || new Date().toISOString().split('T')[0],
+      date: day.date,
       liters_consumed: litersConsumed,
       time_of_day: timeOfDay,
       source
@@ -930,15 +935,19 @@ app.get('/api/hydration-logs', auth.authMiddleware, async (req, res) => {
  */
 app.post('/api/sleep-logs', auth.authMiddleware, async (req, res) => {
   try {
-    const { date, sleepHours, sleepQuality, notes } = req.body;
+    const { date, tz, sleepHours, sleepQuality, notes } = req.body;
     const userId = req.user.userId;
 
     if (!sleepHours || sleepHours < 0 || sleepHours > 16) {
       return res.status(400).json({ error: 'Sleep hours must be between 0 and 16' });
     }
 
+    // Omitted date → today in the client's time zone (tz), not server UTC.
+    const day = resolveRequestDate({ date, tz });
+    if (day.error) return res.status(400).json({ error: day.error });
+
     const log = await db.createSleepLog(userId, {
-      date: date || new Date().toISOString().split('T')[0],
+      date: day.date,
       sleep_hours: sleepHours,
       sleep_quality: sleepQuality,
       notes
@@ -3643,7 +3652,9 @@ app.get('/api/food-logs/macros-distribution', auth.authMiddleware, async (req, r
  */
 app.get('/api/insights/daily', auth.authMiddleware, async (req, res) => {
   try {
-    const { date = new Date().toISOString().split('T')[0] } = req.query;
+    const day = resolveRequestDate({ date: req.query.date, tz: req.query.tz });
+    if (day.error) return res.status(400).json({ error: day.error });
+    const { date } = day;
     const userId = req.user.userId;
 
     const foodLogs = await db.getFoodLogs(userId) || [];
@@ -3831,7 +3842,10 @@ app.get('/api/progress/overview', auth.authMiddleware, async (req, res) => {
     const foodLogs = await db.getFoodLogs(userId) || [];
     const weightLogs = db.getWeightLogs(userId) || [];
 
-    const today = new Date().toISOString().split('T')[0];
+    // ?date= or ?tz= pick the user's "today"; server UTC is only the fallback.
+    const day = resolveRequestDate({ date: req.query.date, tz: req.query.tz });
+    if (day.error) return res.status(400).json({ error: day.error });
+    const today = day.date;
     const todayLogs = foodLogs.filter(log => log.date === today);
     const totalDaysLogged = new Set(foodLogs.map(log => log.date)).size;
 
@@ -3872,7 +3886,9 @@ app.get('/api/crm/users/:userId/insights', auth.authMiddleware, async (req, res)
       return res.status(403).json({ error: 'You can only access your own insights' });
     }
     const { lang = 'en' } = req.query;
-    const insights = await coach.generateInsights(req.user.userId, lang === 'he' ? 'he' : 'en');
+    const day = resolveRequestDate({ date: req.query.date, tz: req.query.tz });
+    if (day.error) return res.status(400).json({ error: day.error });
+    const insights = await coach.generateInsights(req.user.userId, lang === 'he' ? 'he' : 'en', { today: day.date });
     res.json(insights);
   } catch (error) {
     res.status(500).json({ error: 'Failed to get insights', details: safeErrorDetails(error) });
@@ -3889,7 +3905,9 @@ app.post('/api/crm/users/:userId/ask', auth.authMiddleware, async (req, res) => 
       return res.status(400).json({ error: 'Message required' });
     }
     const { lang = 'en' } = req.query;
-    const response = await coach.answer(req.user.userId, message.trim(), lang === 'he' ? 'he' : 'en');
+    const day = resolveRequestDate({ date: req.query.date, tz: req.query.tz });
+    if (day.error) return res.status(400).json({ error: day.error });
+    const response = await coach.answer(req.user.userId, message.trim(), lang === 'he' ? 'he' : 'en', { today: day.date });
     res.json({ response });
   } catch (error) {
     res.status(500).json({ error: 'Coach request failed', details: safeErrorDetails(error) });

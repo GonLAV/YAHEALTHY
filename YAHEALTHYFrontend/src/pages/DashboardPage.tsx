@@ -13,6 +13,7 @@ import { useLanguage } from '@/i18n/LanguageContext';
 import ProgressRing from '@/components/ui/ProgressRing';
 import ProgressBar from '@/components/ui/ProgressBar';
 import { HealthScoreCard, StreaksStrip, NextMilestoneCard } from '@/components/engagement/EngagementWidgets';
+import { todayISO } from '@/utils/date';
 
 const BADGE_ICONS: Record<string, JSX.Element> = {
   'first-log': <Salad size={22} />,
@@ -70,7 +71,7 @@ export const DashboardPage = () => {
 
   useEffect(() => {
     const load = async () => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = todayISO();
       const results = await Promise.allSettled([
         foodLogApi.getStats({ startDate: today, endDate: today }),
         targetsApi.get(),

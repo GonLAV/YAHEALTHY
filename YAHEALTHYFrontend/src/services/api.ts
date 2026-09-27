@@ -1,5 +1,6 @@
 import axios from 'axios';
 import type { Attribution } from '@/utils/attribution';
+import { browserTimeZone, todayISO } from '@/utils/date';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? '';
 
@@ -123,7 +124,8 @@ export interface HydrationLog {
 
 export const hydrationApi = {
   add: (data: { date?: string; litersConsumed: number; timeOfDay?: string }) =>
-    api.post<HydrationLog>('/api/hydration-logs', data),
+    // tz lets the server pick the user's local "today" if date is omitted.
+    api.post<HydrationLog>('/api/hydration-logs', { tz: browserTimeZone(), ...data }),
 
   getAll: (params?: { date?: string }) =>
     api.get<HydrationLog[]>('/api/hydration-logs', { params }),
@@ -140,7 +142,7 @@ export interface SleepLog {
 
 export const sleepApi = {
   add: (data: { date?: string; sleepHours: number; sleepQuality?: string; notes?: string }) =>
-    api.post<SleepLog>('/api/sleep-logs', data),
+    api.post<SleepLog>('/api/sleep-logs', { tz: browserTimeZone(), ...data }),
 
   getAll: (params?: { date?: string }) =>
     api.get<SleepLog[]>('/api/sleep-logs', { params }),
@@ -276,14 +278,6 @@ export interface EngagementSummary {
   nextMilestone: NextMilestone;
 }
 
-const browserTimeZone = () => {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-  } catch {
-    return 'UTC';
-  }
-};
-
 export const engagementApi = {
   getSummary: (lang: string) =>
     api.get<EngagementSummary>('/api/engagement/summary', {
@@ -293,9 +287,9 @@ export const engagementApi = {
 
 export const crmApi = {
   getInsights: (userId: string, lang: string) =>
-    api.get(`/api/crm/users/${userId}/insights`, { params: { lang } }),
+    api.get(`/api/crm/users/${userId}/insights`, { params: { lang, date: todayISO(), tz: browserTimeZone() } }),
   askCoach: (userId: string, message: string, lang: string) =>
-    api.post(`/api/crm/users/${userId}/ask?lang=${lang}`, { message }),
+    api.post(`/api/crm/users/${userId}/ask`, { message }, { params: { lang, date: todayISO(), tz: browserTimeZone() } }),
 };
 
 export interface RecipeIngredient {

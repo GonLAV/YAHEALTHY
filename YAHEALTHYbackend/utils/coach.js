@@ -10,8 +10,9 @@ const { calculateStreak } = require('./health-calculations');
 
 const todayStr = () => new Date().toISOString().split('T')[0];
 
-async function collectUserData(userId) {
-  const today = todayStr();
+// `today` is the user's local calendar date (routes resolve it from ?date/?tz);
+// server UTC is only the fallback.
+async function collectUserData(userId, today = todayStr()) {
   const [foodLogs, hydrationLogs, sleepLogs] = await Promise.all([
     db.getFoodLogs(userId, { date: today }).catch(() => []),
     db.getHydrationLogs(userId, today).catch(() => []),
@@ -44,8 +45,8 @@ async function collectUserData(userId) {
  * GET /api/crm/users/:userId/insights
  * Generates up to 5 insight cards from today's data.
  */
-async function generateInsights(userId, lang = 'en') {
-  const data = await collectUserData(userId);
+async function generateInsights(userId, lang = 'en', { today } = {}) {
+  const data = await collectUserData(userId, today || todayStr());
   const L = lang === 'he';
   const insights = [];
   let i = 0;
@@ -150,8 +151,8 @@ async function generateInsights(userId, lang = 'en') {
  * POST /api/crm/users/:userId/ask
  * Rule-based coach answers grounded in the user's data.
  */
-async function answer(userId, message, lang = 'en') {
-  const data = await collectUserData(userId);
+async function answer(userId, message, lang = 'en', { today } = {}) {
+  const data = await collectUserData(userId, today || todayStr());
   const L = lang === 'he';
   const msg = (message || '').toLowerCase();
   const has = (...words) => words.some((w) => msg.includes(w));
