@@ -405,4 +405,79 @@ export const marketingApi = {
   submitLead: (lead: LeadInput) => api.post<{ ok: boolean }>('/api/marketing/leads', lead),
 };
 
+// Onboarding wizard. Status + completion + a targets preview computed by the
+// backend calculators; everything else the wizard saves goes through the
+// endpoints that already own that data (preferences, weight goals, hydration).
+export type OnboardingGoal =
+  | 'lose_weight'
+  | 'maintain_weight'
+  | 'gain_weight'
+  | 'eat_healthier'
+  | 'sleep_better'
+  | 'more_energy';
+
+export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
+
+export interface OnboardingStatus {
+  completed: boolean;
+  completedAt: string | null;
+  source: 'wizard' | 'existing' | null;
+}
+
+export interface TargetsPreviewInput {
+  goal: OnboardingGoal;
+  sex: 'male' | 'female';
+  age?: number;
+  birthYear?: number;
+  heightCm: number;
+  weightKg: number;
+  targetWeightKg?: number | null;
+  activityLevel: ActivityLevel;
+}
+
+export interface TargetRange {
+  low: number;
+  high: number;
+  center: number;
+}
+
+export type SafetyFlag =
+  | 'minor'
+  | 'below-safe-floor'
+  | 'bmi-low'
+  | 'bmi-high'
+  | 'target-bmi-low'
+  | 'lose-while-underweight';
+
+export interface TargetsPreview {
+  inputs: TargetsPreviewInput & { age: number; calcGoal: 'lose' | 'maintain' | 'gain' };
+  bmi: number;
+  targetBmi: number | null;
+  tdee: number | null;
+  calories: TargetRange | null;
+  macros: { proteinG: TargetRange; fatG: TargetRange; carbsG: TargetRange } | null;
+  waterLiters: number;
+  sleepHours: number;
+  safety: { safeCalorieFloor: number; needsProfessional: boolean; flags: SafetyFlag[] };
+}
+
+export const onboardingApi = {
+  getStatus: () => api.get<OnboardingStatus>('/api/onboarding'),
+
+  complete: (skipped = false) =>
+    api.post<OnboardingStatus & { skipped: boolean }>('/api/onboarding', skipped ? { skipped: true } : {}),
+
+  previewTargets: (input: TargetsPreviewInput) =>
+    api.post<TargetsPreview>('/api/onboarding/targets-preview', input),
+};
+
+export const preferencesApi = {
+  get: () => api.get<{ preferences: Record<string, unknown> }>('/api/users/me/preferences'),
+
+  // The server stores the object as given (it replaces, not merges), so
+  // callers pass the full, merged preferences.
+  put: (preferences: Record<string, unknown>) =>
+    api.put<{ preferences: Record<string, unknown> }>('/api/users/me/preferences', { preferences }),
+};
+
 export default api;
