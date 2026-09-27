@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
 import { LanguageProvider } from '@/i18n/LanguageContext';
 import { PrivateRoute } from '@/components/PrivateRoute';
+import { StaffRoute } from '@/components/StaffRoute';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { WhatsAppWidget } from '@/components/WhatsAppWidget';
 
@@ -18,6 +19,9 @@ const CoachingPage = lazy(() => import('@/pages/CoachingPage').then((m) => ({ de
 const ProgressPage = lazy(() => import('@/pages/ProgressPage').then((m) => ({ default: m.ProgressPage })));
 const InvitePage = lazy(() => import('@/pages/InvitePage').then((m) => ({ default: m.InvitePage })));
 const AchievementsPage = lazy(() => import('@/pages/AchievementsPage').then((m) => ({ default: m.AchievementsPage })));
+const MarketingDashboardPage = lazy(() =>
+  import('@/pages/MarketingDashboardPage').then((m) => ({ default: m.MarketingDashboardPage })),
+);
 
 const PageLoader = () => (
   <div role="status" aria-live="polite" className="flex min-h-screen items-center justify-center">
@@ -126,6 +130,16 @@ const AppRoutes = () => (
               <InvitePage />
             </AppLayout>
           </PrivateRoute>
+        }
+      />
+      <Route
+        path="/admin/marketing"
+        element={
+          <StaffRoute>
+            <AppLayout>
+              <MarketingDashboardPage />
+            </AppLayout>
+          </StaffRoute>
         }
       />
       <Route path="/" element={<HomeRoute />} />

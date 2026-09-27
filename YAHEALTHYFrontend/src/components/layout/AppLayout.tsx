@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, UtensilsCrossed, Droplets, Moon, Scale,
-  MessageCircleHeart, LogOut, Languages, Heart, BarChart3, Gift, Trophy,
+  MessageCircleHeart, LogOut, Languages, Heart, BarChart3, Gift, Trophy, Megaphone,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/i18n/LanguageContext';
@@ -13,6 +13,8 @@ interface NavItem {
   icon: ReactNode;
   /** false keeps it out of the crowded mobile bottom bar (it gets a header icon instead). */
   mobile?: boolean;
+  /** Shown only when /api/auth/me says isStaff (the server enforces it regardless). */
+  staffOnly?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -25,6 +27,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/weight', key: 'nav.weight', icon: <Scale size={20} /> },
   { to: '/coaching', key: 'nav.coaching', icon: <MessageCircleHeart size={20} /> },
   { to: '/invite', key: 'nav.invite', icon: <Gift size={20} />, mobile: false },
+  { to: '/admin/marketing', key: 'nav.marketing', icon: <Megaphone size={20} />, mobile: false, staffOnly: true },
 ];
 
 const LangToggle = ({ className = '' }: { className?: string }) => {
@@ -80,7 +83,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
         </div>
 
         <nav aria-label={t('a11y.mainNav')} className="flex-1 space-y-1 px-4">
-          {NAV_ITEMS.map((item) => (
+          {NAV_ITEMS.filter((item) => !item.staffOnly || user?.isStaff).map((item) => (
             <NavLink key={item.to} to={item.to} className={navLinkClass}>
               {item.icon}
               {t(item.key)}

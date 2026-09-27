@@ -2273,6 +2273,210 @@ async function getRecentWhapiMessages(phone, limit = 20) {
   return (data || []).reverse().map(({ role, content }) => ({ role, content }));
 }
 
+/**
+ * Marketing analytics — bulk reads for the staff dashboard (routes/analytics.js).
+ *
+ * Every function here takes a whole set (a date range, or a list of ids) and
+ * answers it in a bounded number of queries: ids go to Postgres in chunks of
+ * ANALYTICS_ID_CHUNK through `.in()`, and results are paged ANALYTICS_PAGE
+ * rows at a time. Nothing loops per user, so a 90-day range costs the same
+ * handful of round trips whether it holds ten signups or ten thousand.
+ *
+ * The aggregation itself lives in utils/analytics.js and never sees the
+ * database. These functions return raw rows; masking happens there.
+ */
+const ANALYTICS_ID_CHUNK = 200;
+const ANALYTICS_PAGE = 1000;
+const ANALYTICS_MAX_ROWS = 100000;
+
+function chunkList(list, size) {
+  const out = [];
+  for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size));
+  return out;
+}
+
+/** Pages through a query built fresh by `build()` until a short page. */
+async function selectAllPages(build) {
+  const rows = [];
+  for (let offset = 0; offset < ANALYTICS_MAX_ROWS; offset += ANALYTICS_PAGE) {
+    const { data, error } = await build().range(offset, offset + ANALYTICS_PAGE - 1);
+    if (error) throw error;
+    rows.push(...(data || []));
+    if (!data || data.length < ANALYTICS_PAGE) break;
+  }
+  return rows;
+}
+
+async function selectByIds(client, table, columns, idColumn, ids, refine = (q) => q) {
+  const unique = Array.from(new Set(ids.filter(Boolean)));
+  const rows = [];
+  for (const part of chunkList(unique, ANALYTICS_ID_CHUNK)) {
+    rows.push(
+      ...(await selectAllPages(() => refine(client.from(table).select(columns).in(idColumn, part))))
+    );
+  }
+  return rows;
+}
+
+const isInRange = (value, fromIso, toIso) => {
+  if (!value) return false;
+  const t = new Date(value).toISOString();
+  return (!fromIso || t >= fromIso) && (!toIso || t < toIso);
+};
+
+const ANALYTICS_USER_COLUMNS = 'id, email, name, created_at, attribution, referred_by, is_staff';
+
+/** Users who signed up in [fromIso, toIso). Staff accounts are left out. */
+async function listSignupsBetween(fromIso, toIso) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return Array.from(memoryDb.usersById.values()).filter(
+      (u) => u.is_staff !== true && isInRange(u.created_at, fromIso, toIso)
+    );
+  }
+  const rows = await selectAllPages(() =>
+    supabase
+      .from('users')
+      .select(ANALYTICS_USER_COLUMNS)
+      .gte('created_at', fromIso)
+      .lt('created_at', toIso)
+      .order('created_at', { ascending: true })
+  );
+  return rows.filter((u) => u.is_staff !== true);
+}
+
+/** Name/email/created_at for a set of user ids (referrers on the leaderboard). */
+async function getUsersByIds(userIds) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return Array.from(new Set(userIds)).map((id) => memoryDb.usersById.get(id)).filter(Boolean);
+  }
+  return selectByIds(supabase, 'users', ANALYTICS_USER_COLUMNS, 'id', userIds);
+}
+
+/** Which of these (normalised) emails belong to an account, and since when. */
+async function findUsersByEmails(emails) {
+  const wanted = Array.from(new Set(emails.map((e) => String(e || '').trim().toLowerCase()).filter(Boolean)));
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return wanted
+      .map((email) => memoryDb.usersByEmail.get(email))
+      .filter(Boolean)
+      .map((u) => ({ id: u.id, email: u.email, created_at: u.created_at }));
+  }
+  return selectByIds(supabase, 'users', 'id, email, created_at', 'email', wanted);
+}
+
+/**
+ * One row per log on or after `fromDay` (YYYY-MM-DD) for these users — food,
+ * water, sleep or a weigh-in — as { user_id, day }. Rows that carry a `date`
+ * use it (the day the user logged it for); weigh-ins only have a timestamp,
+ * so its UTC date is used.
+ */
+async function listActivityDays(userIds, fromDay) {
+  const wanted = new Set(userIds);
+  const out = [];
+  const dayOf = (row) =>
+    (typeof row.date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(row.date)
+      ? row.date
+      : row.created_at
+        ? new Date(row.created_at).toISOString()
+        : ''
+    ).slice(0, 10);
+  const push = (row) => {
+    const day = dayOf(row);
+    if (day && day >= fromDay) out.push({ user_id: row.user_id, day });
+  };
+
+  if (!wanted.size) return out;
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    for (const table of ['foodLogs', 'hydrationLogs', 'sleepLogs']) {
+      for (const row of memoryDb[table]) if (wanted.has(row.user_id)) push(row);
+    }
+    for (const row of memoryDb.weightLogs) {
+      if (wanted.has(row.user_id)) push({ user_id: row.user_id, created_at: row.created_at });
+    }
+    return out;
+  }
+
+  const ids = Array.from(wanted);
+  const [food, hydration, sleep, weight] = await Promise.all([
+    selectByIds(supabase, 'food_logs', 'user_id, date', 'user_id', ids, (q) => q.gte('date', fromDay)),
+    selectByIds(supabase, 'hydration_logs', 'user_id, date, created_at', 'user_id', ids, (q) => q.gte('created_at', fromDay)),
+    selectByIds(supabase, 'sleep_logs', 'user_id, date, created_at', 'user_id', ids, (q) => q.gte('created_at', fromDay)),
+    selectByIds(supabase, 'weight_logs', 'user_id, created_at', 'user_id', ids, (q) => q.gte('created_at', fromDay))
+  ]);
+  for (const row of [...food, ...hydration, ...sleep]) push(row);
+  for (const row of weight) push({ user_id: row.user_id, created_at: row.created_at });
+  return out;
+}
+
+/** Every subscription row (any status) held by these users. */
+async function listSubscriptionsForUsers(userIds) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const wanted = new Set(userIds);
+    return memoryDb.subscriptions.filter((s) => wanted.has(s.user_id));
+  }
+  return selectByIds(
+    supabase,
+    'subscriptions',
+    'user_id, plan, status, started_at, ends_at, created_at',
+    'user_id',
+    userIds
+  );
+}
+
+/** Leads first captured in [fromIso, toIso). */
+async function listLeadsBetween(fromIso, toIso) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.leads.filter((l) => isInRange(l.created_at, fromIso, toIso));
+  }
+  return selectAllPages(() =>
+    supabaseServiceRole
+      .from('marketing_leads')
+      .select('id, email, source, utm_source, utm_medium, utm_campaign, created_at')
+      .gte('created_at', fromIso)
+      .lt('created_at', toIso)
+      .order('created_at', { ascending: true })
+  );
+}
+
+/** Referrals recorded in [fromIso, toIso). */
+async function listReferralsBetween(fromIso, toIso) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.referrals.filter((r) => isInRange(r.created_at, fromIso, toIso));
+  }
+  return selectAllPages(() =>
+    supabase
+      .from('referrals')
+      .select('id, referrer_id, referee_id, status, created_at')
+      .gte('created_at', fromIso)
+      .lt('created_at', toIso)
+      .order('created_at', { ascending: true })
+  );
+}
+
+/** Rewards recorded for these referrals. */
+async function listRewardsForReferrals(referralIds) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const wanted = new Set(referralIds);
+    return memoryDb.referralRewards.filter((r) => wanted.has(r.referral_id));
+  }
+  return selectByIds(
+    supabase,
+    'referral_rewards',
+    'user_id, referral_id, type, amount, status, created_at',
+    'referral_id',
+    referralIds
+  );
+}
+
 module.exports = {
   saveWhatsappMessage,
   getWhatsappMessages,
@@ -2365,5 +2569,14 @@ module.exports = {
   getReferralsByReferrer,
   countSubscribedUsers,
   createReferralReward,
-  getReferralRewards
+  getReferralRewards,
+  // Marketing analytics (bulk reads)
+  listSignupsBetween,
+  getUsersByIds,
+  findUsersByEmails,
+  listActivityDays,
+  listSubscriptionsForUsers,
+  listLeadsBetween,
+  listReferralsBetween,
+  listRewardsForReferrals
 };
