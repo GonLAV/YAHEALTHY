@@ -37,6 +37,12 @@ export const translations: Record<Lang, Record<string, string>> = {
     'a11y.toggleLang': 'Switch language',
     'a11y.mainNav': 'Main navigation',
     'a11y.mobileNav': 'Mobile navigation',
+    'nav.more': 'More',
+    'nav.moreTitle': 'More',
+    'nav.moreHint': 'Hydration, sleep, weight and more',
+    'nav.closeMore': 'Close menu',
+    'nav.language': 'Language',
+    'nav.coachingShort': 'Coach',
 
     // WhatsApp
     'whatsapp.chat': 'WhatsApp us',
@@ -469,6 +475,12 @@ export const translations: Record<Lang, Record<string, string>> = {
     'a11y.toggleLang': 'החלף שפה',
     'a11y.mainNav': 'ניווט ראשי',
     'a11y.mobileNav': 'ניווט נייד',
+    'nav.more': 'עוד',
+    'nav.moreTitle': 'עוד',
+    'nav.moreHint': 'שתייה, שינה, משקל ועוד',
+    'nav.closeMore': 'סגירת התפריט',
+    'nav.language': 'שפה',
+    'nav.coachingShort': 'מאמן',
 
     // וואטסאפ
     'whatsapp.chat': 'כתבו לנו בוואטסאפ',
