@@ -45,6 +45,7 @@ const {
 const auth = require('./utils/auth');
 const db = require('./utils/database');
 const coach = require('./utils/coach');
+const referrals = require('./utils/referrals');
 const cron = require('node-cron');
 const { sendWeeklySummaryEmail, runWeeklySummaryJob } = require('./utils/weekly-summary');
 
@@ -152,6 +153,7 @@ app.use('/api/payments', checkoutRouter);
 // Food values. Lookup and arithmetic over sourced numbers — never a guess,
 // and never advice about what anyone should eat.
 app.use('/api/foods', require('./routes/foods'));
+app.use('/api/referrals', require('./routes/referrals'));
 
 // WhatsApp inbound. The webhook is public (guarded by a path secret); the
 // listing endpoint underneath it requires auth because it returns message text.
@@ -234,12 +236,28 @@ app.get('/api/ready', async (req, res) => {
  */
 app.post('/api/auth/signup', async (req, res) => {
   try {
+    // Growth fields ride along with signup but can never fail it: a malformed
+    // referral code or attribution blob is dropped (`.catch`), not rejected.
+    const attributionField = z.string().trim().max(500).optional();
     const signupSchema = z.object({
       email: z.string().email(),
       password: z.string().min(MIN_PASSWORD_LENGTH),
-      name: z.string().min(1).optional()
+      name: z.string().min(1).optional(),
+      referralCode: z.string().trim().max(32).optional().catch(undefined),
+      attribution: z
+        .object({
+          utm_source: attributionField,
+          utm_medium: attributionField,
+          utm_campaign: attributionField,
+          utm_content: attributionField,
+          utm_term: attributionField,
+          landing_path: attributionField,
+          referrer: attributionField
+        })
+        .optional()
+        .catch(undefined)
     });
-    const { email, password, name } = signupSchema.parse(req.body);
+    const { email, password, name, referralCode, attribution } = signupSchema.parse(req.body);
 
     // Validate input
     if (!email || !password) {
@@ -262,6 +280,32 @@ app.post('/api/auth/signup', async (req, res) => {
     const passwordHash = await auth.hashPassword(password);
     const user = await db.createUser(email, passwordHash, name);
 
+    // Attribution and referral are recorded after the account exists, each in
+    // its own try: the person asked for an account, and a hiccup in growth
+    // bookkeeping is not a reason to tell them it failed.
+    const cleanAttribution = attribution
+      ? Object.fromEntries(Object.entries(attribution).filter(([, v]) => v))
+      : null;
+    if (cleanAttribution && Object.keys(cleanAttribution).length) {
+      try {
+        await db.setUserAttribution(user.id, {
+          ...cleanAttribution,
+          captured_at: new Date().toISOString()
+        });
+      } catch (error) {
+        console.warn(`[signup] attribution not stored for ${user.id}: ${error.message}`);
+      }
+    }
+
+    let referral = { applied: false };
+    if (referralCode) {
+      try {
+        referral = await referrals.applyReferral({ rawCode: referralCode, refereeId: user.id });
+      } catch (error) {
+        console.warn(`[signup] referral not recorded for ${user.id}: ${error.message}`);
+      }
+    }
+
     // Generate token
     const token = auth.generateToken(user.id, user.email, user.token_version || 0);
 
@@ -269,7 +313,8 @@ app.post('/api/auth/signup', async (req, res) => {
       id: user.id,
       email: user.email,
       name: user.name,
-      token
+      token,
+      referralApplied: Boolean(referral.applied)
     });
   } catch (error) {
     console.error('Signup error:', error);

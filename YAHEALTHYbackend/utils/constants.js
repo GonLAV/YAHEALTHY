@@ -94,6 +94,27 @@ const HEALTH_CONSTANTS = {
 };
 
 /**
+ * Referral program rewards — config, not code.
+ *
+ * What is recorded here is an entitlement *earned*; nothing in the referral
+ * flow applies it to billing. Whoever wires rewards into subscriptions reads
+ * the referral_rewards rows, so changing these numbers only affects rewards
+ * recorded after the change.
+ */
+const REFERRAL_REWARDS = {
+  // Granted to the referrer when someone signs up with their code.
+  referrer: {
+    trigger: 'referee_signup',
+    type: 'premium_days',
+    amount: Number(process.env.REFERRAL_REWARD_DAYS) || 14
+  },
+  // Rewarded referrals per referrer. Past this, referrals are still counted
+  // but earn nothing — the cap is what keeps a scripted signup farm from
+  // minting unlimited premium time.
+  maxRewardedReferrals: Number(process.env.REFERRAL_MAX_REWARDED) || 10
+};
+
+/**
  * Normalize lifestyle string
  */
 function normalizeLifestyle(lifestyle) {
@@ -148,6 +169,7 @@ function validateGender(gender) {
 
 module.exports = {
   HEALTH_CONSTANTS,
+  REFERRAL_REWARDS,
   normalizeLifestyle,
   validateWeight,
   validateHeight,
