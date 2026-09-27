@@ -19,7 +19,8 @@
     "test:staff": "node tests/staff-access.test.js",
     "test:referrals": "node tests/referrals.test.js",
     "test:engagement": "node tests/engagement.test.js",
-    "test:marketing": "node tests/marketing.test.js"
+    "test:marketing": "node tests/marketing.test.js",
+    "test:onboarding": "node tests/onboarding.test.js"
   },
   "keywords": [],
   "author": "",
