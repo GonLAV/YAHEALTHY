@@ -367,6 +367,66 @@ export const referralApi = {
     api.get<ReferralValidation>(`/api/referrals/validate/${encodeURIComponent(code)}`),
 };
 
+// "Share my week" — weekly card + public share links (routes/share.js)
+export interface ShareSnapshot {
+  v: number;
+  lang: 'he' | 'en';
+  week: { start: string; end: string };
+  firstName: string | null;
+  avgScore: number;
+  trend: { date: string; score: number }[];
+  daysLogged: number;
+  waterHits: number;
+  sleepHits: number;
+  streak: number;
+  bestStreak: number;
+  badges: { id: string; icon?: string; title: string }[];
+  weightChangeKg?: number;
+}
+
+export interface ShareOptions {
+  showName: boolean;
+  includeWeight: boolean;
+}
+
+export interface WeeklyCardPreview {
+  card: ShareSnapshot & { weightChangeKg: number | null; unlockedCount: number };
+  snapshot: ShareSnapshot;
+  svg: string;
+  width: number;
+  height: number;
+}
+
+export interface ShareLink {
+  token: string;
+  url: string;
+  imageUrl: string;
+  expiresAt: string;
+  snapshot: ShareSnapshot;
+}
+
+export const shareApi = {
+  getWeeklyCard: (lang: string, opts: ShareOptions) =>
+    api.get<WeeklyCardPreview>('/api/share/weekly-card', {
+      params: {
+        lang,
+        tz: browserTimeZone(),
+        showName: opts.showName ? 1 : 0,
+        includeWeight: opts.includeWeight ? 1 : 0,
+      },
+    }),
+
+  createLink: (lang: string, opts: ShareOptions) =>
+    api.post<ShareLink>('/api/share/weekly-card/link', { lang, tz: browserTimeZone(), ...opts }),
+
+  uploadImage: (token: string, png: Blob) =>
+    api.put(`/api/share/c/${encodeURIComponent(token)}/image`, png, {
+      headers: { 'Content-Type': 'image/png' },
+    }),
+
+  revoke: (token: string) => api.delete(`/api/share/c/${encodeURIComponent(token)}`),
+};
+
 export const analyticsApi = {
   getInsights: () =>
     api.get('/api/insights/daily'),

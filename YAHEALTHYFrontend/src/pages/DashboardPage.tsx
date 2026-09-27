@@ -13,6 +13,7 @@ import { useLanguage } from '@/i18n/LanguageContext';
 import ProgressRing from '@/components/ui/ProgressRing';
 import ProgressBar from '@/components/ui/ProgressBar';
 import { HealthScoreCard, StreaksStrip, NextMilestoneCard } from '@/components/engagement/EngagementWidgets';
+import { ShareWeekCard } from '@/components/share/ShareWeek';
 
 const BADGE_ICONS: Record<string, JSX.Element> = {
   'first-log': <Salad size={22} />,
@@ -149,6 +150,7 @@ export const DashboardPage = () => {
 
       {/* Engagement: Health Score + streaks + next milestone */}
       {engagement ? (
+        <>
         <div className="mb-6 grid gap-6 lg:grid-cols-5">
           <div className="lg:col-span-3">
             <HealthScoreCard summary={engagement} />
@@ -158,6 +160,10 @@ export const DashboardPage = () => {
             <NextMilestoneCard milestone={engagement.nextMilestone} />
           </div>
         </div>
+        <div className="mb-6">
+          <ShareWeekCard />
+        </div>
+        </>
       ) : engagementError ? (
         <p role="alert" className="mb-6 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-rose-100">
           {t('eng.loadError')}
