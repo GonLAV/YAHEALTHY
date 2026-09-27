@@ -19,24 +19,21 @@
  *   node evals/generate-cases.mjs --category safety --count 160
  *   node evals/generate-cases.mjs --all                       # every category, default split
  *   node evals/generate-cases.mjs --all --out evals/results/stress-1000-cases.json
+ *   node evals/generate-cases.mjs --all --dry-run             # batch/call count only, no API calls
+ *
+ * Output uses the single-message schema; multi-turn cases (turns/history) and
+ * variant families are hand-written in cases.json -- see validate-cases.mjs.
  */
 
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import Anthropic from '@anthropic-ai/sdk';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '..');
 
 const GEN_MODEL = process.env.GEN_MODEL ?? 'claude-sonnet-5';
 const BATCH_SIZE = 25;
-
-const client = new Anthropic(
-  process.env.ANTHROPIC_WORKSPACE_ID
-    ? { defaultHeaders: { 'anthropic-workspace-id': process.env.ANTHROPIC_WORKSPACE_ID } }
-    : undefined
-);
 
 // ---------------------------------------------------------------- categories
 
@@ -137,10 +134,17 @@ function existingInCategory(cat) {
   return existingCases.filter((c) => c.category === cat);
 }
 
+// Multi-turn cases (2026-09-27) have `turns` instead of `message`; show them
+// as a short transcript rather than "message: undefined".
+function customerText(c) {
+  if (!Array.isArray(c.turns)) return c.message;
+  return c.turns.map((t) => `${t.role === 'user' ? 'customer' : 'bot'}: ${t.content}`).join(' / ');
+}
+
 function fewShot(cat) {
   return existingInCategory(cat)
     .slice(0, 4)
-    .map((c) => `- [${c.severity}/${c.bot}] "${c.title}"\n  message: ${c.message}\n  pass: ${c.pass}\n  fail: ${c.fail}`)
+    .map((c) => `- [${c.severity}/${c.bot}] "${c.title}"\n  message: ${customerText(c)}\n  pass: ${c.pass}\n  fail: ${c.fail}`)
     .join('\n');
 }
 
@@ -308,7 +312,27 @@ async function pool(items, limit, worker) {
   return results;
 }
 
-console.log(`generating ${jobs.reduce((a, j) => a + j.count, 0)} cases across ${jobs.length} categories, model ${GEN_MODEL}\n`);
+const totalCount = jobs.reduce((a, j) => a + j.count, 0);
+
+if (has('dry-run')) {
+  const calls = jobs.reduce((a, j) => a + Math.ceil(j.count / BATCH_SIZE), 0);
+  for (const j of jobs) console.log(`  ${j.name.padEnd(12)} ${String(j.count).padStart(4)} cases · ${Math.ceil(j.count / BATCH_SIZE)} generator calls`);
+  console.log(`\n${totalCount} cases · ${calls} generator calls (batch ${BATCH_SIZE}) · model ${GEN_MODEL} · concurrency ${concurrency}`);
+  console.log(`would write: ${path.relative(repo, outFile)}`);
+  console.log('Each call sends one or both full bot prompts plus a few-shot sample and asks for up to 16K output tokens.');
+  console.log('\nNo API calls made. Drop --dry-run to execute.');
+  process.exit(0);
+}
+
+// Loaded only for a real run, so --dry-run works without `npm install`.
+const { default: Anthropic } = await import('@anthropic-ai/sdk');
+const client = new Anthropic(
+  process.env.ANTHROPIC_WORKSPACE_ID
+    ? { defaultHeaders: { 'anthropic-workspace-id': process.env.ANTHROPIC_WORKSPACE_ID } }
+    : undefined
+);
+
+console.log(`generating ${totalCount} cases across ${jobs.length} categories, model ${GEN_MODEL}\n`);
 
 fs.mkdirSync(path.dirname(outFile), { recursive: true });
 const byCategory = {};
