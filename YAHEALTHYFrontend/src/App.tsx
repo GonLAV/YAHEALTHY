@@ -16,6 +16,7 @@ const WeightPage = lazy(() => import('@/pages/WeightPage').then((m) => ({ defaul
 const CoachingPage = lazy(() => import('@/pages/CoachingPage').then((m) => ({ default: m.CoachingPage })));
 const ProgressPage = lazy(() => import('@/pages/ProgressPage').then((m) => ({ default: m.ProgressPage })));
 const InvitePage = lazy(() => import('@/pages/InvitePage').then((m) => ({ default: m.InvitePage })));
+const AchievementsPage = lazy(() => import('@/pages/AchievementsPage').then((m) => ({ default: m.AchievementsPage })));
 
 const PageLoader = () => (
   <div role="status" aria-live="polite" className="flex min-h-screen items-center justify-center">
@@ -94,6 +95,16 @@ const AppRoutes = () => (
           <PrivateRoute>
             <AppLayout>
               <ProgressPage />
+            </AppLayout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/achievements"
+        element={
+          <PrivateRoute>
+            <AppLayout>
+              <AchievementsPage />
             </AppLayout>
           </PrivateRoute>
         }

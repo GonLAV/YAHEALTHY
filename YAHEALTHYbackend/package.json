@@ -17,7 +17,8 @@
     "approvals:hash": "node scripts/approvals-hash.js",
     "test:clinical": "node tests/clinical-approval.test.js",
     "test:staff": "node tests/staff-access.test.js",
-    "test:referrals": "node tests/referrals.test.js"
+    "test:referrals": "node tests/referrals.test.js",
+    "test:engagement": "node tests/engagement.test.js"
   },
   "keywords": [],
   "author": "",
