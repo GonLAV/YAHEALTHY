@@ -244,7 +244,6 @@ export const BookingConfirmedPage = () => {
           </a>
         )}
         <p className="text-sm">{t('confirm.inviteSent')}</p>
-        <Link to="/book" className="text-sm font-semibold text-emerald-700 hover:text-emerald-800">{t('confirm.another')}</Link>
         {token && (
           <RescheduleBox
             appointment={appointment}
@@ -255,6 +254,9 @@ export const BookingConfirmedPage = () => {
             }}
           />
         )}
+        {/* Its own line: sharing one with the "change time" button ran the
+            two together into something that read as a single control. */}
+        <Link to="/book" className="block text-sm font-semibold text-emerald-700 hover:text-emerald-800">{t('confirm.another')}</Link>
         {token && (
           <CancelBox
             appointment={appointment}
