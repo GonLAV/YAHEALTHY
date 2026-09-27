@@ -9,6 +9,7 @@ import {
 } from '@/services/api';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { useOnboarding } from '@/hooks/useOnboarding';
+import { todayISO } from '@/utils/date';
 
 /*
  * Onboarding wizard. Six steps, each a <form> wrapping a <fieldset>/<legend>,
@@ -112,8 +113,6 @@ const inRange = (s: string, min: number, max: number) => {
 };
 
 type BodyErrors = Partial<Record<'sex' | 'age' | 'height' | 'weight' | 'target' | 'activity', string>>;
-
-const today = () => new Date().toISOString().split('T')[0];
 
 export const OnboardingPage = () => {
   const { t, lang, toggleLang } = useLanguage();
@@ -382,7 +381,7 @@ export const OnboardingPage = () => {
   const logFirstWater = async () => {
     setWinState('logging');
     try {
-      await hydrationApi.add({ date: today(), litersConsumed: FIRST_WIN_LITERS });
+      await hydrationApi.add({ date: todayISO(), litersConsumed: FIRST_WIN_LITERS });
       setWinState('done');
     } catch {
       setWinState('failed');
