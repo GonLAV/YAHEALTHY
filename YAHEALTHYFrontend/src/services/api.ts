@@ -258,4 +258,37 @@ export const analyticsApi = {
     api.get('/api/insights/daily'),
 };
 
+// ── Marketing (public, no login) ─────────────────────────────────────────────
+
+/** A plan checkout actually sells. `amount` is null when no price is configured. */
+export interface MarketingPlan {
+  id: string;
+  label: string;
+  amount: number | null;
+  currency: string;
+  includes: string[];
+}
+
+export interface LeadInput {
+  email: string;
+  name?: string;
+  consent: boolean;
+  lang?: 'he' | 'en';
+  source?: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_term?: string;
+  utm_content?: string;
+  /** Honeypot: hidden from people, left empty by them. */
+  website?: string;
+}
+
+export const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'] as const;
+
+export const marketingApi = {
+  getPlans: () => api.get<{ plans: MarketingPlan[] }>('/api/marketing/plans'),
+  submitLead: (lead: LeadInput) => api.post<{ ok: boolean }>('/api/marketing/leads', lead),
+};
+
 export default api;

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useLayoutEffect, useState, ReactNode } from 'react';
 import { translations, Lang } from './translations';
 
 interface LanguageContextType {
@@ -23,7 +23,10 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
 
   const dir: 'rtl' | 'ltr' = lang === 'he' ? 'rtl' : 'ltr';
 
-  useEffect(() => {
+  // A layout effect so it runs before any page's own (passive) effects: a page
+  // that sets its own title or meta description, like the landing page, then
+  // wins instead of being overwritten by this default.
+  useLayoutEffect(() => {
     document.documentElement.lang = lang;
     document.documentElement.dir = dir;
     document.title = lang === 'he' ? 'YAHealthy — מעקב תזונה ובריאות' : 'YAHealthy — Nutrition & Health Tracker';
