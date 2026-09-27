@@ -64,6 +64,7 @@ const memoryDb = {
   mealPlans: [],
   subscriptions: [],
   paymentEvents: [],
+  leads: [],
   chefRequests: [],
   foods: [],
   whapiConversations: new Map(),
@@ -930,6 +931,93 @@ async function recordPaymentEvent(event) {
     throw error;
   }
   return { created: true };
+}
+
+/**
+ * Marketing leads — people who left an email on the landing page.
+ *
+ * One row per address. The email arrives already trimmed and lower-cased, and
+ * the unique index on it (migrations/013) is what decides whether a submission
+ * is new, so two tabs submitting at once still make one row. A repeat keeps the
+ * first-touch attribution (source/utm_*) — that is the visit that found us —
+ * and only records that the person came back.
+ *
+ * Leads are personal data about people who are not customers, so on Supabase
+ * the table has RLS on with no policies and is reached with the service-role
+ * client, like the WHAPI tables.
+ */
+async function createLead(lead) {
+  const now = new Date().toISOString();
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const existing = memoryDb.leads.find((row) => row.email === lead.email);
+    if (existing) {
+      existing.last_submitted_at = now;
+      existing.submissions = (existing.submissions || 1) + 1;
+      if (!existing.name && lead.name) existing.name = lead.name;
+      return { lead: existing, created: false };
+    }
+    const row = {
+      id: uuidv4(),
+      ...lead,
+      submissions: 1,
+      created_at: now,
+      last_submitted_at: now
+    };
+    memoryDb.leads.push(row);
+    return { lead: row, created: true };
+  }
+
+  const { data, error } = await supabaseServiceRole
+    .from('marketing_leads')
+    .insert([{ ...lead, submissions: 1, created_at: now, last_submitted_at: now }])
+    .select()
+    .single();
+
+  if (!error) return { lead: data, created: true };
+  if (error.code !== '23505') throw error;
+
+  // Already on the list. Read, then note the return visit without touching the
+  // attribution the first visit recorded.
+  const { data: existing, error: readError } = await supabaseServiceRole
+    .from('marketing_leads')
+    .select('*')
+    .eq('email', lead.email)
+    .maybeSingle();
+  if (readError) throw readError;
+  if (!existing) throw new Error('Lead conflicted on email but could not be read back');
+
+  const patch = {
+    last_submitted_at: now,
+    submissions: (existing.submissions || 1) + 1
+  };
+  if (!existing.name && lead.name) patch.name = lead.name;
+
+  const { data: updated, error: updateError } = await supabaseServiceRole
+    .from('marketing_leads')
+    .update(patch)
+    .eq('id', existing.id)
+    .select()
+    .single();
+  if (updateError) throw updateError;
+  return { lead: updated, created: false };
+}
+
+async function listLeads({ limit = 5000 } = {}) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return sortByCreatedAtDesc(memoryDb.leads).slice(0, limit);
+  }
+
+  const { data, error } = await supabaseServiceRole
+    .from('marketing_leads')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return data || [];
 }
 
 /**
@@ -2233,6 +2321,9 @@ module.exports = {
   hasEntitlement,
   createSubscription,
   recordPaymentEvent,
+  // Marketing leads
+  createLead,
+  listLeads,
   setUserPhone,
   getUserByPhone,
   getWhatsappAccess,

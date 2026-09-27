@@ -154,6 +154,8 @@ app.use('/api/payments', checkoutRouter);
 // and never advice about what anyone should eat.
 app.use('/api/foods', require('./routes/foods'));
 app.use('/api/referrals', require('./routes/referrals'));
+app.use('/api/engagement', require('./routes/engagement')); // streaks, Health Score, achievements (auth per-route)
+app.use('/api/marketing', require('./routes/marketing'));
 
 // WhatsApp inbound. The webhook is public (guarded by a path secret); the
 // listing endpoint underneath it requires auth because it returns message text.

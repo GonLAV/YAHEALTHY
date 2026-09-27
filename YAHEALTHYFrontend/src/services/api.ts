@@ -214,6 +214,83 @@ export const badgesApi = {
   get: () => api.get<{ badges: Badge[]; totalEarned: number }>('/api/badges'),
 };
 
+// ── Engagement (streaks, Health Score, achievements) ─────────────────────
+export type HabitKey = 'food' | 'hydration' | 'sleep' | 'anyLog';
+export type ScoreComponentKey = 'nutrition' | 'hydration' | 'sleep' | 'consistency';
+
+export interface HabitStreak {
+  current: number;
+  best: number;
+  bestEndedOn: string | null;
+  todayDone: boolean;
+  atRisk: boolean;
+  lastDate: string | null;
+}
+
+export interface ScoreComponent {
+  key: ScoreComponentKey;
+  weight: number;
+  score: number; // 0–100
+  points: number; // contribution to the headline score
+  value: number;
+  target: number | null;
+  unit: string;
+}
+
+export interface Achievement {
+  id: string;
+  icon: string;
+  title: string;
+  description: string;
+  available: boolean;
+  unlocked: boolean;
+  unlockedAt: string | null;
+  progress: { current: number; target: number };
+}
+
+export interface NextMilestone {
+  id: string | null;
+  icon?: string;
+  title?: string;
+  description?: string;
+  current?: number;
+  target?: number;
+  remaining?: number;
+  message: string;
+}
+
+export interface EngagementSummary {
+  today: string;
+  tz: string;
+  lang: 'he' | 'en';
+  goals: { calorieTarget: number | null; waterTargetLiters: number; sleepTargetHours: number };
+  healthScore: {
+    today: number;
+    components: ScoreComponent[];
+    trend7d: { date: string; score: number }[];
+    weights: Record<ScoreComponentKey, number>;
+  };
+  streaks: Record<HabitKey, HabitStreak>;
+  achievements: Achievement[];
+  unlockedCount: number;
+  nextMilestone: NextMilestone;
+}
+
+const browserTimeZone = () => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+};
+
+export const engagementApi = {
+  getSummary: (lang: string) =>
+    api.get<EngagementSummary>('/api/engagement/summary', {
+      params: { lang, tz: browserTimeZone() },
+    }),
+};
+
 export const crmApi = {
   getInsights: (userId: string, lang: string) =>
     api.get(`/api/crm/users/${userId}/insights`, { params: { lang } }),
@@ -293,6 +370,39 @@ export const referralApi = {
 export const analyticsApi = {
   getInsights: () =>
     api.get('/api/insights/daily'),
+};
+
+// ── Marketing (public, no login) ─────────────────────────────────────────────
+
+/** A plan checkout actually sells. `amount` is null when no price is configured. */
+export interface MarketingPlan {
+  id: string;
+  label: string;
+  amount: number | null;
+  currency: string;
+  includes: string[];
+}
+
+export interface LeadInput {
+  email: string;
+  name?: string;
+  consent: boolean;
+  lang?: 'he' | 'en';
+  source?: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_term?: string;
+  utm_content?: string;
+  /** Honeypot: hidden from people, left empty by them. */
+  website?: string;
+}
+
+export const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'] as const;
+
+export const marketingApi = {
+  getPlans: () => api.get<{ plans: MarketingPlan[] }>('/api/marketing/plans'),
+  submitLead: (lead: LeadInput) => api.post<{ ok: boolean }>('/api/marketing/leads', lead),
 };
 
 export default api;
