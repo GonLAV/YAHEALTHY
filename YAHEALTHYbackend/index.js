@@ -157,6 +157,7 @@ app.use('/api/foods', require('./routes/foods'));
 app.use('/api/referrals', require('./routes/referrals'));
 app.use('/api/engagement', require('./routes/engagement')); // streaks, Health Score, achievements (auth per-route)
 app.use('/api/marketing', require('./routes/marketing'));
+app.use('/api/onboarding', require('./routes/onboarding')); // wizard status + targets preview (auth)
 
 // WhatsApp inbound. The webhook is public (guarded by a path secret); the
 // listing endpoint underneath it requires auth because it returns message text.
@@ -624,7 +625,8 @@ app.put('/api/users/me/preferences', auth.authMiddleware, async (req, res) => {
       fat_grams: z.number().nonnegative().optional(),
       protein: z.number().nonnegative().optional(),
       carbs: z.number().nonnegative().optional(),
-      fat: z.number().nonnegative().optional()
+      fat: z.number().nonnegative().optional(),
+      calorieOverride: z.number().nonnegative().optional()
     }).partial();
 
     const schema = z.object({
@@ -645,7 +647,11 @@ app.put('/api/users/me/preferences', auth.authMiddleware, async (req, res) => {
         const n = Number(v);
         return Number.isFinite(n) ? n : null;
       };
+      // calorieOverride rides along: dropping it here would silently undo a
+      // calorie target the user confirmed (onboarding / PUT /api/targets).
+      const calorieOverride = toNumberOrNull(macro.calorieOverride);
       normalizedPreferences.macroTargets = {
+        ...(calorieOverride !== null ? { calorieOverride } : {}),
         protein_grams: toNumberOrNull(macro.protein_grams ?? macro.proteinGrams ?? macro.protein),
         carbs_grams: toNumberOrNull(macro.carbs_grams ?? macro.carbsGrams ?? macro.carbs),
         fat_grams: toNumberOrNull(macro.fat_grams ?? macro.fatGrams ?? macro.fat)
@@ -3760,19 +3766,22 @@ app.get('/api/badges', auth.authMiddleware, async (req, res) => {
 app.get('/api/targets', auth.authMiddleware, async (req, res) => {
   try {
     const userId = req.user.userId;
-    const survey = db.getLatestSurvey(userId);
+    const survey = await db.getLatestSurvey(userId);
     const prefs = await db.getUserPreferences(userId);
+    const macro = prefs?.macroTargets || {};
 
+    // Targets the user confirmed (onboarding, or PUT /api/targets) win over
+    // what an older survey computed.
     let targets = {
-      calories: survey?.daily_calories?.targetDailyCalories || null,
-      protein_grams: survey?.protein_target_g || null,
-      carbs_grams: prefs?.macroTargets?.carbs_grams || null,
-      fat_grams: prefs?.macroTargets?.fat_grams || null
+      calories: macro.calorieOverride || survey?.daily_calories?.targetDailyCalories || null,
+      protein_grams: macro.protein_grams || survey?.protein_target_g || null,
+      carbs_grams: macro.carbs_grams || null,
+      fat_grams: macro.fat_grams || null
     };
 
     return res.json({
       targets,
-      source: survey ? 'survey' : 'preferences',
+      source: macro.calorieOverride || !survey ? 'preferences' : 'survey',
       surveyId: survey?.id || null,
       lastUpdated: survey?.created_at || null
     });
@@ -3795,8 +3804,10 @@ app.put('/api/targets', auth.authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Invalid input', details: 'Calories must be between 1000 and 5000' });
     }
 
-    // Store in preferences
-    const updated = db.setUserPreferences(userId, {
+    // Store in preferences, keeping everything else the user has there
+    const current = (await db.getUserPreferences(userId)) || {};
+    await db.updateUserPreferences(userId, {
+      ...current,
       macroTargets: {
         calorieOverride: calories,
         protein_grams: protein_grams || null,

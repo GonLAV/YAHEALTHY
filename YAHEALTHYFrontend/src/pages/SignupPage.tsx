@@ -55,7 +55,8 @@ export const SignupPage = () => {
         referralCode: growth.referralCode || referralCode,
       });
       clearAttribution();
-      navigate('/dashboard');
+      // New accounts go through the setup wizard first.
+      navigate('/onboarding');
     } catch (err: any) {
       setError(err.response?.data?.error || err.response?.data?.message || t('auth.signupFailed'));
     } finally {
@@ -143,9 +144,13 @@ export const SignupPage = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   className={inputClass}
                   required
-                  minLength={6}
+                  minLength={10}
+                  aria-describedby="signup-password-hint"
                 />
               </div>
+              <p id="signup-password-hint" className="mt-1 text-xs text-slate-500">
+                {t('auth.passwordHint')}
+              </p>
             </div>
 
             <div>
