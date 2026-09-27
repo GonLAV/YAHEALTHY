@@ -1,12 +1,12 @@
 {
   "previewPort": 3000,
-  "healthPath": "/",
+  "healthPath": "/api/health",
   "startCommand": "docker compose -f docker-compose.base44.yml up -d",
   "secrets": [
     {
       "name": "JWT_SECRET",
       "description": "Secret key for signing JWT auth tokens. Auto-generated for development; set a real value for stable sessions across restarts.",
-      "requiredAtBoot": false,
+      "requiredAtBoot": true,
       "generatedForDevelopment": true
     },
     {

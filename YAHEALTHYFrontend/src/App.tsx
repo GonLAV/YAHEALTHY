@@ -29,9 +29,10 @@ const BookingPage = lazy(() => import('@/pages/BookingPage').then((m) => ({ defa
 const BookingConfirmedPage = lazy(() => import('@/pages/ResultPages').then((m) => ({ default: m.BookingConfirmedPage })));
 const WelcomePage = lazy(() => import('@/pages/ResultPages').then((m) => ({ default: m.WelcomePage })));
 const PaymentFailedPage = lazy(() => import('@/pages/ResultPages').then((m) => ({ default: m.PaymentFailedPage })));
+const ProgressPage = lazy(() => import('@/pages/ProgressPage').then((m) => ({ default: m.ProgressPage })));
 
 const PageLoader = () => (
-  <div className="flex min-h-screen items-center justify-center">
+  <div role="status" aria-live="polite" className="flex min-h-screen items-center justify-center">
     <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
   </div>
 );
@@ -142,6 +143,16 @@ const AppRoutes = () => (
           <PrivateRoute>
             <AppLayout>
               <StaffPage />
+            </AppLayout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/progress"
+        element={
+          <PrivateRoute>
+            <AppLayout>
+              <ProgressPage />
             </AppLayout>
           </PrivateRoute>
         }

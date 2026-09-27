@@ -79,11 +79,16 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
         run: |
           npm i -g vercel@latest
-          # --cwd, not the dashboard's "Root Directory" setting: a token-based
-          # `vercel deploy` from CI doesn't apply that setting, so relying on
-          # it silently deployed the repo root -- no api/ there, every route
-          # 404'd even though the build itself "succeeded".
-          url=$(vercel --cwd YAHEALTHYbackend --token "$VERCEL_TOKEN" --prod --yes)
+          # No --cwd here: the Vercel project's own Root Directory setting is
+          # now YAHEALTHYbackend (see project settings), and --cwd stacks on
+          # top of it rather than replacing it -- passing both looked for
+          # YAHEALTHYbackend/YAHEALTHYbackend, which doesn't exist, and failed
+          # the deploy outright. Deploying from the repo root now lets the
+          # project setting resolve the path exactly once, the same way
+          # Vercel's own Git-integration deploys already do, so both paths
+          # build identically instead of racing each other with different
+          # results.
+          url=$(vercel --token "$VERCEL_TOKEN" --prod --yes)
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Deployed to $url"
 

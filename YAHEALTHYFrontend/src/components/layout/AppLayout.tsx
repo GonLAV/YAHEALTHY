@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, UtensilsCrossed, Droplets, Moon, Scale,
   MessageCircleHeart, LogOut, Languages, Heart, ChefHat, Target, CalendarCheck, Sparkles, ShoppingCart, ShieldCheck,
+  BarChart3,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/i18n/LanguageContext';
@@ -24,6 +25,9 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { to: '/dashboard', key: 'nav.dashboard', icon: <LayoutDashboard size={20} />, mobile: true },
+  // Sidebar only: the phone bar is kept to what people open every day (see
+  // `mobile` above).
+  { to: '/progress', key: 'nav.progress', icon: <BarChart3 size={20} /> },
   { to: '/food-log', key: 'nav.foodLog', icon: <UtensilsCrossed size={20} />, mobile: true },
   { to: '/hydration', key: 'nav.hydration', icon: <Droplets size={20} />, mobile: true },
   { to: '/sleep', key: 'nav.sleep', icon: <Moon size={20} /> },

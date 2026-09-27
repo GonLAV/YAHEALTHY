@@ -13,7 +13,6 @@
     "eval:yoni": "node run-eval.mjs --bot chef --only recipes --live"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.70.0",
-    "zod": "^3.24.1"
+    "@anthropic-ai/sdk": "^0.70.0"
   }
 }

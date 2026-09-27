@@ -15,6 +15,9 @@ coverage/
 # malachi channel credentials — never commit
 .env.malachi
 
+# compiled tsc artifacts
+*.tsbuildinfo
+
 # throwaway scratch scripts (often hold a credential mid-debugging) — never commit
 .test-*.js
 
