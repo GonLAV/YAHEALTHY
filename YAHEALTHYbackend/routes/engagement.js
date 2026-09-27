@@ -60,4 +60,7 @@ router.get('/summary', auth.authMiddleware, async (req, res) => {
   }
 });
 
+// Reused by routes/share.js so the weekly card reads exactly what the summary reads.
+router.loadInputs = loadInputs;
+
 module.exports = router;

@@ -159,6 +159,7 @@ app.use('/api/engagement', require('./routes/engagement')); // streaks, Health S
 app.use('/api/marketing', require('./routes/marketing'));
 app.use('/api/onboarding', require('./routes/onboarding')); // wizard status + targets preview (auth)
 app.use('/api/analytics', require('./routes/analytics')); // staff-only marketing dashboard (auth + requireStaff inside)
+app.use(require('./routes/share')); // /api/share/* (weekly card, links) + public /s/:token pages
 
 // WhatsApp inbound. The webhook is public (guarded by a path secret); the
 // listing endpoint underneath it requires auth because it returns message text.

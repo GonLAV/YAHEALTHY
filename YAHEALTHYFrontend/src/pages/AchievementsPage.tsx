@@ -3,6 +3,7 @@ import { Trophy, Lock, CheckCircle2, Flame, PartyPopper } from 'lucide-react';
 import { engagementApi, EngagementSummary, Achievement } from '@/services/api';
 import { useLanguage } from '@/i18n/LanguageContext';
 import PageHeader from '@/components/ui/PageHeader';
+import { ShareWeekButton } from '@/components/share/ShareWeek';
 import {
   achievementIcon, HABITS, HABIT_ICONS, LabeledProgress, NextMilestoneCard, scoreColor,
 } from '@/components/engagement/EngagementWidgets';
@@ -88,7 +89,10 @@ export const AchievementsPage = () => {
 
   return (
     <div className="mx-auto max-w-5xl p-4 md:p-8">
-      <PageHeader title={t('ach.title')} subtitle={t('ach.subtitle')} icon={<Trophy size={24} />} />
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <PageHeader title={t('ach.title')} subtitle={t('ach.subtitle')} icon={<Trophy size={24} />} />
+        <ShareWeekButton className="mb-6" />
+      </div>
 
       {/* Celebration for newly unlocked achievements */}
       <div role="status" aria-live="polite">
