@@ -2,6 +2,8 @@ import { useLanguage } from '@/i18n/LanguageContext';
 
 /** The WhatsApp bot number, in international format (055-3174301 → 972553174301) */
 const WHATSAPP_NUMBER = '972553174301';
+/** Shared so the landing page and the floating button can never disagree on the number. */
+export const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}`;
 
 const WhatsAppIcon = ({ size = 28 }: { size?: number }) => (
   <svg
@@ -22,7 +24,7 @@ export const WhatsAppWidget = () => {
 
   return (
     <a
-      href={`https://wa.me/${WHATSAPP_NUMBER}`}
+      href={WHATSAPP_URL}
       target="_blank"
       rel="noopener noreferrer"
       aria-label={t('whatsapp.aria')}

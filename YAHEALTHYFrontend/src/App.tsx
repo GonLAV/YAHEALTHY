@@ -1,6 +1,6 @@
 import { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from '@/hooks/useAuth';
+import { AuthProvider, useAuth } from '@/hooks/useAuth';
 import { LanguageProvider } from '@/i18n/LanguageContext';
 import { PrivateRoute } from '@/components/PrivateRoute';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -31,11 +31,22 @@ const WelcomePage = lazy(() => import('@/pages/ResultPages').then((m) => ({ defa
 const PaymentFailedPage = lazy(() => import('@/pages/ResultPages').then((m) => ({ default: m.PaymentFailedPage })));
 const ProgressPage = lazy(() => import('@/pages/ProgressPage').then((m) => ({ default: m.ProgressPage })));
 
+const LandingPage = lazy(() => import('@/pages/LandingPage').then((m) => ({ default: m.LandingPage })));
+
 const PageLoader = () => (
   <div role="status" aria-live="polite" className="flex min-h-screen items-center justify-center">
     <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
   </div>
 );
+
+// The root used to send everyone to /dashboard, which sent every visitor on
+// to a login screen: the first thing a stranger saw was a password field. A
+// visitor now gets the landing page; someone signed in still goes straight in.
+const Home = () => {
+  const { user, loading } = useAuth();
+  if (loading) return <PageLoader />;
+  return user ? <Navigate to="/dashboard" replace /> : <LandingPage />;
+};
 
 const AppRoutes = () => (
   <Suspense fallback={<PageLoader />}>
@@ -157,7 +168,7 @@ const AppRoutes = () => (
           </PrivateRoute>
         }
       />
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/" element={<Home />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   </Suspense>
