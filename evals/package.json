@@ -2,13 +2,20 @@
   "name": "yahealthy-evals",
   "private": true,
   "type": "module",
-  "description": "Adversarial eval harness for the YAHEALTHY food bots",
+  "description": "Adversarial eval harness for the YAHEALTHY bots (chef, nuri, sales)",
   "scripts": {
+    "validate": "node validate-cases.mjs",
     "eval": "node run-eval.mjs --bot both",
+    "eval:all": "node run-eval.mjs --bot all",
     "eval:chef": "node run-eval.mjs --bot chef",
     "eval:nuri": "node run-eval.mjs --bot nuri",
+    "eval:sales": "node run-eval.mjs --bot sales",
     "eval:safety": "node run-eval.mjs --bot both --only safety",
-    "eval:dry": "node run-eval.mjs --bot both --dry-run"
+    "eval:blockers": "node run-eval.mjs --bot all --severity blocker",
+    "eval:strict": "node run-eval.mjs --bot all --judges 3 --judge-consistency 20",
+    "eval:holdout": "node run-eval.mjs --bot all --holdout",
+    "eval:dry": "node run-eval.mjs --bot all --dry-run",
+    "eval:dry:holdout": "node run-eval.mjs --bot all --holdout --dry-run"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.70.0"
