@@ -15,6 +15,7 @@ import ProgressBar from '@/components/ui/ProgressBar';
 import { HealthScoreCard, StreaksStrip, NextMilestoneCard } from '@/components/engagement/EngagementWidgets';
 import { ShareWeekCard } from '@/components/share/ShareWeek';
 import { todayISO } from '@/utils/date';
+import { InstallAppCard } from '@/components/pwa/InstallAppCard';
 
 const BADGE_ICONS: Record<string, JSX.Element> = {
   'first-log': <Salad size={22} />,
@@ -148,6 +149,9 @@ export const DashboardPage = () => {
         </h1>
         <p className="mt-1 text-sm text-slate-500">{dateStr}</p>
       </div>
+
+      {/* Installable PWA: Chromium prompt or iOS Add-to-Home-Screen steps */}
+      <InstallAppCard />
 
       {/* Engagement: Health Score + streaks + next milestone */}
       {engagement ? (

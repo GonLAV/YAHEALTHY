@@ -165,6 +165,7 @@ app.use('/api/marketing', require('./routes/marketing'));
 app.use('/api/onboarding', require('./routes/onboarding')); // wizard status + targets preview (auth)
 app.use('/api/analytics', require('./routes/analytics')); // staff-only marketing dashboard (auth + requireStaff inside)
 app.use(require('./routes/share')); // /api/share/* (weekly card, links) + public /s/:token pages
+app.use('/api/push', require('./routes/push')); // Web Push: VAPID key, subscriptions, reminder settings (auth per-route)
 
 // WhatsApp inbound. The webhook is public (guarded by a path secret); the
 // listing endpoint underneath it requires auth because it returns message text.
@@ -3988,6 +3989,9 @@ if (!process.env.VERCEL) {
 // Vercel, under NODE_ENV=test or with LIFECYCLE_ENABLED=false. Double sends
 // are prevented by the persisted send log, not by this process's memory.
 scheduleLifecycle(cron);
+// Push reminders (water / meal / streak), every 5 minutes in each user's own
+// time zone. utils/push.js keeps it off on Vercel and under NODE_ENV=test.
+require('./utils/push').scheduleReminders(cron);
 
 // ========== ERROR HANDLING ==========
 

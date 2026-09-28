@@ -426,6 +426,44 @@ export const shareApi = {
   revoke: (token: string) => api.delete(`/api/share/c/${encodeURIComponent(token)}`),
 };
 
+// Web Push + reminders
+export interface ReminderSettings {
+  enabled: boolean;
+  tz: string | null;
+  lang: 'he' | 'en' | null;
+  quietHours: { start: string; end: string };
+  water: { enabled: boolean; intervalMinutes: number; start: string; end: string };
+  meal: { enabled: boolean; time: string };
+  streak: { enabled: boolean; time: string };
+  /** Browsers subscribed for this account. */
+  devices: number;
+  /** False when the server has no VAPID keys (push switched off). */
+  pushEnabled: boolean;
+}
+
+export type ReminderSettingsInput = Omit<ReminderSettings, 'devices' | 'pushEnabled' | 'tz' | 'lang'> & {
+  tz?: string;
+  lang?: 'he' | 'en';
+};
+
+export const pushApi = {
+  getPublicKey: () => api.get<{ publicKey: string }>('/api/push/vapid-public-key'),
+
+  subscribe: (subscription: PushSubscriptionJSON, extras: { tz?: string; lang?: 'he' | 'en' } = {}) =>
+    api.post<{ subscribed: boolean; devices: number }>('/api/push/subscribe', { subscription, ...extras }),
+
+  unsubscribe: (endpoint: string) =>
+    api.delete<{ removed: boolean }>('/api/push/subscribe', { data: { endpoint } }),
+
+  getReminders: () => api.get<ReminderSettings>('/api/push/reminders'),
+
+  saveReminders: (settings: ReminderSettingsInput) =>
+    api.put<ReminderSettings>('/api/push/reminders', settings),
+
+  sendTest: (lang: 'he' | 'en') =>
+    api.post<{ sent: number; removed: number; failed: number }>('/api/push/test', { lang }),
+};
+
 export const analyticsApi = {
   getInsights: () =>
     api.get('/api/insights/daily'),

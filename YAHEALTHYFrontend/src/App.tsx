@@ -7,6 +7,7 @@ import { PrivateRoute } from '@/components/PrivateRoute';
 import { StaffRoute } from '@/components/StaffRoute';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { WhatsAppWidget } from '@/components/WhatsAppWidget';
+import { PwaChrome } from '@/components/pwa/PwaChrome';
 
 const LandingPage = lazy(() => import('@/pages/LandingPage').then((m) => ({ default: m.LandingPage })));
 const LoginPage = lazy(() => import('@/pages/LoginPage').then((m) => ({ default: m.LoginPage })));
@@ -20,6 +21,7 @@ const CoachingPage = lazy(() => import('@/pages/CoachingPage').then((m) => ({ de
 const ProgressPage = lazy(() => import('@/pages/ProgressPage').then((m) => ({ default: m.ProgressPage })));
 const InvitePage = lazy(() => import('@/pages/InvitePage').then((m) => ({ default: m.InvitePage })));
 const OnboardingPage = lazy(() => import('@/pages/OnboardingPage').then((m) => ({ default: m.OnboardingPage })));
+const RemindersPage = lazy(() => import('@/pages/RemindersPage').then((m) => ({ default: m.RemindersPage })));
 const AchievementsPage = lazy(() => import('@/pages/AchievementsPage').then((m) => ({ default: m.AchievementsPage })));
 const MarketingDashboardPage = lazy(() =>
   import('@/pages/MarketingDashboardPage').then((m) => ({ default: m.MarketingDashboardPage })),
@@ -154,6 +156,16 @@ const AppRoutes = () => (
           </StaffRoute>
         }
       />
+      <Route
+        path="/reminders"
+        element={
+          <PrivateRoute>
+            <AppLayout>
+              <RemindersPage />
+            </AppLayout>
+          </PrivateRoute>
+        }
+      />
       <Route path="/" element={<HomeRoute />} />
       {/* Unknown paths land on "/", which sends signed-in users on to /dashboard. */}
       <Route path="*" element={<Navigate to="/" replace />} />
@@ -169,6 +181,7 @@ function App() {
           <OnboardingProvider>
             <AppRoutes />
           </OnboardingProvider>
+          <PwaChrome />
         </AuthProvider>
         <WhatsAppWidget />
       </LanguageProvider>
