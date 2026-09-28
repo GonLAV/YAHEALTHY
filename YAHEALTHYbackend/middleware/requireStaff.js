@@ -14,6 +14,7 @@
  */
 
 const db = require('../utils/database');
+const { notFoundHandler } = require('../utils/error-handler');
 
 async function requireStaff(req, res, next) {
   if (!req.user || !req.user.userId) {
@@ -27,7 +28,9 @@ async function requireStaff(req, res, next) {
     if (!user || user.is_staff !== true) {
       // Deliberately the same 404 an unknown route gives. A signed-in stranger
       // probing for staff endpoints learns nothing about which ones exist.
-      return res.status(404).json({ error: 'Not found' });
+      // Byte-for-byte the global handler's body, not a look-alike: a
+      // different JSON shape would itself say "this route exists".
+      return notFoundHandler(req, res);
     }
 
     return next();
