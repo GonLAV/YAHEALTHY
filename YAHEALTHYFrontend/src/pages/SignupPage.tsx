@@ -13,8 +13,10 @@ export const SignupPage = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [invite, setInvite] = useState<ReferralValidation | null>(null);
+  // Marketing email needs affirmative consent: unticked until the person ticks it.
+  const [marketingConsent, setMarketingConsent] = useState(false);
   const { signup } = useAuth();
-  const { t, toggleLang } = useLanguage();
+  const { t, lang, toggleLang } = useLanguage();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -50,9 +52,18 @@ export const SignupPage = () => {
     setLoading(true);
     try {
       const growth = getSignupAttribution();
+      let timezone: string | undefined;
+      try {
+        timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+      } catch {
+        timezone = undefined;
+      }
       await signup(email, password, {
         ...growth,
         referralCode: growth.referralCode || referralCode,
+        lang,
+        timezone,
+        marketingConsent,
       });
       clearAttribution();
       // New accounts go through the setup wizard first.
@@ -169,6 +180,19 @@ export const SignupPage = () => {
                   required
                 />
               </div>
+            </div>
+
+            <div className="flex items-start gap-2.5">
+              <input
+                id="signup-marketing"
+                type="checkbox"
+                checked={marketingConsent}
+                onChange={(e) => setMarketingConsent(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-emerald-600 focus-visible:ring-2 focus-visible:ring-emerald-500"
+              />
+              <label htmlFor="signup-marketing" className="text-start text-xs leading-relaxed text-slate-600">
+                {t('auth.marketingConsent')}
+              </label>
             </div>
 
             {error && (

@@ -49,6 +49,8 @@ const referrals = require('./utils/referrals');
 const { resolveRequestDate } = require('./utils/log-date');
 const cron = require('node-cron');
 const { sendWeeklySummaryEmail, runWeeklySummaryJob } = require('./utils/weekly-summary');
+const { scheduleLifecycle } = require('./utils/lifecycle-runner');
+const { isValidTimeZone } = require('./utils/engagement');
 
 const { apiLimiter, authLimiter } = require('./middleware/rateLimit');
 const { requestContext } = require('./middleware/requestContext');
@@ -261,9 +263,15 @@ app.post('/api/auth/signup', async (req, res) => {
           referrer: attributionField
         })
         .optional()
-        .catch(undefined)
+        .catch(undefined),
+      // Messaging settings, same rule: never a reason to fail signup.
+      // marketingConsent is an unticked-by-default box; absent means no.
+      lang: z.enum(['he', 'en']).optional().catch(undefined),
+      timezone: z.string().max(64).optional().catch(undefined),
+      marketingConsent: z.boolean().optional().catch(undefined)
     });
-    const { email, password, name, referralCode, attribution } = signupSchema.parse(req.body);
+    const { email, password, name, referralCode, attribution, lang, timezone, marketingConsent } =
+      signupSchema.parse(req.body);
 
     // Validate input
     if (!email || !password) {
@@ -301,6 +309,23 @@ app.post('/api/auth/signup', async (req, res) => {
       } catch (error) {
         console.warn(`[signup] attribution not stored for ${user.id}: ${error.message}`);
       }
+    }
+
+    // Lifecycle messaging settings. A landing-page lead who consented to our
+    // email (and did not unsubscribe) keeps that consent, dated when given.
+    try {
+      const nowIso = new Date().toISOString();
+      const lead = await db.getLeadByEmail(user.email);
+      const leadConsent = lead && lead.consent_at && !lead.unsubscribed_at ? lead.consent_at : null;
+      const consentAt = marketingConsent === true ? nowIso : leadConsent;
+      await db.upsertNotificationPrefs(user.id, {
+        lang: lang || (lead && lead.lang) || null,
+        timezone: isValidTimeZone(timezone) ? timezone : null,
+        marketing_email: Boolean(consentAt),
+        marketing_consent_at: consentAt
+      });
+    } catch (error) {
+      console.warn(`[signup] messaging preferences not stored for ${user.id}: ${error.message}`);
     }
 
     let referral = { applied: false };
@@ -3955,6 +3980,11 @@ if (!process.env.VERCEL) {
   }, { timezone: 'Asia/Jerusalem' });
   console.log('📧 Weekly summary emails scheduled: Sundays 08:00 (Asia/Jerusalem)');
 }
+
+// Lifecycle messaging (utils/lifecycle-runner.js): hourly, and never on
+// Vercel, under NODE_ENV=test or with LIFECYCLE_ENABLED=false. Double sends
+// are prevented by the persisted send log, not by this process's memory.
+scheduleLifecycle(cron);
 
 // ========== ERROR HANDLING ==========
 

@@ -12,6 +12,7 @@
 - **`VITE_API_URL`** is left empty so the frontend uses same-origin relative paths through the Vite proxy (single-origin wiring).
 - **Backend env**: `ALLOW_MEMORY_DB=true` lets the backend start without Supabase. `JWT_SECRET` is auto-generated if missing in dev mode.
 - **AI Coach**: `utils/coach.js` (rule-based, data-grounded, bilingual) mounted at `/api/crm/users/:userId/insights` and `/ask` in index.js. The old `crm-routes.js`/`crm-ai-assistant.js` prototype (OpenAI + Postgres pool) was never integrated — do not wire it as-is.
+- **Lifecycle messaging**: decisions in `utils/lifecycle.js` (pure), copy in `utils/lifecycle-templates.js`, I/O + hourly cron in `utils/lifecycle-runner.js` (off under `NODE_ENV=test`/Vercel/`LIFECYCLE_ENABLED=false`). Dedupe is the `lifecycle_sends` unique key (migration 018), never process memory. Marketing messages (lead nurture, win-back) need consent and start with "פרסומת"; WhatsApp only after opt-in. Staff endpoints under `/api/marketing/campaigns/*`.
 - **RTL**: Tailwind logical utilities (`ms-`, `ps-`, `text-start`, `start-*`) are used throughout; avoid `ml-`/`mr-`/`space-x`. `.num` class keeps numbers LTR inside RTL text.
 - **Backend secrets** come from `/run/base44/app.env` (JWT_SECRET, optional SUPABASE_*); local dev placeholders are fine.
 
