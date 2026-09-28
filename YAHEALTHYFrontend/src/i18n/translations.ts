@@ -75,6 +75,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     'auth.passwordsDontMatch': 'Passwords do not match',
     'auth.loginFailed': 'Login failed',
     'auth.signupFailed': 'Signup failed',
+    'auth.marketingConsent': 'Send me occasional emails from YAHealthy with tips and news about the service (optional). I can unsubscribe at any time.',
 
     // Dashboard
     'dash.greeting': 'Hello',
@@ -466,6 +467,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     'auth.passwordsDontMatch': 'הסיסמאות אינן תואמות',
     'auth.loginFailed': 'ההתחברות נכשלה',
     'auth.signupFailed': 'ההרשמה נכשלה',
+    'auth.marketingConsent': 'אשמח לקבל מדי פעם מ-YAHealthy מיילים עם טיפים ועדכונים על השירות (לא חובה). אפשר להסיר את עצמי בכל עת.',
 
     // Dashboard
     'dash.greeting': 'שלום',

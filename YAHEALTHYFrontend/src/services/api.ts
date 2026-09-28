@@ -56,6 +56,11 @@ api.interceptors.request.use((config) => {
 export interface SignupExtras {
   referralCode?: string;
   attribution?: Attribution;
+  // Lifecycle messaging: which language and time zone to write in, and
+  // whether the person ticked the (optional, unticked by default) marketing box.
+  lang?: 'he' | 'en';
+  timezone?: string;
+  marketingConsent?: boolean;
 }
 
 export const authApi = {

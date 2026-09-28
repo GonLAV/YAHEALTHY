@@ -70,7 +70,12 @@ const memoryDb = {
   whapiConversations: new Map(),
   whapiMessages: [],
   referrals: [],
-  referralRewards: []
+  referralRewards: [],
+  // Lifecycle messaging (migrations/018). Sends are keyed by recipient_id,
+  // not user_id, because a recipient can be a lead — deleteUser clears them
+  // by hand.
+  notificationPrefs: new Map(),
+  lifecycleSends: []
 };
 
 function sortByCreatedAtDesc(items) {
@@ -179,7 +184,7 @@ async function getAllUsers() {
   }
   const { data, error } = await supabase
     .from('users')
-    .select('id, email, name, created_at');
+    .select('id, email, name, phone, created_at');
   
   if (error) throw error;
   return data || [];
@@ -325,7 +330,20 @@ async function deleteUser(userId) {
     memoryDb.referrals = memoryDb.referrals.filter(
       (row) => row.referrer_id !== userId && row.referee_id !== userId
     );
+    memoryDb.notificationPrefs.delete(userId);
+    memoryDb.lifecycleSends = memoryDb.lifecycleSends.filter(
+      (row) => !(row.recipient_type === 'user' && row.recipient_id === userId)
+    );
     return true;
+  }
+
+  // lifecycle_sends has no foreign key (a recipient may be a lead), so the
+  // cascade cannot reach it. Best effort: the account delete is what the
+  // person asked for and must not fail over the send log.
+  try {
+    await deleteLifecycleSendsFor('user', userId);
+  } catch (error) {
+    console.warn(`[db] lifecycle sends not cleared for deleted user ${userId}: ${error.message}`);
   }
 
   const { error } = await supabase.from('users').delete().eq('id', userId);
@@ -995,6 +1013,288 @@ async function listLeads({ limit = 5000 } = {}) {
 
   if (error) throw error;
   return data || [];
+}
+
+/**
+ * Lead lookups and changes the lifecycle campaigns need: unsubscribing one,
+ * and forgetting one entirely (the landing page's consent text promises
+ * removal on request).
+ */
+async function getLeadById(leadId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.leads.find((row) => row.id === leadId) || null;
+  }
+  const { data, error } = await supabaseServiceRole
+    .from('marketing_leads')
+    .select('*')
+    .eq('id', leadId)
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
+async function getLeadByEmail(email) {
+  const normalized = String(email || '').trim().toLowerCase();
+  if (!normalized) return null;
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.leads.find((row) => row.email === normalized) || null;
+  }
+  const { data, error } = await supabaseServiceRole
+    .from('marketing_leads')
+    .select('*')
+    .eq('email', normalized)
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
+async function updateLead(leadId, patch) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const row = memoryDb.leads.find((lead) => lead.id === leadId);
+    if (!row) return null;
+    Object.assign(row, patch);
+    return row;
+  }
+  const { data, error } = await supabaseServiceRole
+    .from('marketing_leads')
+    .update(patch)
+    .eq('id', leadId)
+    .select()
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
+/** Delete a lead and its send log. Returns true when a row was removed. */
+async function deleteLead(leadId) {
+  await deleteLifecycleSendsFor('lead', leadId);
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const before = memoryDb.leads.length;
+    memoryDb.leads = memoryDb.leads.filter((row) => row.id !== leadId);
+    return memoryDb.leads.length < before;
+  }
+  const { data, error } = await supabaseServiceRole
+    .from('marketing_leads')
+    .delete()
+    .eq('id', leadId)
+    .select('id');
+  if (error) throw error;
+  return Boolean(data && data.length);
+}
+
+/**
+ * Notification preferences (migrations/018) — one row per user. A user with
+ * no row gets the defaults: service emails on, marketing and WhatsApp off.
+ */
+const NOTIFICATION_DEFAULTS = Object.freeze({
+  email_lifecycle: true,
+  marketing_email: false,
+  marketing_consent_at: null,
+  whatsapp: false,
+  whatsapp_consent_at: null,
+  lang: null,
+  timezone: null,
+  unsubscribed_at: null
+});
+
+const NOTIFICATION_FIELDS = Object.keys(NOTIFICATION_DEFAULTS);
+
+function withNotificationDefaults(userId, row) {
+  return { user_id: userId, ...NOTIFICATION_DEFAULTS, ...(row || {}) };
+}
+
+async function getNotificationPrefs(userId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return withNotificationDefaults(userId, memoryDb.notificationPrefs.get(userId));
+  }
+  const { data, error } = await supabaseServiceRole
+    .from('notification_preferences')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) throw error;
+  return withNotificationDefaults(userId, data);
+}
+
+/** All stored rows, keyed by user id (the runner reads them in one go). */
+async function listNotificationPrefs() {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return new Map(memoryDb.notificationPrefs);
+  }
+  const { data, error } = await supabaseServiceRole
+    .from('notification_preferences')
+    .select('*');
+  if (error) throw error;
+  return new Map((data || []).map((row) => [row.user_id, row]));
+}
+
+async function upsertNotificationPrefs(userId, patch) {
+  const clean = Object.fromEntries(
+    Object.entries(patch || {}).filter(([key]) => NOTIFICATION_FIELDS.includes(key))
+  );
+  const now = new Date().toISOString();
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const current = memoryDb.notificationPrefs.get(userId) || {};
+    const next = { ...current, ...clean, user_id: userId, updated_at: now };
+    memoryDb.notificationPrefs.set(userId, next);
+    return withNotificationDefaults(userId, next);
+  }
+
+  const { data, error } = await supabaseServiceRole
+    .from('notification_preferences')
+    .upsert([{ ...clean, user_id: userId, updated_at: now }], { onConflict: 'user_id' })
+    .select()
+    .single();
+  if (error) throw error;
+  return withNotificationDefaults(userId, data);
+}
+
+/**
+ * Lifecycle send log (migrations/018).
+ *
+ * `claimLifecycleSend` inserts the row BEFORE the message goes out. The unique
+ * index on (recipient_type, recipient_id, campaign, period_key) means only one
+ * caller can claim a given message — a second cron run, a restarted process,
+ * or a staff "run now" racing the schedule all get `claimed: false` and do not
+ * send.
+ */
+async function claimLifecycleSend(row) {
+  const now = new Date().toISOString();
+  const record = {
+    id: uuidv4(),
+    recipient_type: row.recipient_type,
+    recipient_id: row.recipient_id,
+    campaign: row.campaign,
+    step: row.step,
+    period_key: row.period_key,
+    channel: row.channel,
+    status: 'pending',
+    error: null,
+    created_at: now,
+    sent_at: null,
+    opened_at: null,
+    converted_at: null
+  };
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const taken = memoryDb.lifecycleSends.some(
+      (s) =>
+        s.recipient_type === record.recipient_type &&
+        s.recipient_id === record.recipient_id &&
+        s.campaign === record.campaign &&
+        s.period_key === record.period_key
+    );
+    if (taken) return { claimed: false };
+    memoryDb.lifecycleSends.push(record);
+    return { claimed: true, send: { ...record } };
+  }
+
+  const { data, error } = await supabaseServiceRole
+    .from('lifecycle_sends')
+    .insert([record])
+    .select()
+    .single();
+  if (error) {
+    if (error.code === '23505') return { claimed: false };
+    throw error;
+  }
+  return { claimed: true, send: data };
+}
+
+async function updateLifecycleSend(sendId, patch) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const row = memoryDb.lifecycleSends.find((s) => s.id === sendId);
+    if (!row) return null;
+    Object.assign(row, patch);
+    return { ...row };
+  }
+  const { data, error } = await supabaseServiceRole
+    .from('lifecycle_sends')
+    .update(patch)
+    .eq('id', sendId)
+    .select()
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
+async function listLifecycleSends({ recipientType = null, recipientId = null, campaign = null, limit = 50000 } = {}) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.lifecycleSends
+      .filter((s) => !recipientType || s.recipient_type === recipientType)
+      .filter((s) => !recipientId || s.recipient_id === recipientId)
+      .filter((s) => !campaign || s.campaign === campaign)
+      .slice(0, limit)
+      .map((s) => ({ ...s }));
+  }
+  let query = supabaseServiceRole.from('lifecycle_sends').select('*');
+  if (recipientType) query = query.eq('recipient_type', recipientType);
+  if (recipientId) query = query.eq('recipient_id', recipientId);
+  if (campaign) query = query.eq('campaign', campaign);
+  const { data, error } = await query.order('created_at', { ascending: true }).limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
+/** Stamp converted_at on a recipient's sent messages of one campaign that lack it. */
+async function markLifecycleConverted(recipientType, recipientId, campaign, at = new Date().toISOString()) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    let count = 0;
+    for (const s of memoryDb.lifecycleSends) {
+      if (
+        s.recipient_type === recipientType &&
+        s.recipient_id === recipientId &&
+        s.campaign === campaign &&
+        s.status === 'sent' &&
+        !s.converted_at
+      ) {
+        s.converted_at = at;
+        count++;
+      }
+    }
+    return count;
+  }
+  const { data, error } = await supabaseServiceRole
+    .from('lifecycle_sends')
+    .update({ converted_at: at })
+    .eq('recipient_type', recipientType)
+    .eq('recipient_id', recipientId)
+    .eq('campaign', campaign)
+    .eq('status', 'sent')
+    .is('converted_at', null)
+    .select('id');
+  if (error) throw error;
+  return (data || []).length;
+}
+
+async function deleteLifecycleSendsFor(recipientType, recipientId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    memoryDb.lifecycleSends = memoryDb.lifecycleSends.filter(
+      (s) => !(s.recipient_type === recipientType && s.recipient_id === recipientId)
+    );
+    return true;
+  }
+  const { error } = await supabaseServiceRole
+    .from('lifecycle_sends')
+    .delete()
+    .eq('recipient_type', recipientType)
+    .eq('recipient_id', recipientId);
+  if (error) throw error;
+  return true;
 }
 
 /**
@@ -2301,6 +2601,20 @@ module.exports = {
   // Marketing leads
   createLead,
   listLeads,
+  getLeadById,
+  getLeadByEmail,
+  updateLead,
+  deleteLead,
+  // Lifecycle messaging
+  getNotificationPrefs,
+  listNotificationPrefs,
+  upsertNotificationPrefs,
+  claimLifecycleSend,
+  updateLifecycleSend,
+  listLifecycleSends,
+  markLifecycleConverted,
+  deleteLifecycleSendsFor,
+  NOTIFICATION_DEFAULTS,
   setUserPhone,
   getUserByPhone,
   getWhatsappAccess,

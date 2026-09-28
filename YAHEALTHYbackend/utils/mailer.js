@@ -35,7 +35,7 @@ function providerConfigured() {
  * App Password). Development with no provider prints the message to the
  * server log; production refuses to pretend a message was sent.
  */
-async function deliver({ to, subject, text }) {
+async function deliver({ to, subject, text, headers }) {
   if (!providerConfigured()) {
     if (IS_PRODUCTION) {
       // Fail loudly. A reset email that silently never arrives looks to the
@@ -62,7 +62,7 @@ async function deliver({ to, subject, text }) {
   const transport = nodemailer.createTransport(process.env.SMTP_URL);
   const from = process.env.SMTP_FROM ||
     decodeURIComponent(new URL(process.env.SMTP_URL).username);
-  await transport.sendMail({ from: `YAHEALTHY <${from}>`, to, subject, text });
+  await transport.sendMail({ from: `YAHEALTHY <${from}>`, to, subject, text, ...(headers ? { headers } : {}) });
   return { delivered: true };
 }
 
