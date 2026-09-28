@@ -13,9 +13,11 @@ const apiLimiter = rateLimit({
   keyGenerator: getClientKey
 });
 
+// /api/auth/* (signup, login, me, …) per IP per 15 min. Env-tunable like the
+// other limits so the E2E suite, which runs every test from one IP, can raise it.
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 50,
+  max: Number(process.env.AUTH_RATE_LIMIT_MAX) || 50,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: getClientKey

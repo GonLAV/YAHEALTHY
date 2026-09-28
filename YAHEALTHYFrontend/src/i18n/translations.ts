@@ -188,6 +188,13 @@ export const translations: Record<Lang, Record<string, string>> = {
     'coach.refreshing': 'Refreshing…',
     'coach.error': 'Sorry, I encountered an error. Please try again.',
     'coach.signIn': 'Please sign in to use coaching.',
+    'coach.insightsLoading': 'Loading your insights…',
+    'coach.insightsList': 'Insights, most important first',
+    'coach.priority.high': 'Top priority',
+    'coach.priority.medium': 'Worth a look',
+    'coach.priority.low': 'Nice to know',
+    'coach.why': 'Why:',
+    'coach.nextStep': 'Next step:',
 
     // Badges
     'badge.first-log.name': 'First Step',
@@ -991,6 +998,13 @@ export const translations: Record<Lang, Record<string, string>> = {
     'coach.refreshing': 'מרענן…',
     'coach.error': 'מצטערים, אירעה שגיאה. נסו שוב.',
     'coach.signIn': 'יש להתחבר כדי להשתמש בליווי.',
+    'coach.insightsLoading': 'טוען את התובנות שלכם…',
+    'coach.insightsList': 'תובנות, מהחשובה ביותר',
+    'coach.priority.high': 'בעדיפות עליונה',
+    'coach.priority.medium': 'שווה בדיקה',
+    'coach.priority.low': 'טוב לדעת',
+    'coach.why': 'למה:',
+    'coach.nextStep': 'הצעד הבא:',
 
     // Badges
     'badge.first-log.name': 'צעד ראשון',

@@ -109,6 +109,7 @@ describe('keys used in the source exist', () => {
     ['sleep.quality.', ['excellent', 'good', 'fair', 'poor']],
     ['water.', ['morning', 'afternoon', 'evening']],
     ['eng.component.', ['nutrition', 'hydration', 'sleep', 'consistency']],
+    ['coach.priority.', ['high', 'medium', 'low']],
     ['onb.goal.', ['lose_weight', 'maintain_weight', 'gain_weight', 'eat_healthier', 'sleep_better', 'more_energy']],
     ['onb.activity.', ['sedentary', 'light', 'moderate', 'active', 'very_active']],
     ['onb.diet.', ['vegetarian', 'vegan', 'kosher', 'gluten_free', 'lactose_free']],
