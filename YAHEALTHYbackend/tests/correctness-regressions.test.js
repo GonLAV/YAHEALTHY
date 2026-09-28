@@ -92,6 +92,19 @@ async function run() {
   const pv = await call('GET', '/api/share/weekly-card?lang=en&tz=UTC', { token: v.token });
   const pvc = pv.body?.card || pv.body;
   check('share card weight change uses only the card week', pvc?.weightChangeKg === -0.5, JSON.stringify(pvc?.weightChangeKg));
+
+  // The share dialog uploads its on-screen PNG only when the preview's
+  // snapshot equals the created link's (ShareWeek.tsx); for the same options
+  // the two must therefore serialise identically.
+  const q = 'lang=en&tz=Asia/Jerusalem&showName=1&includeWeight=1';
+  const shown = await call('GET', `/api/share/weekly-card?${q}`, { token: v.token });
+  const made = await call('POST', '/api/share/weekly-card/link', {
+    token: v.token,
+    body: { lang: 'en', tz: 'Asia/Jerusalem', showName: true, includeWeight: true }
+  });
+  check('preview snapshot and link snapshot match for the same options',
+    made.status === 201 && JSON.stringify(shown.body?.snapshot) === JSON.stringify(made.body?.snapshot),
+    `${JSON.stringify(shown.body?.snapshot)} vs ${JSON.stringify(made.body?.snapshot)}`);
 }
 
 (async () => {
