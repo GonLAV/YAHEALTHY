@@ -548,6 +548,30 @@ app.delete('/api/users/me', auth.authMiddleware, async (req, res) => {
 });
 
 /**
+ * PUT /api/users/me
+ * Update the current user's display name
+ */
+app.put('/api/users/me', auth.authMiddleware, async (req, res) => {
+  try {
+    const schema = z.object({
+      name: z.string().min(1).max(100)
+    });
+    const { name } = schema.parse(req.body);
+
+    const updated = await db.updateUserName(req.user.userId, name);
+    if (!updated) {
+      return res.status(404).json({ error: 'User not found', requestId: req.id });
+    }
+    return res.json({ id: updated.id, email: updated.email, name: updated.name });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to update profile', details: safeErrorDetails(error), requestId: req.id });
+  }
+});
+
+/**
  * GET /api/users/me/preferences
  */
 app.get('/api/users/me/preferences', auth.authMiddleware, async (req, res) => {
@@ -2148,6 +2172,98 @@ app.patch('/api/food-logs/:id', auth.authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
     }
     return res.status(500).json({ error: 'Failed to update food log', details: safeErrorDetails(error), requestId: req.id });
+  }
+});
+
+/**
+ * POST /api/exercise-logs
+ * Create a single exercise log entry
+ */
+app.post('/api/exercise-logs', auth.authMiddleware, async (req, res) => {
+  try {
+    const schema = z.object({
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      type: z.string().min(1),
+      durationMinutes: z.number().positive().optional(),
+      caloriesBurned: z.number().nonnegative().optional(),
+      intensity: z.enum(['low', 'moderate', 'high']).optional(),
+      notes: z.string().max(500).optional()
+    });
+
+    const data = schema.parse(req.body);
+    const row = await db.createExerciseLog(req.user.userId, {
+      date: data.date,
+      type: data.type,
+      duration_minutes: data.durationMinutes ?? null,
+      calories_burned: data.caloriesBurned ?? null,
+      intensity: data.intensity ?? null,
+      notes: data.notes ?? null
+    });
+
+    return res.status(201).json(row);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to create exercise log', details: safeErrorDetails(error), requestId: req.id });
+  }
+});
+
+/**
+ * GET /api/exercise-logs
+ * List exercise logs with optional date/range filters
+ */
+app.get('/api/exercise-logs', auth.authMiddleware, async (req, res) => {
+  try {
+    const querySchema = z
+      .object({
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        limit: z.coerce.number().int().positive().max(200).optional(),
+        offset: z.coerce.number().int().nonnegative().max(100000).optional()
+      })
+      .refine(v => (v.offset == null ? true : v.limit != null), {
+        message: 'offset requires limit'
+      });
+
+    const { date, start, end, limit, offset } = querySchema.parse(req.query);
+    const logs = await db.getExerciseLogs(req.user.userId, {
+      date: date || null,
+      start: start || null,
+      end: end || null,
+      limit: limit ?? null,
+      offset: offset ?? null
+    });
+    return res.json(logs || []);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to get exercise logs', details: safeErrorDetails(error), requestId: req.id });
+  }
+});
+
+/**
+ * DELETE /api/exercise-logs/:id
+ * Delete a single exercise log entry
+ */
+app.delete('/api/exercise-logs/:id', auth.authMiddleware, async (req, res) => {
+  try {
+    const paramsSchema = z.object({ id: z.string().min(1) });
+    const { id } = paramsSchema.parse(req.params);
+
+    const deleted = await db.deleteExerciseLog(req.user.userId, id);
+    if (!deleted) {
+      return res.status(404).json({ error: 'Exercise log not found', requestId: req.id });
+    }
+
+    return res.json({ status: 'ok', deleted });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to delete exercise log', details: safeErrorDetails(error), requestId: req.id });
   }
 });
 
