@@ -4,6 +4,8 @@ import { authApi } from '@/services/api';
 interface User {
   id: string;
   email: string;
+  name?: string;
+  preferences?: Record<string, unknown>;
 }
 
 interface AuthContextType {

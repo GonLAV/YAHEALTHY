@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, UtensilsCrossed, Droplets, Moon, Scale,
-  MessageCircleHeart, LogOut, Languages, Heart, BarChart3,
+  MessageCircleHeart, LogOut, Languages, Heart, BarChart3, UserCircle,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/i18n/LanguageContext';
@@ -21,6 +21,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/sleep', key: 'nav.sleep', icon: <Moon size={20} /> },
   { to: '/weight', key: 'nav.weight', icon: <Scale size={20} /> },
   { to: '/coaching', key: 'nav.coaching', icon: <MessageCircleHeart size={20} /> },
+  { to: '/profile', key: 'nav.profile', icon: <UserCircle size={20} /> },
 ];
 
 const LangToggle = ({ className = '' }: { className?: string }) => {

@@ -73,7 +73,7 @@ export const authApi = {
   },
 
   getCurrentUser: () =>
-    api.get<{ id: string; email: string }>('/api/auth/me'),
+    api.get<{ id: string; email: string; name?: string; preferences?: Record<string, unknown> }>('/api/auth/me'),
 };
 
 export const foodLogApi = {
@@ -202,6 +202,77 @@ export interface Badge {
 
 export const badgesApi = {
   get: () => api.get<{ badges: Badge[]; totalEarned: number }>('/api/badges'),
+};
+
+export interface Survey {
+  id: string;
+  gender: string;
+  age: number;
+  height_cm: number;
+  weight_kg: number;
+  target_weight_kg: number;
+  target_days: number;
+  lifestyle: string;
+  bmi: number;
+  body_fat_percent: number;
+  bmr: number;
+  tdee: number;
+  daily_calories: number;
+  water_target_liters: number;
+  sleep_target_hours: number;
+  protein_target_g: number;
+  created_at?: string;
+}
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  name: string;
+  preferences: Record<string, unknown>;
+}
+
+export interface DietaryPreferences {
+  dietType?: string;
+  allergies?: string[];
+  macroTargets?: {
+    protein_grams: number | null;
+    carbs_grams: number | null;
+    fat_grams: number | null;
+  };
+}
+
+export const profileApi = {
+  get: () => api.get<UserProfile>('/api/auth/me'),
+
+  updateName: (name: string) =>
+    api.put<{ id: string; email: string; name: string }>('/api/users/me', { name }),
+
+  getPreferences: () =>
+    api.get<{ preferences: DietaryPreferences }>('/api/users/me/preferences'),
+
+  updatePreferences: (preferences: DietaryPreferences) =>
+    api.put<{ preferences: DietaryPreferences }>('/api/users/me/preferences', { preferences }),
+
+  getSurveys: () => api.get<Survey[]>('/api/surveys'),
+
+  createSurvey: (data: {
+    gender: string;
+    age: number;
+    heightCm: number;
+    weightKg: number;
+    targetWeightKg: number;
+    targetDays: number;
+    lifestyle: string;
+  }) => api.post<Survey>('/api/surveys', data),
+
+  changePassword: (oldPassword: string, newPassword: string) =>
+    api.post<{ status: string; token?: string }>('/api/auth/change-password', {
+      oldPassword,
+      newPassword,
+    }),
+
+  deleteAccount: (password: string) =>
+    api.delete('/api/users/me', { data: { password } }),
 };
 
 export const crmApi = {

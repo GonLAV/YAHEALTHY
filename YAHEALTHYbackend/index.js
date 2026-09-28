@@ -548,6 +548,30 @@ app.delete('/api/users/me', auth.authMiddleware, async (req, res) => {
 });
 
 /**
+ * PUT /api/users/me
+ * Update the current user's display name
+ */
+app.put('/api/users/me', auth.authMiddleware, async (req, res) => {
+  try {
+    const schema = z.object({
+      name: z.string().min(1).max(100)
+    });
+    const { name } = schema.parse(req.body);
+
+    const updated = await db.updateUserName(req.user.userId, name);
+    if (!updated) {
+      return res.status(404).json({ error: 'User not found', requestId: req.id });
+    }
+    return res.json({ id: updated.id, email: updated.email, name: updated.name });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
+    }
+    return res.status(500).json({ error: 'Failed to update profile', details: safeErrorDetails(error), requestId: req.id });
+  }
+});
+
+/**
  * GET /api/users/me/preferences
  */
 app.get('/api/users/me/preferences', auth.authMiddleware, async (req, res) => {

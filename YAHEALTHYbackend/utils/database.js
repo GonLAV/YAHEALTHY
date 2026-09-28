@@ -228,6 +228,31 @@ async function createUser(email, passwordHash, name) {
 }
 
 /**
+ * Update user display name
+ */
+async function updateUserName(userId, name) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const user = memoryDb.usersById.get(userId);
+    if (!user) return null;
+    const updated = { ...user, name };
+    memoryDb.usersById.set(userId, updated);
+    memoryDb.usersByEmail.set(String(updated.email || '').toLowerCase(), updated);
+    return updated;
+  }
+
+  const { data, error } = await supabase
+    .from('users')
+    .update({ name })
+    .eq('id', userId)
+    .select()
+    .single();
+
+  if (error && error.code !== 'PGRST116') throw error;
+  return data || null;
+}
+
+/**
  * Update user password hash
  */
 async function updateUserPasswordHash(userId, passwordHash) {
@@ -1942,6 +1967,7 @@ module.exports = {
   getUserByEmail,
   getAllUsers,
   createUser,
+  updateUserName,
   updateUserPasswordHash,
   bumpTokenVersion,
   deleteUser,
