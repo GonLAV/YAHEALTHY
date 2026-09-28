@@ -20,5 +20,8 @@
     }
   },
   "include": ["src"],
+  // Unit tests are type-checked by tsconfig.test.json (noEmit) and run by
+  // vitest; keeping them out of `tsc -b` means it never emits .js for them.
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
