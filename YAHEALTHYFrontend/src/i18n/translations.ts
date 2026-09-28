@@ -397,6 +397,26 @@ export const translations: Record<Lang, Record<string, string>> = {
     'landing.footer.disclaimer':
       'YAHealthy provides general information and does not replace medical advice. For any medical question, consult a licensed professional.',
     'landing.footer.rights': '© {year} YAHealthy',
+    // Guides (public content hub) + SEO
+    'seo.ogImageAlt': 'YAHealthy — nutrition, habits and cooking, in Hebrew and English',
+    'guides.nav': 'Guides',
+    'guides.meta.title': 'Nutrition & habit guides',
+    'guides.meta.description':
+      'Plain-language guides to everyday nutrition and habits — water, balanced meals, sleep, food logging, calories and macros. General information, not medical advice.',
+    'guides.index.eyebrow': 'Guides',
+    'guides.index.title': 'Everyday nutrition & habit guides',
+    'guides.index.subtitle': 'Short, practical and cautious: general information to help you build habits — not medical advice.',
+    'guides.readingTime': '{min} min read',
+    'guides.readMore': 'Read the guide',
+    'guides.updated': 'Updated',
+    'guides.breadcrumb': 'Breadcrumb',
+    'guides.home': 'Home',
+    'guides.noteLabel': 'Important',
+    'guides.related': 'Related guides',
+    'guides.cta.title': 'Put it into practice',
+    'guides.cta.body': 'Log food, water, sleep and weight in Hebrew or English, and see patterns drawn from your own logs. No credit card needed to create an account.',
+    'guides.cta.button': 'Create an account',
+    'guides.backToAll': 'All guides',
     // Auth — password rule (backend requires 10+)
     'auth.passwordHint': 'At least 10 characters.',
 
@@ -925,6 +945,26 @@ export const translations: Record<Lang, Record<string, string>> = {
     'landing.footer.disclaimer':
       'YAHealthy מספקת מידע כללי ואינה מחליפה ייעוץ רפואי. בכל שאלה רפואית יש להתייעץ עם איש מקצוע מורשה.',
     'landing.footer.rights': '© {year} YAHealthy',
+    // מדריכים (מרכז תוכן ציבורי) + SEO
+    'seo.ogImageAlt': 'YAHealthy — תזונה, הרגלים ובישול, בעברית ובאנגלית',
+    'guides.nav': 'מדריכים',
+    'guides.meta.title': 'מדריכי תזונה והרגלים',
+    'guides.meta.description':
+      'מדריכים בשפה פשוטה לתזונה והרגלים יומיומיים — מים, ארוחה מאוזנת, שינה, יומן אוכל, קלוריות ומאקרו. מידע כללי, לא ייעוץ רפואי.',
+    'guides.index.eyebrow': 'מדריכים',
+    'guides.index.title': 'מדריכים לתזונה והרגלים יומיומיים',
+    'guides.index.subtitle': 'קצרים, מעשיים וזהירים: מידע כללי שעוזר לבנות הרגלים — לא ייעוץ רפואי.',
+    'guides.readingTime': 'זמן קריאה: {min} דק׳',
+    'guides.readMore': 'לקריאת המדריך',
+    'guides.updated': 'עודכן',
+    'guides.breadcrumb': 'פירורי לחם',
+    'guides.home': 'דף הבית',
+    'guides.noteLabel': 'חשוב לדעת',
+    'guides.related': 'מדריכים קשורים',
+    'guides.cta.title': 'מהמדריך לשגרה',
+    'guides.cta.body': 'תעדו אוכל, מים, שינה ומשקל בעברית או באנגלית, וראו דפוסים שנבנים מהתיעוד שלכם. לא צריך כרטיס אשראי כדי לפתוח חשבון.',
+    'guides.cta.button': 'לפתוח חשבון',
+    'guides.backToAll': 'כל המדריכים',
     // Auth — password rule (backend requires 10+)
     'auth.passwordHint': 'לפחות 10 תווים.',
 

@@ -8,8 +8,6 @@ import {
   ChefHat,
   ChevronDown,
   Droplets,
-  Heart,
-  Languages,
   Lock,
   MessageCircle,
   MessageCircleHeart,
@@ -21,64 +19,11 @@ import {
   UtensilsCrossed,
 } from 'lucide-react';
 import { useLanguage } from '@/i18n/LanguageContext';
+import { PublicFooter, PublicHeader, usePublicPage, type PublicNavLink } from '@/components/public/PublicChrome';
+import { localizePath } from '@/seo/site';
 import { marketingApi, UTM_KEYS, type LeadInput, type MarketingPlan } from '@/services/api';
 
-// ─── SEO ──────────────────────────────────────────────────────────────────────
-
-/**
- * Title and meta description for the landing page, per language. On leaving
- * the page the app-wide title comes back (LanguageContext sets it in a layout
- * effect, so this passive effect always runs after it and wins while mounted).
- */
-const useLandingMeta = () => {
-  const { lang, t } = useLanguage();
-
-  useEffect(() => {
-    let meta = document.querySelector<HTMLMetaElement>('meta[name="description"]');
-    if (!meta) {
-      meta = document.createElement('meta');
-      meta.name = 'description';
-      document.head.appendChild(meta);
-    }
-    const previousDescription = meta.content;
-
-    document.title = t('landing.meta.title');
-    meta.content = t('landing.meta.description');
-
-    return () => {
-      document.title = `${t('app.name')} — ${t('app.tagline')}`;
-      if (meta) meta.content = previousDescription;
-    };
-    // `t` changes identity every render; the language is what matters.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lang]);
-};
-
 // ─── Small building blocks ────────────────────────────────────────────────────
-
-const LangToggle = () => {
-  const { lang, toggleLang, t } = useLanguage();
-  return (
-    <button
-      type="button"
-      onClick={toggleLang}
-      aria-label={t('a11y.toggleLang')}
-      className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
-    >
-      <Languages size={16} aria-hidden="true" />
-      <span lang={lang === 'he' ? 'en' : 'he'}>{lang === 'he' ? 'EN' : 'עב'}</span>
-    </button>
-  );
-};
-
-const Brand = () => (
-  <span className="flex items-center gap-2.5">
-    <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-600 shadow-sm shadow-emerald-200">
-      <Heart size={18} className="text-white" fill="white" aria-hidden="true" />
-    </span>
-    <span className="text-lg font-extrabold tracking-tight text-slate-900">YAHealthy</span>
-  </span>
-);
 
 const SectionHeading = ({ id, title, subtitle }: { id: string; title: string; subtitle?: string }) => (
   <div className="mx-auto mb-10 max-w-2xl text-center">
@@ -395,7 +340,8 @@ const LeadForm = ({ source, utm, emailRef }: LeadFormProps) => {
 export const LandingPage = () => {
   const { t, lang, isRTL } = useLanguage();
   const location = useLocation();
-  useLandingMeta();
+  // Title, description, canonical, hreflang, OG and JSON-LD (see src/seo/site.ts).
+  usePublicPage();
 
   const Forward = isRTL ? ArrowLeft : ArrowRight;
   const emailRef = useRef<HTMLInputElement>(null);
@@ -473,12 +419,13 @@ export const LandingPage = () => {
     answer: t(`landing.faq.a${n}`),
   }));
 
-  const navLinks = [
-    { href: '#how-it-works', label: t('landing.nav.how') },
-    { href: '#features', label: t('landing.nav.features') },
-    { href: '#pricing', label: t('landing.nav.pricing') },
-    { href: '#faq', label: t('landing.nav.faq') },
+  const navLinks: PublicNavLink[] = [
+    { href: '#how-it-works', label: t('landing.nav.how'), anchor: true },
+    { href: '#features', label: t('landing.nav.features'), anchor: true },
+    { href: '#pricing', label: t('landing.nav.pricing'), anchor: true },
+    { href: '#faq', label: t('landing.nav.faq'), anchor: true },
   ];
+  const headerNav: PublicNavLink[] = [...navLinks, { href: localizePath(lang, '/guides'), label: t('guides.nav') }];
 
   const secondaryBtn =
     'inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 font-semibold text-emerald-700 ring-1 ring-emerald-200 transition hover:bg-emerald-50';
@@ -491,36 +438,7 @@ export const LandingPage = () => {
         {t('a11y.skipToContent')}
       </a>
 
-      {/* Header */}
-      <header className="sticky top-0 z-30 border-b border-slate-100 bg-white/85 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <Link to="/" aria-label="YAHealthy" className="rounded-xl">
-            <Brand />
-          </Link>
-          <nav aria-label={t('landing.nav.label')} className="hidden items-center gap-6 md:flex">
-            {navLinks.map((link) => (
-              <a key={link.href} href={link.href} className="text-sm font-medium text-slate-600 transition hover:text-emerald-700">
-                {link.label}
-              </a>
-            ))}
-          </nav>
-          <div className="flex items-center gap-2">
-            <LangToggle />
-            <Link
-              to="/login"
-              className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 sm:inline-flex"
-            >
-              {t('landing.nav.login')}
-            </Link>
-            <Link
-              to="/signup"
-              className="inline-flex rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
-            >
-              {t('landing.nav.signup')}
-            </Link>
-          </div>
-        </div>
-      </header>
+      <PublicHeader nav={headerNav} />
 
       <main id="main-content" tabIndex={-1} className="outline-none">
         {/* Hero */}
@@ -579,7 +497,7 @@ export const LandingPage = () => {
         </section>
 
         {/* Features */}
-        <section id="features" aria-labelledby="features-title" className="scroll-mt-20 bg-slate-50 px-4 py-16 sm:px-6 sm:py-20">
+        <section id="features" aria-labelledby="features-title" className="below-fold scroll-mt-20 bg-slate-50 px-4 py-16 sm:px-6 sm:py-20">
           <div className="mx-auto max-w-6xl">
             <SectionHeading id="features-title" title={t('landing.features.title')} subtitle={t('landing.features.subtitle')} />
             <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -597,7 +515,7 @@ export const LandingPage = () => {
         </section>
 
         {/* Pricing */}
-        <section id="pricing" aria-labelledby="pricing-title" className="scroll-mt-20 px-4 py-16 sm:px-6 sm:py-20">
+        <section id="pricing" aria-labelledby="pricing-title" className="below-fold scroll-mt-20 px-4 py-16 sm:px-6 sm:py-20">
           <div className="mx-auto max-w-6xl">
             <SectionHeading id="pricing-title" title={t('landing.pricing.title')} subtitle={t('landing.pricing.subtitle')} />
             <div className="grid gap-6 pt-3 md:grid-cols-3" aria-busy={plans === null}>
@@ -646,7 +564,7 @@ export const LandingPage = () => {
         </section>
 
         {/* FAQ */}
-        <section id="faq" aria-labelledby="faq-title" className="scroll-mt-20 bg-slate-50 px-4 py-16 sm:px-6 sm:py-20">
+        <section id="faq" aria-labelledby="faq-title" className="below-fold scroll-mt-20 bg-slate-50 px-4 py-16 sm:px-6 sm:py-20">
           <div className="mx-auto max-w-3xl">
             <SectionHeading id="faq-title" title={t('landing.faq.title')} />
             <div className="flex flex-col gap-3">
@@ -658,7 +576,7 @@ export const LandingPage = () => {
         </section>
 
         {/* Lead capture */}
-        <section id="contact" aria-labelledby="contact-title" className="scroll-mt-20 px-4 py-16 sm:px-6 sm:py-20">
+        <section id="contact" aria-labelledby="contact-title" className="below-fold scroll-mt-20 px-4 py-16 sm:px-6 sm:py-20">
           <div className="mx-auto max-w-3xl rounded-3xl bg-gradient-to-br from-emerald-50 via-teal-50 to-sky-50 p-6 ring-1 ring-emerald-100 sm:p-10">
             <h2 id="contact-title" className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
               {t('landing.lead.title')}
@@ -669,46 +587,7 @@ export const LandingPage = () => {
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white px-4 pb-24 pt-12 sm:px-6 md:pb-12">
-        <div className="mx-auto grid max-w-6xl gap-10 md:grid-cols-4">
-          <div className="md:col-span-2">
-            <Brand />
-            <p className="mt-3 max-w-sm text-sm text-slate-600">{t('landing.footer.tagline')}</p>
-          </div>
-          <nav aria-label={t('landing.footer.product')}>
-            <h2 className="text-sm font-bold text-slate-900">{t('landing.footer.product')}</h2>
-            <ul className="mt-3 flex flex-col gap-2 text-sm">
-              {navLinks.map((link) => (
-                <li key={link.href}>
-                  <a href={link.href} className="text-slate-600 transition hover:text-emerald-700">
-                    {link.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-          <nav aria-label={t('landing.footer.account')}>
-            <h2 className="text-sm font-bold text-slate-900">{t('landing.footer.account')}</h2>
-            <ul className="mt-3 flex flex-col gap-2 text-sm">
-              <li>
-                <Link to="/login" className="text-slate-600 transition hover:text-emerald-700">
-                  {t('landing.nav.login')}
-                </Link>
-              </li>
-              <li>
-                <Link to="/signup" className="text-slate-600 transition hover:text-emerald-700">
-                  {t('landing.nav.signup')}
-                </Link>
-              </li>
-            </ul>
-          </nav>
-        </div>
-        <div className="mx-auto mt-10 flex max-w-6xl flex-col gap-3 border-t border-slate-100 pt-6 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-          <p className="max-w-2xl">{t('landing.footer.disclaimer')}</p>
-          <p className="num shrink-0">{t('landing.footer.rights', { year: new Date().getFullYear() })}</p>
-        </div>
-      </footer>
+      <PublicFooter nav={navLinks} />
     </div>
   );
 };

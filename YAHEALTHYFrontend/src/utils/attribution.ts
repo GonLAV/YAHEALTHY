@@ -7,6 +7,9 @@
  * visit never overwrites what was captured, with one exception: a referral
  * code arriving after an un-referred first visit is still recorded, because
  * that invite is the thing that actually brought the person back.
+ * Likewise, campaign tags arriving after an untagged first visit are filled in
+ * (never overwritten): an organic visitor who reads a guide and clicks its
+ * signup button (utm_source=seo&utm_medium=guide) is credited to that guide.
  *
  * Storage can be unavailable (private mode, blocked site data), so every
  * access is wrapped and the app works the same without it.
@@ -64,7 +67,22 @@ export function captureAttribution(): void {
     const existing = read();
 
     if (existing) {
-      if (ref && !existing.ref) write({ ...existing, ref });
+      const next: StoredAttribution = { ...existing };
+      let changed = false;
+      if (ref && !existing.ref) {
+        next.ref = ref;
+        changed = true;
+      }
+      if (!UTM_KEYS.some((key) => existing[key])) {
+        for (const key of UTM_KEYS) {
+          const value = params.get(key);
+          if (value) {
+            next[key] = clip(value);
+            changed = true;
+          }
+        }
+      }
+      if (changed) write(next);
       return;
     }
 

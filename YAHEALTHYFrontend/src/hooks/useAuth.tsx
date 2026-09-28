@@ -15,11 +15,23 @@ interface AuthContextType {
   logout: () => Promise<void>;
 }
 
+const hasStoredToken = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  try {
+    return Boolean(localStorage.getItem('token'));
+  } catch {
+    return false;
+  }
+};
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Only a stored token needs checking. Without one there is nothing to wait
+  // for, so the public landing page renders at once — and identically to its
+  // prerendered HTML (no token on the server either), which hydration needs.
+  const [loading, setLoading] = useState(hasStoredToken);
 
   useEffect(() => {
     // Check if user is already logged in

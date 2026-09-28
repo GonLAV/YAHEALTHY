@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <!-- Source for og-default.png (scripts/render-seo-images.mjs). Brand emerald. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#047857"/>
+      <stop offset="0.55" stop-color="#059669"/>
+      <stop offset="1" stop-color="#0d9488"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="1060" cy="90" r="220" fill="#ffffff" opacity="0.06"/>
+  <circle cx="1120" cy="560" r="160" fill="#ffffff" opacity="0.05"/>
+  <g transform="translate(96 150)">
+    <rect width="128" height="128" rx="36" fill="#ffffff"/>
+    <path transform="translate(24 26) scale(3.3)" fill="#059669"
+      d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+  </g>
+  <text x="96" y="380" font-family="'DejaVu Sans', 'Liberation Sans', Arial, sans-serif" font-size="96" font-weight="700" fill="#ffffff">YAHealthy</text>
+  <text x="96" y="450" font-family="'DejaVu Sans', 'Liberation Sans', Arial, sans-serif" font-size="40" fill="#d1fae5">Nutrition, habits and cooking</text>
+  <text x="96" y="506" font-family="'DejaVu Sans', 'Liberation Sans', Arial, sans-serif" font-size="30" fill="#a7f3d0">Food · Water · Sleep · Weight</text>
+</svg>

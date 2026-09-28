@@ -20,6 +20,7 @@
 - `src/components/layout/AppLayout.tsx` — sidebar (desktop) + bottom nav (mobile) + language toggle + skip link
 - `src/components/ui/` — PageHeader, StatCard, ProgressBar, ProgressRing, EmptyState
 - `src/pages/` — Login, Signup, Dashboard, FoodLog, Hydration, Sleep, Weight, Coaching, Recipes
+- **Public SEO pages** (`/`, `/en`, `/guides[/<slug>]`, `/en/guides[/<slug>]`): route list, head tags, JSON-LD and sitemap live in `src/seo/site.ts`; guide articles are data in `src/content/guides.ts` (cautious, non-medical, end with the consult-a-professional note). `npm run build` prerenders them via `src/entry-server.tsx` + `scripts/prerender.mjs` (react-dom/server, no browser); `main.tsx` hydrates. Set `VITE_SITE_URL` for deployable builds. The public pages must render identically on server and first client render (no `localStorage`/`window` reads during render). New private route → add to `PRIVATE_PATHS` + `public/robots.txt`. Checks: `npm run test:seo`, `npm run perf:public`. Hosting rules: see `YAHEALTHYFrontend/README.md` ("SEO & prerendering").
 
 ## Quirks
 - **Never commit compiled `.js` next to `.tsx`**: Vite resolves `.js` BEFORE `.tsx` for extensionless imports, so a stale `tsc -b` artifact silently overrides your source edits. If `tsc -b` is run, delete the emitted `.js` files again (see `.gitignore`).
