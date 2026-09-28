@@ -1,0 +1,20 @@
+# YAHealthy. Public pages: / and /en (landing), /guides and /en/guides.
+# Signed-in app screens and the API are not for search engines.
+# Keep the Disallow list in step with PRIVATE_PATHS in src/seo/site.ts
+# (tests/seo.test.mjs checks it). The build appends the absolute Sitemap line.
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /food-log
+Disallow: /hydration
+Disallow: /sleep
+Disallow: /weight
+Disallow: /coaching
+Disallow: /progress
+Disallow: /achievements
+Disallow: /invite
+Disallow: /onboarding
+Disallow: /reminders
+Disallow: /settings
+Disallow: /admin/

@@ -13,7 +13,9 @@ export const useWaitingUpdate = () =>
   useSyncExternalStore(updateStore.subscribe, updateStore.get, () => null);
 
 export function useOnline(): boolean {
-  const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine));
+  // Node 22 (the prerender) has a global navigator without onLine: treat "unknown" as online,
+  // or every prerendered page would ship the offline banner and fail hydration.
+  const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine !== false));
   useEffect(() => {
     const on = () => setOnline(true);
     const off = () => setOnline(false);

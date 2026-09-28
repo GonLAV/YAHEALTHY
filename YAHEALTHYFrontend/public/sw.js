@@ -30,8 +30,12 @@ const PUBLIC_API_CACHE = 'yah-public-api-v1';
 const FONT_CACHE = 'yah-fonts-v1';
 const KEEP = [SHELL_CACHE, ASSET_CACHE, STATIC_CACHE, PUBLIC_API_CACHE, FONT_CACHE];
 
+// The SPA shell is app.html: '/' and the other public pages are prerendered
+// (scripts/prerender.mjs), so they would be the wrong document to fall back to.
+const SHELL = '/app.html';
+
 const SHELL_URLS = [
-  '/',
+  SHELL,
   '/offline.html',
   '/manifest.webmanifest',
   '/icons/icon.svg',
@@ -57,7 +61,7 @@ self.addEventListener('install', (event) => {
       // and the very first page load happens before this worker controls
       // anything, so pull the hashed assets named in index.html now.
       try {
-        const html = await (await shell.match('/')).text();
+        const html = await (await shell.match(SHELL)).text();
         const assets = Array.from(new Set(html.match(/\/assets\/[^"'\s)]+/g) || []));
         if (assets.length) await (await caches.open(ASSET_CACHE)).addAll(assets);
       } catch (e) {
@@ -99,14 +103,11 @@ async function trim(cacheName, max) {
 async function handleNavigation(request) {
   try {
     const response = await fetch(request);
-    if (response.ok && response.type === 'basic') {
-      // Every SPA route serves the same index.html: keep the newest as the shell.
-      const copy = response.clone();
-      caches.open(SHELL_CACHE).then((c) => c.put('/', copy));
-    }
+    // The shell is cached once per worker version at install; navigation
+    // responses are not reused as it, since public routes are prerendered pages.
     return response;
   } catch (e) {
-    return (await caches.match('/', { cacheName: SHELL_CACHE })) ||
+    return (await caches.match(SHELL, { cacheName: SHELL_CACHE })) ||
       (await caches.match('/offline.html')) ||
       new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
   }

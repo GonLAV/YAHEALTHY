@@ -25,6 +25,7 @@
 - `src/components/` — `PrivateRoute` (redirects un-onboarded users to `/onboarding`; the onboarding route opts out with `allowIncompleteOnboarding`), `StaffRoute`, `share/` (Share-my-week modal), `engagement/`
 - `src/utils/attribution.ts` — first-touch UTM/referral capture sent with signup
 
+- **Public SEO pages** (`/`, `/en`, `/guides[/<slug>]`, `/en/guides[/<slug>]`): route list, head tags, JSON-LD and sitemap live in `src/seo/site.ts`; guide articles are data in `src/content/guides.ts` (cautious, non-medical, end with the consult-a-professional note). `npm run build` prerenders them via `src/entry-server.tsx` + `scripts/prerender.mjs` (react-dom/server, no browser); `main.tsx` hydrates. Set `VITE_SITE_URL` for deployable builds. The public pages must render identically on server and first client render (no `localStorage`/`window` reads during render). New private route → add to `PRIVATE_PATHS` + `public/robots.txt`. Checks: `npm run test:seo`, `npm run perf:public`. Hosting rules: see `YAHEALTHYFrontend/README.md` ("SEO & prerendering").
 ## Backend structure
 - `index.js` — core API (auth, logs, coach) + mounts routers; `utils/config-check.js` runs right after dotenv
 - `routes/` — `referrals` (013), `marketing` (plans + consented leads, 014), `engagement` (streaks/Health Score/achievements), `onboarding` (015), `share` (`/api/share/*` + public `/s/:token` pages, 016), `analytics` (staff dashboard, 019), `payments` (PayPlus), `foods`, `whatsapp`, `whapi`
@@ -37,7 +38,7 @@
 
 ## Env & deploy
 - Every `process.env.*` must be listed in `YAHEALTHYbackend/.env.example` (enforced by `tests/config-check.test.js`) and, if it gates a feature, in `utils/config-check.js`. Production fails fast only on JWT_SECRET, SUPABASE_* (unless ALLOW_MEMORY_DB), CORS_ORIGINS.
-- Backend deploys to Vercel (`YAHEALTHYbackend/vercel.json` → everything to Express, so `/api/*` and `/s/*` both work there). Frontend `vercel.json` rewrites all but `/api/` and `/s/` to `index.html` (SPA deep links). Release runbook: `docs/RELEASE-2026-09-27.md`.
+- Backend deploys to Vercel (`YAHEALTHYbackend/vercel.json` → everything to Express, so `/api/*` and `/s/*` both work there). Frontend `vercel.json` rewrites all but `/api/` and `/s/` to `app.html` (the un-prerendered SPA shell; `index.html` is the prerendered Hebrew landing page, and prerendered files win over rewrites). The service worker also uses `/app.html` as its offline shell. Release runbook: `docs/RELEASE-2026-09-27.md`.
 
 ## Quirks
 - **Never commit compiled `.js` next to `.tsx`**: Vite resolves `.js` BEFORE `.tsx` for extensionless imports, so a stale `tsc -b` artifact silently overrides your source edits. If `tsc -b` is run, delete the emitted `.js` files again (see `.gitignore`).
