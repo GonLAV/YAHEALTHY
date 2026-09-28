@@ -384,7 +384,7 @@ const COPY = {
   test: {
     he: () => ({ title: 'ההתראות פועלות', body: 'כך ייראו התזכורות שלך מ-YAHealthy.' }),
     en: () => ({ title: 'Notifications are on', body: 'This is how your YAHealthy reminders will look.' }),
-    url: '/reminders'
+    url: '/settings#reminders'
   }
 };
 

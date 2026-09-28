@@ -348,6 +348,8 @@ function testConversionsAndStats() {
   ]);
   check('stats count sent / failed / converted per campaign', stats.lead_nurture.sent === 1 && stats.lead_nurture.failed === 1 && stats.lead_nurture.converted === 1 && stats.onboarding.converted === 1);
   check('opened is null, not a made-up zero', stats.win_back.opened === null);
+  const welcome = stats.lead_nurture.byStep.welcome;
+  check('per-step counts include failed and pending', welcome && welcome.sent === 1 && welcome.failed === 1 && welcome.pending === 0 && welcome.converted === 1, JSON.stringify(welcome));
 }
 
 function testTemplates() {

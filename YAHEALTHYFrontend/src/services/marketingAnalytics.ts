@@ -91,7 +91,32 @@ export interface LeadsSummaryResponse extends Envelope {
   perSource: { source: string; leads: number; signups: number; rate: number | null }[];
 }
 
+export interface CampaignStepStats {
+  sent: number;
+  failed: number;
+  pending: number;
+  converted: number;
+}
+
+/** One lifecycle campaign's counts from the send log (utils/lifecycle.js summarizeStats). */
+export interface CampaignStats extends CampaignStepStats {
+  campaign: string;
+  marketing: boolean;
+  /** Always null: plain-text email carries no open tracking. Never displayed. */
+  opened: number | null;
+  conversionRate: number | null;
+  byStep: Record<string, CampaignStepStats>;
+  byChannel: Record<string, number>;
+}
+
+export interface CampaignStatsResponse {
+  campaigns: Record<string, CampaignStats>;
+  notes?: Record<string, string>;
+}
+
 export const marketingAnalyticsApi = {
+  /** Lifecycle email/WhatsApp campaigns, all time (not range-bound). */
+  campaignStats: () => api.get<CampaignStatsResponse>('/api/marketing/campaigns/stats'),
   funnel: (range: DateRangeQuery) => api.get<FunnelResponse>('/api/analytics/funnel', { params: range }),
   acquisition: (range: DateRangeQuery) =>
     api.get<AcquisitionResponse>('/api/analytics/acquisition', { params: range }),

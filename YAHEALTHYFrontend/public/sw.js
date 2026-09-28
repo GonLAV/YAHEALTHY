@@ -230,7 +230,7 @@ self.addEventListener('notificationclick', (event) => {
       if (existing) {
         await existing.focus();
         // In-app navigation keeps the SPA state; the page listens for this.
-        existing.postMessage({ type: 'NAVIGATE', url: target.pathname + target.search });
+        existing.postMessage({ type: 'NAVIGATE', url: target.pathname + target.search + target.hash });
         return;
       }
       await self.clients.openWindow(target.href);

@@ -90,6 +90,11 @@ export const authApi = {
 
   getCurrentUser: () =>
     api.get<{ id: string; email: string; name?: string; isStaff?: boolean }>('/api/auth/me'),
+
+  // Every other session is signed out; the response carries a fresh token for
+  // this one, which the caller must store.
+  changePassword: (oldPassword: string, newPassword: string) =>
+    api.post<{ status: string; token: string }>('/api/auth/change-password', { oldPassword, newPassword }),
 };
 
 export const foodLogApi = {
@@ -500,6 +505,28 @@ export const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term',
 export const marketingApi = {
   getPlans: () => api.get<{ plans: MarketingPlan[] }>('/api/marketing/plans'),
   submitLead: (lead: LeadInput) => api.post<{ ok: boolean }>('/api/marketing/leads', lead),
+};
+
+// The signed-in user's own messaging choices (lifecycle email, marketing
+// email, WhatsApp). Consent timestamps are set by the server, never sent.
+export interface MessagingPreferences {
+  email_lifecycle: boolean | null;
+  marketing_email: boolean | null;
+  whatsapp: boolean | null;
+  lang: 'he' | 'en' | null;
+  timezone: string | null;
+  marketing_consent_at: string | null;
+  whatsapp_consent_at: string | null;
+}
+
+export type MessagingPreferencesInput = Partial<
+  Pick<MessagingPreferences, 'email_lifecycle' | 'marketing_email' | 'whatsapp'> & { lang: 'he' | 'en'; timezone: string }
+>;
+
+export const messagingPrefsApi = {
+  get: () => api.get<{ preferences: MessagingPreferences }>('/api/marketing/preferences'),
+  update: (patch: MessagingPreferencesInput) =>
+    api.put<{ preferences: MessagingPreferences }>('/api/marketing/preferences', patch),
 };
 
 // Onboarding wizard. Status + completion + a targets preview computed by the

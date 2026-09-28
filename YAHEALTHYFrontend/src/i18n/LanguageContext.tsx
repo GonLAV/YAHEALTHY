@@ -13,8 +13,13 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 const getInitialLang = (): Lang => {
-  const stored = localStorage.getItem('yahealthy-lang');
-  if (stored === 'he' || stored === 'en') return stored;
+  // Storage can throw (blocked site data, some private modes): fall back to Hebrew.
+  try {
+    const stored = localStorage.getItem('yahealthy-lang');
+    if (stored === 'he' || stored === 'en') return stored;
+  } catch {
+    /* storage unavailable */
+  }
   return 'he';
 };
 
@@ -30,7 +35,11 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     document.documentElement.lang = lang;
     document.documentElement.dir = dir;
     document.title = lang === 'he' ? 'YAHealthy — מעקב תזונה ובריאות' : 'YAHealthy — Nutrition & Health Tracker';
-    localStorage.setItem('yahealthy-lang', lang);
+    try {
+      localStorage.setItem('yahealthy-lang', lang);
+    } catch {
+      /* storage unavailable: the choice lasts for this visit only */
+    }
   }, [lang, dir]);
 
   const setLang = (next: Lang) => setLangState(next);
