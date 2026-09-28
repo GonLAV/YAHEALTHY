@@ -184,12 +184,16 @@ async function getAllUsers() {
     maybeLogMemoryMode();
     return Array.from(memoryDb.usersById.values());
   }
-  const { data, error } = await supabase
-    .from('users')
-    .select('id, email, name, phone, created_at');
-  
-  if (error) throw error;
-  return data || [];
+  // Paged: a single request stops at Supabase's row cap (1000), which would
+  // silently leave everyone after that out of the lifecycle run and the
+  // weekly summary.
+  return selectAllPages(() =>
+    supabase
+      .from('users')
+      .select('id, email, name, phone, created_at')
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
+  );
 }
 
 /**
@@ -814,12 +818,13 @@ async function listEnabledPushReminderSettings() {
     return memoryDb.pushReminderSettings.filter((r) => r.enabled);
   }
 
-  const { data, error } = await supabaseServiceRole
-    .from('push_reminder_settings')
-    .select('*')
-    .eq('enabled', true);
-  if (error) throw error;
-  return data || [];
+  return selectAllPages(() =>
+    supabaseServiceRole
+      .from('push_reminder_settings')
+      .select('*')
+      .eq('enabled', true)
+      .order('user_id', { ascending: true })
+  );
 }
 
 /**
@@ -1227,14 +1232,15 @@ async function listLeads({ limit = 5000 } = {}) {
     return sortByCreatedAtDesc(memoryDb.leads).slice(0, limit);
   }
 
-  const { data, error } = await supabaseServiceRole
-    .from('marketing_leads')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(limit);
-
-  if (error) throw error;
-  return data || [];
+  return selectAllPages(
+    () =>
+      supabaseServiceRole
+        .from('marketing_leads')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: true }),
+    limit
+  );
 }
 
 /**
@@ -1350,11 +1356,15 @@ async function listNotificationPrefs() {
     maybeLogMemoryMode();
     return new Map(memoryDb.notificationPrefs);
   }
-  const { data, error } = await supabaseServiceRole
-    .from('notification_preferences')
-    .select('*');
-  if (error) throw error;
-  return new Map((data || []).map((row) => [row.user_id, row]));
+  // Paged past the row cap: a user missing from this map is treated as having
+  // the defaults (service email on), which would undo their unsubscribe.
+  const data = await selectAllPages(() =>
+    supabaseServiceRole
+      .from('notification_preferences')
+      .select('*')
+      .order('user_id', { ascending: true })
+  );
+  return new Map(data.map((row) => [row.user_id, row]));
 }
 
 async function upsertNotificationPrefs(userId, patch) {
@@ -1461,13 +1471,16 @@ async function listLifecycleSends({ recipientType = null, recipientId = null, ca
       .slice(0, limit)
       .map((s) => ({ ...s }));
   }
-  let query = supabaseServiceRole.from('lifecycle_sends').select('*');
-  if (recipientType) query = query.eq('recipient_type', recipientType);
-  if (recipientId) query = query.eq('recipient_id', recipientId);
-  if (campaign) query = query.eq('campaign', campaign);
-  const { data, error } = await query.order('created_at', { ascending: true }).limit(limit);
-  if (error) throw error;
-  return data || [];
+  // Paged past the row cap. Oldest-first plus a single capped request meant
+  // the NEWEST sends were the ones dropped — exactly the rows the daily cap
+  // and the "step already sent" checks need.
+  return selectAllPages(() => {
+    let query = supabaseServiceRole.from('lifecycle_sends').select('*');
+    if (recipientType) query = query.eq('recipient_type', recipientType);
+    if (recipientId) query = query.eq('recipient_id', recipientId);
+    if (campaign) query = query.eq('campaign', campaign);
+    return query.order('created_at', { ascending: true }).order('id', { ascending: true });
+  }, limit);
 }
 
 /** Stamp converted_at on a recipient's sent messages of one campaign that lack it. */
@@ -2817,14 +2830,21 @@ function chunkList(list, size) {
   return out;
 }
 
-/** Pages through a query built fresh by `build()` until a short page. */
-async function selectAllPages(build) {
+/**
+ * Pages through a query built fresh by `build()` until a short page, or until
+ * `max` rows. PostgREST caps every response at the project's "Max rows"
+ * (1000 by default on Supabase) whatever `.limit()` asks for, so any read
+ * that means "every row" has to come through here. `build()` must order by a
+ * unique key (or end with one) so pages neither overlap nor skip.
+ */
+async function selectAllPages(build, max = ANALYTICS_MAX_ROWS) {
   const rows = [];
-  for (let offset = 0; offset < ANALYTICS_MAX_ROWS; offset += ANALYTICS_PAGE) {
-    const { data, error } = await build().range(offset, offset + ANALYTICS_PAGE - 1);
+  for (let offset = 0; offset < max; offset += ANALYTICS_PAGE) {
+    const size = Math.min(ANALYTICS_PAGE, max - offset);
+    const { data, error } = await build().range(offset, offset + size - 1);
     if (error) throw error;
     rows.push(...(data || []));
-    if (!data || data.length < ANALYTICS_PAGE) break;
+    if (!data || data.length < size) break;
   }
   return rows;
 }
