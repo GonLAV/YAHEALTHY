@@ -1,8 +1,14 @@
+import fs from 'node:fs';
 import { defineConfig, devices } from '@playwright/test';
 
-// Chromium comes preinstalled in /opt/pw-browsers on the dev/CI images; point
-// PLAYWRIGHT_BROWSERS_PATH elsewhere if yours lives somewhere else.
-process.env.PLAYWRIGHT_BROWSERS_PATH ||= '/opt/pw-browsers';
+// Chromium comes preinstalled in /opt/pw-browsers on the dev images; point
+// PLAYWRIGHT_BROWSERS_PATH elsewhere if yours lives somewhere else. Where that
+// directory doesn't exist (GitHub Actions runners) leave the variable unset so
+// Playwright uses its default cache, which `npx playwright install chromium`
+// fills in CI (.github/workflows/ci.yml).
+if (!process.env.PLAYWRIGHT_BROWSERS_PATH && fs.existsSync('/opt/pw-browsers')) {
+  process.env.PLAYWRIGHT_BROWSERS_PATH = '/opt/pw-browsers';
+}
 
 export default defineConfig({
   testDir: './tests',

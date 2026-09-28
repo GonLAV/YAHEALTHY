@@ -1,6 +1,7 @@
 /**
  * Find Playwright without making it a dependency of the app: a local install
- * if there is one, otherwise the globally installed package. Browsers come
+ * if there is one, then the e2e suite's install (../e2e, same pinned version —
+ * this is what CI uses), otherwise the globally installed package. Browsers come
  * from PLAYWRIGHT_BROWSERS_PATH (e.g. /opt/pw-browsers) — this never runs
  * `playwright install`. Returns null when Playwright is not available, so the
  * scripts that use it can skip instead of failing a build.
@@ -17,6 +18,14 @@ export async function loadPlaywright() {
       return require(name);
     } catch {
       /* not installed locally */
+    }
+  }
+  const e2eRequire = createRequire(new URL('../../../e2e/package.json', import.meta.url));
+  for (const name of candidates) {
+    try {
+      return e2eRequire(name);
+    } catch {
+      /* e2e deps not installed */
     }
   }
   try {
