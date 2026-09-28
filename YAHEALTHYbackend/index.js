@@ -3802,12 +3802,30 @@ app.get('/api/targets', auth.authMiddleware, async (req, res) => {
 app.put('/api/targets', auth.authMiddleware, async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { calories, protein_grams, carbs_grams, fat_grams } = req.body;
 
-    // Validate
-    if (calories && (calories < 1000 || calories > 5000)) {
-      return res.status(400).json({ error: 'Invalid input', details: 'Calories must be between 1000 and 5000' });
+    // Numbers only. These land in preferences and are read back by
+    // /api/targets, engagement and the coach, so a string or an object here
+    // would poison every one of them. Numeric strings are still accepted.
+    const num = (schema) =>
+      z.preprocess((v) => (typeof v === 'string' && v.trim() !== '' ? Number(v) : v), schema)
+        .optional()
+        .nullable();
+    const targetsSchema = z.object({
+      calories: num(z.number().finite().min(1000).max(5000)),
+      protein_grams: num(z.number().finite().nonnegative().max(1000)),
+      carbs_grams: num(z.number().finite().nonnegative().max(2000)),
+      fat_grams: num(z.number().finite().nonnegative().max(1000))
+    });
+    const parsed = targetsSchema.safeParse(req.body || {});
+    if (!parsed.success) {
+      const caloriesIssue = parsed.error.issues.some((i) => i.path[0] === 'calories');
+      return res.status(400).json({
+        error: 'Invalid input',
+        details: caloriesIssue ? 'Calories must be between 1000 and 5000' : 'Macro targets must be non-negative numbers',
+        requestId: req.id
+      });
     }
+    const { calories, protein_grams, carbs_grams, fat_grams } = parsed.data;
 
     // Store in preferences, keeping everything else the user has there
     const current = (await db.getUserPreferences(userId)) || {};
