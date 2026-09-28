@@ -3930,7 +3930,8 @@ app.get('/api/progress/overview', auth.authMiddleware, async (req, res) => {
 
 // ========== AI COACHING (CRM) ==========
 // Rule-based coach grounded in the user's own data (see utils/coach.js).
-// Both endpoints are bilingual: pass ?lang=he or ?lang=en (default: en).
+// Both endpoints are bilingual: pass ?lang=he or ?lang=en (default: en), and
+// ?tz= (IANA) so streaks and late-night patterns use the user's own clock.
 
 app.get('/api/crm/users/:userId/insights', auth.authMiddleware, async (req, res) => {
   try {
@@ -3940,7 +3941,7 @@ app.get('/api/crm/users/:userId/insights', auth.authMiddleware, async (req, res)
     const { lang = 'en' } = req.query;
     const day = resolveRequestDate({ date: req.query.date, tz: req.query.tz });
     if (day.error) return res.status(400).json({ error: day.error });
-    const insights = await coach.generateInsights(req.user.userId, lang === 'he' ? 'he' : 'en', { today: day.date });
+    const insights = await coach.generateInsights(req.user.userId, lang === 'he' ? 'he' : 'en', { today: day.date, tz: req.query.tz });
     res.json(insights);
   } catch (error) {
     res.status(500).json({ error: 'Failed to get insights', details: safeErrorDetails(error) });
@@ -3959,7 +3960,7 @@ app.post('/api/crm/users/:userId/ask', auth.authMiddleware, async (req, res) => 
     const { lang = 'en' } = req.query;
     const day = resolveRequestDate({ date: req.query.date, tz: req.query.tz });
     if (day.error) return res.status(400).json({ error: day.error });
-    const response = await coach.answer(req.user.userId, message.trim(), lang === 'he' ? 'he' : 'en', { today: day.date });
+    const response = await coach.answer(req.user.userId, message.trim(), lang === 'he' ? 'he' : 'en', { today: day.date, tz: req.query.tz });
     res.json({ response });
   } catch (error) {
     res.status(500).json({ error: 'Coach request failed', details: safeErrorDetails(error) });

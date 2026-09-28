@@ -92,7 +92,9 @@ export default async function globalSetup() {
       JWT_SECRET: 'e2e-only-secret-not-for-production',
       CORS_ORIGINS: webUrl,
       APP_URL: webUrl,
-      SHARE_BASE_URL: webUrl
+      SHARE_BASE_URL: webUrl,
+      // Every test signs up (and each page load hits /api/auth/me) from one IP.
+      AUTH_RATE_LIMIT_MAX: '1000'
     }
   });
 
