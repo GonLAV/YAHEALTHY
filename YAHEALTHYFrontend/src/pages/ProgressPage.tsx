@@ -11,15 +11,12 @@ import {
 import { useLanguage } from '@/i18n/LanguageContext';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
+import { localIsoDate } from '@/lib/date';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const RANGE_DAYS = 14;
 
 const MACRO_COLORS = ['#10b981', '#3b82f6', '#f59e0b'];
-
-// Local dates, not UTC — the server stores date strings as entered locally.
-const localIso = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 const ChartCard = ({
   title,
@@ -91,7 +88,7 @@ export const ProgressPage = () => {
         const byKey = new Map<string, { calories: number; liters: number; sleepHours: number }>();
         for (let i = 0; i < RANGE_DAYS; i++) {
           const d = new Date(Date.now() - i * DAY_MS);
-          byKey.set(localIso(d), { calories: 0, liters: 0, sleepHours: 0 });
+          byKey.set(localIsoDate(d), { calories: 0, liters: 0, sleepHours: 0 });
         }
         const inWindow = (date: string) => byKey.has(String(date || '').slice(0, 10));
 
@@ -109,7 +106,7 @@ export const ProgressPage = () => {
         const points: DailyPoint[] = [];
         for (let i = RANGE_DAYS - 1; i >= 0; i--) {
           const d = new Date(Date.now() - i * DAY_MS);
-          const key = localIso(d);
+          const key = localIsoDate(d);
           const bucket = byKey.get(key)!;
           points.push({
             key,

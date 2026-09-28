@@ -4,6 +4,7 @@ import { hydrationApi, HydrationLog } from '@/services/api';
 import { useLanguage } from '@/i18n/LanguageContext';
 import PageHeader from '@/components/ui/PageHeader';
 import ProgressRing from '@/components/ui/ProgressRing';
+import { localToday } from '@/lib/date';
 
 const DAILY_GOAL_LITERS = 2.5;
 
@@ -22,7 +23,7 @@ export const HydrationPage = () => {
   const [customMl, setCustomMl] = useState('');
   const [error, setError] = useState('');
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = localToday();
 
   const fetchLogs = async () => {
     try {

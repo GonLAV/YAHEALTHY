@@ -4,6 +4,7 @@ import { sleepApi, SleepLog } from '@/services/api';
 import { useLanguage } from '@/i18n/LanguageContext';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
+import { localToday } from '@/lib/date';
 
 const QUALITY_OPTIONS = [
   { value: 'excellent', stars: 4 },
@@ -56,6 +57,7 @@ export const SleepPage = () => {
     setSubmitting(true);
     try {
       await sleepApi.add({
+        date: localToday(),
         sleepHours: h,
         sleepQuality: quality,
         notes: notes.trim() || undefined,
@@ -82,7 +84,7 @@ export const SleepPage = () => {
       month: 'short',
     });
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = localToday();
   const todayLog = logs.find((l) => l.date === todayStr);
 
   return (
