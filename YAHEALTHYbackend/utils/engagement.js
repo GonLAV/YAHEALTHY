@@ -509,6 +509,7 @@ module.exports = {
   buildDays,
   localDate,
   addDays,
+  rowDate,
   isValidTimeZone,
   resolveGoals,
   ACHIEVEMENTS,

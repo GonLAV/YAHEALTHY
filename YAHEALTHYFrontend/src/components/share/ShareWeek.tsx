@@ -71,16 +71,20 @@ export const ShareWeekModal = ({ open, onClose }: { open: boolean; onClose: () =
 
   const canNativeShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
 
+  // Only the latest request may land: toggling an option twice quickly must
+  // not let the slower, older answer overwrite the newer preview.
+  const loadSeq = useRef(0);
   const load = useCallback(async () => {
+    const seq = ++loadSeq.current;
     setLoading(true);
     setLoadError(false);
     try {
       const res = await shareApi.getWeeklyCard(lang, opts);
-      setPreview(res.data);
+      if (seq === loadSeq.current) setPreview(res.data);
     } catch {
-      setLoadError(true);
+      if (seq === loadSeq.current) setLoadError(true);
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, [lang, opts]);
 
@@ -179,9 +183,14 @@ export const ShareWeekModal = ({ open, onClose }: { open: boolean; onClose: () =
       setLink(res.data);
       setStatus({ kind: 'ok', text: t('share.linkCreated') });
       // Best effort: give chat apps a PNG preview. The SVG one works without it.
-      getPng()
-        .then((blob) => shareApi.uploadImage(res.data.token, blob))
-        .catch(() => undefined);
+      // Only when the preview on screen IS this link's snapshot: a preview
+      // still refreshing after an option change (e.g. weight just switched
+      // off) would publish a picture the link itself does not allow.
+      if (preview && JSON.stringify(preview.snapshot) === JSON.stringify(res.data.snapshot)) {
+        getPng()
+          .then((blob) => shareApi.uploadImage(res.data.token, blob))
+          .catch(() => undefined);
+      }
     } catch {
       setStatus({ kind: 'error', text: t('share.linkFailed') });
     } finally {

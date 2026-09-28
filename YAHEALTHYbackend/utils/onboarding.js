@@ -81,7 +81,13 @@ function previewTargets(input) {
 
   let calcGoal = MAIN_GOALS[goal] || 'maintain';
 
-  if (age < ADULT_AGE) flags.push('minor');
+  // From a birth year alone the age is only known to within a year (the
+  // birthday may not have come yet), so "this year − 18" may still be 17.
+  // The minor rule has to hold for the younger of the two.
+  const youngestAge = !Number.isFinite(input.age) && Number.isFinite(input.birthYear) ? age - 1 : age;
+  const minor = youngestAge < ADULT_AGE;
+
+  if (minor) flags.push('minor');
   if (bmi < UNDERWEIGHT_BMI) {
     flags.push('bmi-low');
     // Never plan a deficit for someone already under the healthy range.
@@ -101,7 +107,7 @@ function previewTargets(input) {
 
   // The calculator is an adult formula; for minors we give no calorie or
   // macro numbers at all rather than a number that looks authoritative.
-  if (age >= ADULT_AGE) {
+  if (!minor) {
     const result = nutrition.calculateDailyTarget({
       sex,
       weightKg,
