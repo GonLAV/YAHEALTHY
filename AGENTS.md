@@ -60,6 +60,8 @@ curl http://localhost:3000              # should return Vite HTML (lang="he" dir
 
 Backend unit/integration suites (in-memory store, no Docker needed): `cd YAHEALTHYbackend && node tests/run-all.js`.
 
+**CI** (`.github/workflows/ci.yml`, every push to main + PRs): `backend-system-test`, `backend-tests` (run-all), `frontend` (no-`.js`-next-to-`.tsx` guard, `tsc -b`, build+prerender, `test:seo`, `test:unit`, `perf:public`), `e2e` (Playwright; traces uploaded on failure), `evals-validate` (case validation + `--dry-run`). CI installs Chromium with `npx playwright install` (runners have no `/opt/pw-browsers`); never do that locally.
+
 **E2E smoke tests (Playwright, `e2e/`)** — self-contained: global setup starts the backend (`ALLOW_MEMORY_DB=true`) and Vite on free ports, runs Chromium, then kills only the process groups it started. Needs `npm install` in `YAHEALTHYbackend/` and `YAHEALTHYFrontend/` first.
 ```bash
 cd e2e && npm install          # @playwright/test only; never run `playwright install`
@@ -72,4 +74,5 @@ Chromium is taken from `PLAYWRIGHT_BROWSERS_PATH` (defaults to the preinstalled 
 - Backend: `npm run dev` (nodemon with auto-reload)
 - Both run inside Docker containers with bind-mounted source.
 - Backend tests: `node tests/run-all.js` (every `tests/*.test.js`, incl. config + migrations checks).
+- Frontend unit tests: `cd YAHEALTHYFrontend && npm run test:unit` (vitest, ~2s, no browser/backend). Tests live next to the code as `src/**/*.test.ts(x)`; config is the standalone `vitest.config.ts` (only the React plugin + `@/` alias, so no need to sync it with vite.config.*). Node environment by default; DOM tests opt in with a `// @vitest-environment jsdom` first line. They are excluded from `tsc -b` (no emit) and type-checked by `npm run typecheck:test` (`tsconfig.test.json`, noEmit). Covers date/DST helpers, attribution, SEO routes/hreflang + PRIVATE_PATHS ↔ App.tsx guards, guide content rules, **i18n parity** (he/en keys, placeholders, every `t('…')` key in src exists — add strings to both languages or it fails), LanguageContext, PWA helpers.
 - Type check: `node_modules/.bin/tsc -p /tmp/tsconfig.check.json` (or `npx tsc -b` — note the pre-existing TS6310 reference quirk in tsconfig.node.json).

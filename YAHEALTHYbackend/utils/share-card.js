@@ -24,7 +24,7 @@
  */
 
 const crypto = require('crypto');
-const { buildDays, scoreDay, buildEngagementSummary, addDays, localDate, resolveGoals, isValidTimeZone } =
+const { buildDays, scoreDay, buildEngagementSummary, addDays, localDate, rowDate, resolveGoals, isValidTimeZone } =
   require('./engagement');
 
 const BRAND = Object.freeze({
@@ -123,10 +123,20 @@ function buildWeeklyCard(input = {}) {
     .sort((a, b) => a.unlockedAt.localeCompare(b.unlockedAt))
     .map((a) => ({ id: a.id, icon: a.icon, title: a.title }));
 
-  const weightChange = input.weekly && Number.isFinite(Number(input.weekly.weightChange))
-    && input.weekly.weightChange !== null
-    ? round1(Number(input.weekly.weightChange))
-    : null;
+  // The change across THIS card's week (the 7 local days ending today): first
+  // to last weigh-in inside it. weekly-summary's own window is the 7 UTC days
+  // ending yesterday, so it missed a weigh-in made today; it is only the
+  // fallback when the raw logs were not passed in.
+  let weightChange = null;
+  if (Array.isArray(input.weightLogs)) {
+    const inWeek = input.weightLogs
+      .map((w) => ({ date: rowDate(w, tz), at: String(w.created_at || w.date || ''), kg: Number(w.weight_kg) }))
+      .filter((w) => w.date && w.date >= start && w.date <= today && Number.isFinite(w.kg))
+      .sort((a, b) => a.date.localeCompare(b.date) || a.at.localeCompare(b.at));
+    if (inWeek.length >= 2) weightChange = round1(inWeek[inWeek.length - 1].kg - inWeek[0].kg);
+  } else if (input.weekly && input.weekly.weightChange !== null && Number.isFinite(Number(input.weekly.weightChange))) {
+    weightChange = round1(Number(input.weekly.weightChange));
+  }
 
   return {
     lang,
