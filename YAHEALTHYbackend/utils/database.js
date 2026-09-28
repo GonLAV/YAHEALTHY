@@ -67,7 +67,8 @@ const memoryDb = {
   chefRequests: [],
   foods: [],
   whapiConversations: new Map(),
-  whapiMessages: []
+  whapiMessages: [],
+  exerciseLogs: []
 };
 
 function sortByCreatedAtDesc(items) {
@@ -1752,6 +1753,130 @@ const LEGACY_ACTIVE_BOT = { adi: 'nuri', yoni: 'chef' };
 const CANONICAL_ACTIVE_BOT = { nuri: 'adi', chef: 'yoni' };
 const CHECK_VIOLATION = '23514';
 
+function normalizeExerciseLogRow(row) {
+  if (!row) return row;
+  return {
+    ...row,
+    type: row.type ?? null,
+    duration_minutes: row.duration_minutes ?? null,
+    calories_burned: row.calories_burned ?? null,
+    intensity: row.intensity ?? null,
+    notes: row.notes ?? null
+  };
+}
+
+async function createExerciseLog(userId, exerciseLog) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const row = {
+      id: uuidv4(),
+      user_id: userId,
+      ...exerciseLog,
+      created_at: new Date().toISOString()
+    };
+    memoryDb.exerciseLogs.push(row);
+    return normalizeExerciseLogRow(row);
+  }
+
+  const { data, error } = await supabase
+    .from('exercise_logs')
+    .insert([{ user_id: userId, ...exerciseLog }])
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return normalizeExerciseLogRow(data);
+}
+
+async function getExerciseLogs(userId, { start = null, end = null, date = null, limit = null, offset = null } = {}) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+
+    const startDate = start ? new Date(start) : null;
+    const endDate = end ? new Date(end) : null;
+    const dateStr = date ? String(date) : null;
+
+    const filtered = sortByCreatedAtDesc(
+      memoryDb.exerciseLogs.filter(r => {
+        if (r.user_id !== userId) return false;
+        if (dateStr && r.date !== dateStr) return false;
+        if (!startDate && !endDate) return true;
+        const d = new Date(r.date);
+        if (Number.isNaN(d.getTime())) return false;
+        if (startDate && d < startDate) return false;
+        if (endDate && d > endDate) return false;
+        return true;
+      })
+    );
+
+    const offsetNum = offset == null ? 0 : Number(offset);
+    const limitNum = limit == null ? null : Number(limit);
+    let sliced;
+    if (!Number.isFinite(offsetNum) || offsetNum < 0) {
+      sliced = filtered;
+    } else if (limitNum == null) {
+      sliced = filtered.slice(offsetNum);
+    } else if (!Number.isFinite(limitNum) || limitNum <= 0) {
+      sliced = filtered.slice(offsetNum);
+    } else {
+      sliced = filtered.slice(offsetNum, offsetNum + limitNum);
+    }
+
+    return sliced.map(normalizeExerciseLogRow);
+  }
+
+  let query = supabase
+    .from('exercise_logs')
+    .select('*')
+    .eq('user_id', userId);
+
+  if (date) {
+    query = query.eq('date', date);
+  }
+  if (start) {
+    query = query.gte('date', start);
+  }
+  if (end) {
+    query = query.lte('date', end);
+  }
+
+  query = query.order('created_at', { ascending: false });
+
+  if (limit != null) {
+    const offsetNum = offset == null ? 0 : Number(offset);
+    const limitNum = Number(limit);
+    if (Number.isFinite(offsetNum) && Number.isFinite(limitNum) && limitNum > 0 && offsetNum >= 0) {
+      query = query.range(offsetNum, offsetNum + limitNum - 1);
+    }
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []).map(normalizeExerciseLogRow);
+}
+
+async function deleteExerciseLog(userId, logId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const idx = memoryDb.exerciseLogs.findIndex(r => r.id === logId && r.user_id === userId);
+    if (idx === -1) return null;
+    const removed = memoryDb.exerciseLogs[idx];
+    memoryDb.exerciseLogs.splice(idx, 1);
+    return normalizeExerciseLogRow(removed);
+  }
+
+  const { data, error } = await supabase
+    .from('exercise_logs')
+    .delete()
+    .eq('id', logId)
+    .eq('user_id', userId)
+    .select('*')
+    .maybeSingle();
+
+  if (error) throw error;
+  return normalizeExerciseLogRow(data || null);
+}
+
 function normalizeActiveBot(row) {
   if (row && CANONICAL_ACTIVE_BOT[row.active_bot]) {
     return { ...row, active_bot: CANONICAL_ACTIVE_BOT[row.active_bot] };
@@ -2031,6 +2156,10 @@ module.exports = {
   deleteFoodLog,
   updateFoodLog,
   deleteFoodLogTemplate,
+  // Exercise logs
+  createExerciseLog,
+  getExerciseLogs,
+  deleteExerciseLog,
   // WHAPI bot conversations
   getWhapiConversation,
   upsertWhapiConversation,

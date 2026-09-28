@@ -102,6 +102,37 @@ export const foodLogApi = {
     api.get('/api/food-logs/macros-distribution', { params }),
 };
 
+export interface ExerciseLogInput {
+  date: string; // YYYY-MM-DD
+  type: string;
+  durationMinutes?: number;
+  caloriesBurned?: number;
+  intensity?: 'low' | 'moderate' | 'high';
+  notes?: string;
+}
+
+export interface ExerciseLog {
+  id: string;
+  date: string;
+  type: string;
+  duration_minutes?: number;
+  calories_burned?: number;
+  intensity?: string;
+  notes?: string;
+  created_at?: string;
+}
+
+export const exerciseApi = {
+  create: (data: ExerciseLogInput) =>
+    api.post<ExerciseLog>('/api/exercise-logs', data),
+
+  getAll: (filters?: { date?: string; start?: string; end?: string; limit?: number }) =>
+    api.get<ExerciseLog[]>('/api/exercise-logs', { params: filters }),
+
+  delete: (id: string) =>
+    api.delete(`/api/exercise-logs/${id}`),
+};
+
 export interface HydrationLog {
   id: string;
   date: string;

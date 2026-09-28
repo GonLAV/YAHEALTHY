@@ -8,6 +8,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { profileApi, Survey, DietaryPreferences } from '@/services/api';
+import { DailyNutritionLog } from '@/components/profile/DailyNutritionLog';
+import { DailyExerciseLog } from '@/components/profile/DailyExerciseLog';
 
 const DIET_TYPES = ['omnivore', 'vegetarian', 'vegan', 'keto', 'paleo', 'mediterranean'];
 const ALLERGIES = ['gluten', 'dairy', 'nuts', 'eggs', 'soy', 'shellfish', 'fish'];
@@ -513,6 +515,12 @@ export const ProfilePage = () => {
           </div>
         </form>
       </SectionCard>
+
+      {/* ── Daily Nutrition Log ── */}
+      <DailyNutritionLog />
+
+      {/* ── Daily Exercise Log ── */}
+      <DailyExerciseLog />
 
       {/* ── Security ── */}
       <SectionCard icon={<Shield size={22} />} title={t('profile.security')}>
