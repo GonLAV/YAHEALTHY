@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown, Download, Inbox, Megaphone, UserCheck,
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatCard } from '@/components/ui/StatCard';
 import { useLanguage } from '@/i18n/LanguageContext';
+import '@/i18n/strings/staff'; // this page's analytics.* strings (kept off the public pages)
 import {
   marketingAnalyticsApi,
   type AcquisitionResponse,

@@ -1,5 +1,4 @@
 import { createContext, useCallback, useContext, useEffect, useState, ReactNode } from 'react';
-import { onboardingApi } from '@/services/api';
 import { useAuth } from '@/hooks/useAuth';
 
 /**
@@ -29,8 +28,8 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
     }
     let cancelled = false;
     setState('loading');
-    onboardingApi
-      .getStatus()
+    import('@/services/api')
+      .then((m) => m.onboardingApi.getStatus())
       .then((res) => {
         if (!cancelled) setState(res.data.completed ? 'complete' : 'incomplete');
       })
