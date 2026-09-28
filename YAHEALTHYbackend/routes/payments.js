@@ -240,7 +240,10 @@ callbackRouter.post('/callback', async (req, res) => {
     // password is never sent by email, only a link to choose one.
     const setupToken = auth.generatePasswordResetToken(user.id, user.email, user.token_version || 0);
     try {
-      await mailer.sendPasswordResetEmail(user.email, setupToken);
+      // A new account has no password yet: it gets a welcome and an invitation
+      // to choose one. An existing account renewing already has one, and gets
+      // the ordinary reset link in case it was never set.
+      await (isNewAccount ? mailer.sendWelcomeEmail : mailer.sendPasswordResetEmail)(user.email, setupToken);
     } catch (mailError) {
       // The subscription is already real. A failed email is a delivery problem
       // to chase, not a reason to tell PayPlus the payment failed.

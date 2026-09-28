@@ -446,6 +446,28 @@ export const translations: Record<Lang, Record<string, string>> = {
     'landing.footer.home': 'Home',
     'landing.footer.disclaimer': 'Nutrition coaching is given by a natural nutritionist and is not a substitute for medical advice.',
 
+    // Staff, cancel, shopping
+    'password.forgot.title': 'Forgot your password?',
+    'password.forgot.subtitle': 'Enter your email and we will send you a link to choose a new one.',
+    'password.forgot.submit': 'Send me a link',
+    'password.forgot.sending': 'Sending…',
+    'password.forgot.sent': 'If an account exists for that email, a link is on its way. It is valid for one hour.',
+    'password.backToLogin': 'Back to sign in',
+    'password.reset.title': 'Choose a new password',
+    'password.reset.welcomeTitle': 'Welcome! Choose your password',
+    'password.reset.forEmail': 'For {email}',
+    'password.reset.new': 'New password',
+    'password.reset.confirm': 'Confirm password',
+    'password.reset.hint': 'At least {n} characters.',
+    'password.reset.tooShort': 'The password needs at least {n} characters.',
+    'password.reset.mismatch': 'The two passwords do not match.',
+    'password.reset.submit': 'Save password',
+    'password.reset.saving': 'Saving…',
+    'password.reset.doneTitle': 'Password saved',
+    'password.reset.doneDesc': 'You can sign in now. Anyone who was signed in with the old password has been signed out.',
+    'password.reset.expiredTitle': 'This link has expired',
+    'password.reset.expiredDesc': 'Links are valid for one hour and work once. We will send you a fresh one.',
+
   },
   he: {
     // App
@@ -891,6 +913,28 @@ export const translations: Record<Lang, Record<string, string>> = {
     'landing.footer.nav': 'ניווט באתר',
     'landing.footer.home': 'דף הבית',
     'landing.footer.disclaimer': 'הליווי התזונתי ניתן על ידי תזונאית טבעית ואינו תחליף לייעוץ רפואי.',
+
+    // Staff, cancel, shopping
+    'password.forgot.title': 'שכחתם את הסיסמה?',
+    'password.forgot.subtitle': 'הזינו את המייל ונשלח קישור לבחירת סיסמה חדשה.',
+    'password.forgot.submit': 'שלחו לי קישור',
+    'password.forgot.sending': 'שולחים…',
+    'password.forgot.sent': 'אם יש חשבון עם המייל הזה, קישור כבר בדרך. הוא תקף לשעה אחת.',
+    'password.backToLogin': 'חזרה לכניסה',
+    'password.reset.title': 'בחירת סיסמה חדשה',
+    'password.reset.welcomeTitle': 'ברוכים הבאים! בחרו סיסמה',
+    'password.reset.forEmail': 'עבור {email}',
+    'password.reset.new': 'סיסמה חדשה',
+    'password.reset.confirm': 'אימות סיסמה',
+    'password.reset.hint': 'לפחות {n} תווים.',
+    'password.reset.tooShort': 'הסיסמה צריכה לפחות {n} תווים.',
+    'password.reset.mismatch': 'שתי הסיסמאות לא זהות.',
+    'password.reset.submit': 'שמירת הסיסמה',
+    'password.reset.saving': 'שומרים…',
+    'password.reset.doneTitle': 'הסיסמה נשמרה',
+    'password.reset.doneDesc': 'אפשר להיכנס עכשיו. מי שהיה מחובר עם הסיסמה הקודמת נותק.',
+    'password.reset.expiredTitle': 'פג תוקף הקישור',
+    'password.reset.expiredDesc': 'קישורים תקפים לשעה אחת ועובדים פעם אחת. נשלח לכם קישור חדש.',
 
   },
 };

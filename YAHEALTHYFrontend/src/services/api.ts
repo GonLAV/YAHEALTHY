@@ -72,6 +72,14 @@ export const authApi = {
     }
   },
 
+  // Both answer the same way whether or not the address exists; see the
+  // comments on the endpoints in YAHEALTHYbackend/index.js.
+  requestPasswordReset: (email: string) =>
+    api.post<{ message: string }>('/api/auth/request-password-reset', { email }),
+
+  resetPassword: (token: string, newPassword: string) =>
+    api.post<{ status: 'ok' }>('/api/auth/reset-password', { token, newPassword }),
+
   getCurrentUser: () =>
     api.get<{ id: string; email: string; isStaff?: boolean }>('/api/auth/me'),
 };

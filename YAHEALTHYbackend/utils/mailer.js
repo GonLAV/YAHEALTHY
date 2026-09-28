@@ -79,9 +79,30 @@ async function sendPasswordResetEmail(to, resetToken) {
   });
 }
 
+/**
+ * The first email a new customer gets, right after paying: their account was
+ * just created with no password, so it is an invitation to choose one, not a
+ * "reset" of something they never had. Same single-use link and lifetime as a
+ * reset; if it lapses, /forgot-password sends a fresh one.
+ */
+async function sendWelcomeEmail(to, setupToken) {
+  const link = `${APP_URL}/reset-password?token=${encodeURIComponent(setupToken)}&welcome=1`;
+
+  return deliver({
+    to,
+    subject: 'ברוכים הבאים ל-YAHEALTHY — בחירת סיסמה',
+    text:
+      'התשלום התקבל והחשבון שלך מוכן.\n\n' +
+      `כדי להיכנס לאפליקציה, בחרו סיסמה כאן:\n${link}\n\n` +
+      'הקישור תקף לשעה אחת וניתן לשימוש פעם אחת. ' +
+      `אם פג תוקפו, אפשר לבקש קישור חדש כאן: ${APP_URL}/forgot-password`
+  });
+}
+
 module.exports = {
   deliver,
   sendPasswordResetEmail,
+  sendWelcomeEmail,
   providerConfigured,
   APP_URL
 };

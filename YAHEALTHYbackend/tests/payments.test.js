@@ -167,6 +167,17 @@ async function run() {
   await new Promise((r) => setTimeout(r, 300));
   const setupToken = welcomeLinkToken();
   check('a set-password link was mailed', !!setupToken);
+  check(
+    'and it reads as a welcome, not a password reset',
+    serverLog.join('').includes('subject: ברוכים הבאים ל-YAHEALTHY') &&
+      !serverLog.join('').includes('subject: איפוס הסיסמה'),
+    'a customer who just paid never had a password to reset'
+  );
+  check(
+    'with a link to a page that exists in the app',
+    /\/reset-password\?token=[^\s&"]+&welcome=1/.test(serverLog.join('')),
+    'the frontend route is /reset-password; ?welcome=1 lets it greet a new customer'
+  );
 
   const password = 'the one they chose';
   const setPassword = await call('POST', '/api/auth/reset-password', {

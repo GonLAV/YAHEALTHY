@@ -31,6 +31,10 @@ const WelcomePage = lazy(() => import('@/pages/ResultPages').then((m) => ({ defa
 const PaymentFailedPage = lazy(() => import('@/pages/ResultPages').then((m) => ({ default: m.PaymentFailedPage })));
 const ProgressPage = lazy(() => import('@/pages/ProgressPage').then((m) => ({ default: m.ProgressPage })));
 
+// The server mails links to /reset-password (every new customer gets one right
+// after paying) — the page did not exist, so a buyer could never sign in.
+const ResetPasswordPage = lazy(() => import('@/pages/PasswordPages').then((m) => ({ default: m.ResetPasswordPage })));
+const ForgotPasswordPage = lazy(() => import('@/pages/PasswordPages').then((m) => ({ default: m.ForgotPasswordPage })));
 const LandingPage = lazy(() => import('@/pages/LandingPage').then((m) => ({ default: m.LandingPage })));
 
 const PageLoader = () => (
@@ -53,6 +57,8 @@ const AppRoutes = () => (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/pricing" element={<PricingPage />} />
       <Route path="/book" element={<BookingPage />} />
       <Route path="/book/confirmed" element={<BookingConfirmedPage />} />
