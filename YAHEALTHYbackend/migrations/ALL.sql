@@ -741,6 +741,67 @@ create index if not exists marketing_leads_created_idx
 
 alter table public.marketing_leads enable row level security;
 
+-- אשף הכניסה (onboarding) — מתי המשתמש סיים אותו.
+--
+-- users.onboarding_completed_at — נכתב פעם אחת, כשהמשתמש מסיים או מדלג על
+--                                 האשף (POST /api/onboarding). null = עוד לא.
+--
+-- כל שאר מה שהאשף אוסף נשמר במקומות הקיימים: users.preferences (מטרה,
+-- העדפות תזונה, יעדים יומיים, תזכורות), weight_goals, hydration_logs.
+-- משתמשים ותיקים עם העדפות/יעדים/תיעודים נחשבים כמי שסיימו גם בלי העמודה
+-- (utils/onboarding.js), כך שאין צורך ב-backfill.
+--
+-- נתיב חזרה:
+--   alter table public.users drop column onboarding_completed_at;
+
+alter table public.users
+  add column if not exists onboarding_completed_at timestamptz;
+
+-- ─────────────────────────────────────────────────────────────
+-- 016_share_cards.sql
+-- ─────────────────────────────────────────────────────────────
+-- share_cards — קישורי "שתפו את השבוע שלי" (routes/share.js).
+--
+-- כל שורה היא תמונת מצב (snapshot) קפואה של שבוע, שעברה סינון פרטיות לפני
+-- שנשמרה: שם פרטי בלבד (ורק אם הבעלים השאיר אותו), בלי אימייל, בלי מזהה
+-- משתמש, ובלי מספרי משקל אלא אם הבעלים סימן זאת — וגם אז רק השינוי השבועי.
+-- ה-snapshot נבנה בשרת מהנתונים, לעולם לא ממספרים שהלקוח שולח.
+--
+-- הטוקן עצמו לא נשמר: רק SHA-256 שלו (token_hash). דליפה של הטבלה לא
+-- מחלקת קישורים עובדים. 192 ביט אקראיים — ניחוש אינו מעשי.
+--
+-- תוקף: expires_at (30 יום). ביטול על ידי הבעלים: revoked_at (והתמונה נמחקת).
+--
+-- image_png — רינדור PNG של הכרטיס שהדפדפן של הבעלים מעלה, כדי ש-og:image
+-- יהיה PNG (וואטסאפ/פייסבוק מתעלמים מ-SVG). base64 ב-text ולא bytea: כך
+-- supabase-js מחזיר אותו בלי המרת hex. מוגבל ל-800KB ולמידות 1200×630 בקוד.
+--
+-- נתיב חזרה:
+--   drop table public.share_cards;
+
+create table if not exists public.share_cards (
+  id          uuid primary key default gen_random_uuid(),
+  token_hash  text not null,
+  user_id     uuid not null references public.users(id) on delete cascade,
+  snapshot    jsonb not null,
+  ref_code    text,
+  lang        text not null default 'he' check (lang in ('he', 'en')),
+  image_png   text,
+  created_at  timestamptz not null default now(),
+  expires_at  timestamptz not null,
+  revoked_at  timestamptz
+);
+
+create unique index if not exists share_cards_token_hash_key
+  on public.share_cards (token_hash);
+
+-- מגבלת יצירה יומית לכל משתמש (countCreatedSince).
+create index if not exists share_cards_user_created_idx
+  on public.share_cards (user_id, created_at desc);
+
+-- 🔴 RLS מופעל בלי policies, כמו שאר הטבלאות; הגישה דרך השרת בלבד.
+alter table public.share_cards enable row level security;
+
 -- דיוור מחזור-חיים (lifecycle): טיפוח לידים, onboarding, רצף בסיכון, win-back.
 --
 -- שלושה דברים:
@@ -814,3 +875,26 @@ alter table public.marketing_leads
 
 alter table public.notification_preferences enable row level security;
 alter table public.lifecycle_sends          enable row level security;
+
+-- אינדקסים ללוח הבקרה השיווקי (routes/analytics.js, staff בלבד).
+--
+-- כל endpoint שם מתחיל ב"מי נרשם / מי הופנה / מי השאיר אימייל בטווח
+-- התאריכים", כלומר טווח על created_at. ל-users ול-referrals אין אינדקס כזה
+-- (ל-marketing_leads יש, ממיגרציה 014), ובלעדיו כל טעינה של הדשבורד היא
+-- סריקה מלאה של טבלת המשתמשים.
+--
+-- שאר הקריאות כבר מכוסות: לוגים לפי (user_id, date/created_at) ממיגרציה 001,
+-- subscriptions לפי user_id ממיגרציה 005, referral_rewards לפי
+-- (referral_id, user_id) ממיגרציה 013.
+--
+-- אין כאן שינוי נתונים ואין עמודות חדשות. בטוח להרצה חוזרת.
+--
+-- נתיב חזרה:
+--   drop index if exists public.users_created_at_idx;
+--   drop index if exists public.referrals_created_at_idx;
+
+create index if not exists users_created_at_idx
+  on public.users (created_at);
+
+create index if not exists referrals_created_at_idx
+  on public.referrals (created_at);

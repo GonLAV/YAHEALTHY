@@ -1,5 +1,6 @@
 import axios from 'axios';
 import type { Attribution } from '@/utils/attribution';
+import { browserTimeZone, todayISO } from '@/utils/date';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? '';
 
@@ -88,7 +89,7 @@ export const authApi = {
   },
 
   getCurrentUser: () =>
-    api.get<{ id: string; email: string }>('/api/auth/me'),
+    api.get<{ id: string; email: string; name?: string; isStaff?: boolean }>('/api/auth/me'),
 };
 
 export const foodLogApi = {
@@ -128,7 +129,8 @@ export interface HydrationLog {
 
 export const hydrationApi = {
   add: (data: { date?: string; litersConsumed: number; timeOfDay?: string }) =>
-    api.post<HydrationLog>('/api/hydration-logs', data),
+    // tz lets the server pick the user's local "today" if date is omitted.
+    api.post<HydrationLog>('/api/hydration-logs', { tz: browserTimeZone(), ...data }),
 
   getAll: (params?: { date?: string }) =>
     api.get<HydrationLog[]>('/api/hydration-logs', { params }),
@@ -145,7 +147,7 @@ export interface SleepLog {
 
 export const sleepApi = {
   add: (data: { date?: string; sleepHours: number; sleepQuality?: string; notes?: string }) =>
-    api.post<SleepLog>('/api/sleep-logs', data),
+    api.post<SleepLog>('/api/sleep-logs', { tz: browserTimeZone(), ...data }),
 
   getAll: (params?: { date?: string }) =>
     api.get<SleepLog[]>('/api/sleep-logs', { params }),
@@ -281,14 +283,6 @@ export interface EngagementSummary {
   nextMilestone: NextMilestone;
 }
 
-const browserTimeZone = () => {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-  } catch {
-    return 'UTC';
-  }
-};
-
 export const engagementApi = {
   getSummary: (lang: string) =>
     api.get<EngagementSummary>('/api/engagement/summary', {
@@ -298,9 +292,9 @@ export const engagementApi = {
 
 export const crmApi = {
   getInsights: (userId: string, lang: string) =>
-    api.get(`/api/crm/users/${userId}/insights`, { params: { lang } }),
+    api.get(`/api/crm/users/${userId}/insights`, { params: { lang, date: todayISO(), tz: browserTimeZone() } }),
   askCoach: (userId: string, message: string, lang: string) =>
-    api.post(`/api/crm/users/${userId}/ask?lang=${lang}`, { message }),
+    api.post(`/api/crm/users/${userId}/ask`, { message }, { params: { lang, date: todayISO(), tz: browserTimeZone() } }),
 };
 
 export interface RecipeIngredient {
@@ -372,6 +366,66 @@ export const referralApi = {
     api.get<ReferralValidation>(`/api/referrals/validate/${encodeURIComponent(code)}`),
 };
 
+// "Share my week" — weekly card + public share links (routes/share.js)
+export interface ShareSnapshot {
+  v: number;
+  lang: 'he' | 'en';
+  week: { start: string; end: string };
+  firstName: string | null;
+  avgScore: number;
+  trend: { date: string; score: number }[];
+  daysLogged: number;
+  waterHits: number;
+  sleepHits: number;
+  streak: number;
+  bestStreak: number;
+  badges: { id: string; icon?: string; title: string }[];
+  weightChangeKg?: number;
+}
+
+export interface ShareOptions {
+  showName: boolean;
+  includeWeight: boolean;
+}
+
+export interface WeeklyCardPreview {
+  card: ShareSnapshot & { weightChangeKg: number | null; unlockedCount: number };
+  snapshot: ShareSnapshot;
+  svg: string;
+  width: number;
+  height: number;
+}
+
+export interface ShareLink {
+  token: string;
+  url: string;
+  imageUrl: string;
+  expiresAt: string;
+  snapshot: ShareSnapshot;
+}
+
+export const shareApi = {
+  getWeeklyCard: (lang: string, opts: ShareOptions) =>
+    api.get<WeeklyCardPreview>('/api/share/weekly-card', {
+      params: {
+        lang,
+        tz: browserTimeZone(),
+        showName: opts.showName ? 1 : 0,
+        includeWeight: opts.includeWeight ? 1 : 0,
+      },
+    }),
+
+  createLink: (lang: string, opts: ShareOptions) =>
+    api.post<ShareLink>('/api/share/weekly-card/link', { lang, tz: browserTimeZone(), ...opts }),
+
+  uploadImage: (token: string, png: Blob) =>
+    api.put(`/api/share/c/${encodeURIComponent(token)}/image`, png, {
+      headers: { 'Content-Type': 'image/png' },
+    }),
+
+  revoke: (token: string) => api.delete(`/api/share/c/${encodeURIComponent(token)}`),
+};
+
 export const analyticsApi = {
   getInsights: () =>
     api.get('/api/insights/daily'),
@@ -408,6 +462,81 @@ export const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term',
 export const marketingApi = {
   getPlans: () => api.get<{ plans: MarketingPlan[] }>('/api/marketing/plans'),
   submitLead: (lead: LeadInput) => api.post<{ ok: boolean }>('/api/marketing/leads', lead),
+};
+
+// Onboarding wizard. Status + completion + a targets preview computed by the
+// backend calculators; everything else the wizard saves goes through the
+// endpoints that already own that data (preferences, weight goals, hydration).
+export type OnboardingGoal =
+  | 'lose_weight'
+  | 'maintain_weight'
+  | 'gain_weight'
+  | 'eat_healthier'
+  | 'sleep_better'
+  | 'more_energy';
+
+export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
+
+export interface OnboardingStatus {
+  completed: boolean;
+  completedAt: string | null;
+  source: 'wizard' | 'existing' | null;
+}
+
+export interface TargetsPreviewInput {
+  goal: OnboardingGoal;
+  sex: 'male' | 'female';
+  age?: number;
+  birthYear?: number;
+  heightCm: number;
+  weightKg: number;
+  targetWeightKg?: number | null;
+  activityLevel: ActivityLevel;
+}
+
+export interface TargetRange {
+  low: number;
+  high: number;
+  center: number;
+}
+
+export type SafetyFlag =
+  | 'minor'
+  | 'below-safe-floor'
+  | 'bmi-low'
+  | 'bmi-high'
+  | 'target-bmi-low'
+  | 'lose-while-underweight';
+
+export interface TargetsPreview {
+  inputs: TargetsPreviewInput & { age: number; calcGoal: 'lose' | 'maintain' | 'gain' };
+  bmi: number;
+  targetBmi: number | null;
+  tdee: number | null;
+  calories: TargetRange | null;
+  macros: { proteinG: TargetRange; fatG: TargetRange; carbsG: TargetRange } | null;
+  waterLiters: number;
+  sleepHours: number;
+  safety: { safeCalorieFloor: number; needsProfessional: boolean; flags: SafetyFlag[] };
+}
+
+export const onboardingApi = {
+  getStatus: () => api.get<OnboardingStatus>('/api/onboarding'),
+
+  complete: (skipped = false) =>
+    api.post<OnboardingStatus & { skipped: boolean }>('/api/onboarding', skipped ? { skipped: true } : {}),
+
+  previewTargets: (input: TargetsPreviewInput) =>
+    api.post<TargetsPreview>('/api/onboarding/targets-preview', input),
+};
+
+export const preferencesApi = {
+  get: () => api.get<{ preferences: Record<string, unknown> }>('/api/users/me/preferences'),
+
+  // The server stores the object as given (it replaces, not merges), so
+  // callers pass the full, merged preferences.
+  put: (preferences: Record<string, unknown>) =>
+    api.put<{ preferences: Record<string, unknown> }>('/api/users/me/preferences', { preferences }),
 };
 
 export default api;
