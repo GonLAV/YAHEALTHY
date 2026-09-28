@@ -402,18 +402,99 @@ const safe = (p) => Promise.resolve(p).then((v) => v || []).catch(() => []);
 /** Only the logs the due reminders need. Streak needs history; water and meal need today. */
 async function loadReminderFacts(userId, { tz, now, kinds }) {
   const today = localDate(now, tz);
-  const facts = {};
   const needStreak = kinds.includes('streak');
 
   const [foodLogs, hydrationLogs, sleepLogs, weightLogs, prefs, survey] = await Promise.all([
-    safe(db.getFoodLogs(userId, { start: needStreak ? addDays(today, -60) : today })),
+    safe(db.getFoodLogs(userId, { start: foodStart(today, needStreak) })),
     safe(needStreak ? db.getHydrationLogs(userId) : db.getHydrationLogs(userId, today)),
     needStreak ? safe(db.getSleepLogs(userId)) : [],
     needStreak ? safe(db.getWeightLogs(userId)) : [],
     db.getUserPreferences(userId).catch(() => null),
     db.getLatestSurvey(userId).catch(() => null)
   ]);
+  return factsFromLogs({ foodLogs, hydrationLogs, sleepLogs, weightLogs, prefs, survey }, { tz, today, needStreak });
+}
 
+/** Streak needs 60 days of food; water and meal only today's. */
+const STREAK_HISTORY_DAYS = 60;
+function foodStart(today, needStreak) {
+  return needStreak ? addDays(today, -STREAK_HISTORY_DAYS) : today;
+}
+
+/** One bulk read per table, in parallel; a table that fails reads as empty (like safe()). */
+async function readTables(ids, tables) {
+  const names = Object.keys(tables);
+  const maps = await Promise.all(
+    names.map((name) =>
+      ids.length
+        ? db
+            .listLogsForUsers(ids, { [name]: tables[name] })
+            .then((r) => r[name] || new Map())
+            .catch(() => new Map())
+        : new Map()
+    )
+  );
+  return Object.fromEntries(names.map((name, i) => [name, maps[i]]));
+}
+
+const dayOf = (row) => String(row.date || '').slice(0, 10);
+
+/**
+ * loadReminderFacts for a page of users at once: a bulk read per table
+ * instead of four to six reads per user. Each user gets the same rows the
+ * per-user read gives — the queries start at the earliest bound the page
+ * needs and each user's rows are trimmed to their own day and history.
+ *
+ * @param {Array<{ userId: string, tz: string, kinds: string[] }>} targets
+ * @returns {Promise<Map<string, object>>} facts per user id
+ */
+async function loadReminderFactsForUsers(targets, now) {
+  const out = new Map();
+  if (!targets.length) return out;
+
+  const plan = targets.map((t) => {
+    const today = localDate(now, t.tz);
+    const needStreak = t.kinds.includes('streak');
+    return { ...t, today, needStreak, foodSince: foodStart(today, needStreak) };
+  });
+  const ids = plan.map((p) => p.userId);
+  const streakIds = plan.filter((p) => p.needStreak).map((p) => p.userId);
+  const dayPlans = plan.filter((p) => !p.needStreak);
+  const dayIds = dayPlans.map((p) => p.userId);
+  const min = (list) => list.slice().sort()[0];
+  const max = (list) => list.slice().sort().pop();
+
+  const [food, full, todays, prefsById, surveysById] = await Promise.all([
+    readTables(ids, { food: { since: min(plan.map((p) => p.foodSince)) } }),
+    readTables(streakIds, { hydration: true, sleep: true, weight: true }),
+    dayIds.length
+      ? readTables(dayIds, { hydration: { since: min(dayPlans.map((p) => p.today)), until: max(dayPlans.map((p) => p.today)) } })
+      : { hydration: new Map() },
+    db.listUserPreferencesFor(ids).catch(() => null),
+    db.listLatestSurveysFor(ids).catch(() => null)
+  ]);
+
+  for (const p of plan) {
+    const rows = (map, id) => map.get(id) || [];
+    const input = {
+      foodLogs: rows(food.food, p.userId).filter((r) => dayOf(r) >= p.foodSince),
+      hydrationLogs: p.needStreak
+        ? rows(full.hydration, p.userId)
+        : rows(todays.hydration, p.userId).filter((r) => dayOf(r) === p.today),
+      sleepLogs: p.needStreak ? rows(full.sleep, p.userId) : [],
+      weightLogs: p.needStreak ? rows(full.weight, p.userId) : [],
+      // getUserPreferences answers null for a missing user; so does this.
+      prefs: prefsById ? (prefsById.has(p.userId) ? prefsById.get(p.userId) : null) : null,
+      survey: surveysById ? surveysById.get(p.userId) || null : null
+    };
+    out.set(p.userId, factsFromLogs(input, { tz: p.tz, today: p.today, needStreak: p.needStreak }));
+  }
+  return out;
+}
+
+/** The facts the reminder decision reads, from one user's rows. Pure. */
+function factsFromLogs({ foodLogs, hydrationLogs, sleepLogs, weightLogs, prefs, survey }, { tz, today, needStreak }) {
+  const facts = {};
   const goals = resolveGoals({
     waterTargetLiters: prefs?.waterTargetLiters ?? survey?.water_target_liters ?? null,
     sleepTargetHours: prefs?.sleepTargetHours ?? survey?.sleep_target_hours ?? null
@@ -438,6 +519,47 @@ async function loadReminderFacts(userId, { tz, now, kinds }) {
   return facts;
 }
 
+/** Users per page of the tick, and how many of a page are sent to at once. */
+const TICK_PAGE_SIZE = db.SCHEDULER_PAGE || 200;
+const TICK_CONCURRENCY = 4;
+
+/** Run `fn` over `items`, at most `limit` at a time. */
+async function forEachLimit(items, limit, fn) {
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) await fn(items[next++]);
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+}
+
+/** Facts, sends and state writes for the page's users with something due by the clock. */
+async function decidePage(due, now, summary) {
+  // No browser to deliver to: leave the slots open for when one appears.
+  const withDevice = await db.listUsersWithPushSubscriptions(due.map((d) => d.row.user_id));
+  const ready = due.filter((d) => withDevice.has(d.row.user_id));
+  if (!ready.length) return;
+
+  const factsById = await loadReminderFactsForUsers(
+    ready.map((d) => ({ userId: d.row.user_id, tz: d.tz, kinds: d.clock.due.map((x) => x.kind) })),
+    now
+  );
+
+  await forEachLimit(ready, TICK_CONCURRENCY, async ({ row, state, clock }) => {
+    try {
+      const facts = factsById.get(row.user_id);
+      const { send, skipped } = applyFacts(clock.due, facts);
+      for (const item of send) {
+        await sendPush(row.user_id, buildReminderPayload(item.kind, row.lang, facts));
+        summary.sent++;
+      }
+      summary.skipped += skipped.length;
+      await db.updatePushReminderState(row.user_id, nextState(state, [...send, ...skipped]));
+    } catch (error) {
+      console.error(`[push] reminder tick failed for a user: ${error && error.message}`);
+    }
+  });
+}
+
 let tickRunning = false;
 
 /**
@@ -451,30 +573,37 @@ async function runReminderTick({ now = new Date() } = {}) {
   const summary = { users: 0, sent: 0, skipped: 0 };
   try {
     if (!isPushEnabled()) return summary;
-    const rows = await db.listEnabledPushReminderSettings();
-    for (const row of rows) {
-      summary.users++;
-      try {
-        const tz = isValidTimeZone(row.tz) ? row.tz : 'UTC';
-        const state = row.state || {};
-        const clock = timeDueReminders({ settings: row.settings, state, now, tz });
-        if (!clock.due.length) continue;
 
-        // No browser to deliver to: leave the slots open for when one appears.
-        const subs = await db.getPushSubscriptions(row.user_id);
-        if (!subs.length) continue;
+    // A page of users at a time. The clock rules need no database, so most
+    // users drop out before any read; the rest cost one subscription read and
+    // one read per log table for the whole page.
+    let afterUserId = null;
+    for (;;) {
+      const rows = await db.listEnabledPushReminderSettingsPage({ afterUserId, limit: TICK_PAGE_SIZE });
+      if (!rows.length) break;
+      afterUserId = rows[rows.length - 1].user_id;
+      summary.users += rows.length;
 
-        const facts = await loadReminderFacts(row.user_id, { tz, now, kinds: clock.due.map((d) => d.kind) });
-        const { send, skipped } = applyFacts(clock.due, facts);
-        for (const item of send) {
-          await sendPush(row.user_id, buildReminderPayload(item.kind, row.lang, facts));
-          summary.sent++;
+      const due = [];
+      for (const row of rows) {
+        try {
+          const tz = isValidTimeZone(row.tz) ? row.tz : 'UTC';
+          const state = row.state || {};
+          const clock = timeDueReminders({ settings: row.settings, state, now, tz });
+          if (clock.due.length) due.push({ row, tz, state, clock });
+        } catch (error) {
+          console.error(`[push] reminder tick failed for a user: ${error && error.message}`);
         }
-        summary.skipped += skipped.length;
-        await db.updatePushReminderState(row.user_id, nextState(state, [...send, ...skipped]));
-      } catch (error) {
-        console.error(`[push] reminder tick failed for a user: ${error && error.message}`);
       }
+
+      if (due.length) {
+        try {
+          await decidePage(due, now, summary);
+        } catch (error) {
+          console.error(`[push] reminder tick failed for a page of ${due.length} users: ${error && error.message}`);
+        }
+      }
+      if (rows.length < TICK_PAGE_SIZE) break;
     }
     return summary;
   } finally {
@@ -516,6 +645,7 @@ module.exports = {
   nextState,
   buildReminderPayload,
   loadReminderFacts,
+  loadReminderFactsForUsers,
   runReminderTick,
   scheduleReminders
 };

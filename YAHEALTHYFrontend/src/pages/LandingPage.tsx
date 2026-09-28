@@ -21,7 +21,8 @@ import {
 import { useLanguage } from '@/i18n/LanguageContext';
 import { PublicFooter, PublicHeader, usePublicPage, type PublicNavLink } from '@/components/public/PublicChrome';
 import { localizePath } from '@/seo/site';
-import { marketingApi, UTM_KEYS, type LeadInput, type MarketingPlan } from '@/services/api';
+import type { LeadInput, MarketingPlan } from '@/services/api';
+import { publicMarketingApi as marketingApi, UTM_KEYS } from '@/services/publicApi';
 
 // ─── Small building blocks ────────────────────────────────────────────────────
 

@@ -56,9 +56,31 @@ function buildLinks({ kind, recipient, step }) {
   };
 }
 
+/**
+ * One bulk read per table, in parallel. A table that cannot be read counts as
+ * empty for the page — what safe() made of a failed per-user read.
+ */
+async function readTables(ids, tables) {
+  const names = Object.keys(tables);
+  const maps = await Promise.all(
+    names.map((name) =>
+      db
+        .listLogsForUsers(ids, { [name]: tables[name] })
+        .then((r) => r[name] || new Map())
+        .catch(() => new Map())
+    )
+  );
+  return Object.fromEntries(names.map((name, i) => [name, maps[i]]));
+}
+
+/** The first day of food history a user's decision reads, in their zone. */
+function historyStart(tz, now) {
+  return addDays(localDate(now, tz), -HISTORY_DAYS);
+}
+
 /** Everything a user's decision needs, from the logs the app already stores. */
 async function loadUserActivity(userId, tz, now) {
-  const start = addDays(localDate(now, tz), -HISTORY_DAYS);
+  const start = historyStart(tz, now);
   const [foodLogs, hydrationLogs, sleepLogs, weightLogs, weightGoals] = await Promise.all([
     safe(db.getFoodLogs(userId, { start })),
     safe(db.getHydrationLogs(userId)),
@@ -66,8 +88,52 @@ async function loadUserActivity(userId, tz, now) {
     safe(db.getWeightLogs(userId)),
     safe(db.getWeightGoals(userId))
   ]);
+  return activityFromLogs({ foodLogs, hydrationLogs, sleepLogs, weightLogs, weightGoals }, tz, now);
+}
 
-  const input = { foodLogs, hydrationLogs, sleepLogs, weightLogs, weightGoals };
+/**
+ * loadUserActivity for a whole page of users: one chunked query per table
+ * instead of five queries per user. It reads the same rows — food since each
+ * user's own history start (the query starts at the earliest, then each
+ * user's rows are trimmed to theirs), hydration, sleep, weigh-ins and weight
+ * goals in full — so every decision is the one the per-user read gave.
+ *
+ * @param {Map<string, string>} tzById  user id → time zone
+ * @returns {Promise<Map<string, object>>} activity per user id
+ */
+async function loadActivityForUsers(tzById, now) {
+  const ids = Array.from(tzById.keys());
+  if (!ids.length) return new Map();
+  const starts = new Map(ids.map((id) => [id, historyStart(tzById.get(id), now)]));
+  const earliest = Array.from(starts.values()).sort()[0];
+
+  const logs = await readTables(ids, { food: { since: earliest }, hydration: true, sleep: true, weight: true, weightGoals: true });
+  const rowsOf = (name, id) => logs[name].get(id) || [];
+
+  const out = new Map();
+  for (const id of ids) {
+    const start = starts.get(id);
+    out.set(
+      id,
+      activityFromLogs(
+        {
+          foodLogs: rowsOf('food', id).filter((r) => String(r.date || '').slice(0, 10) >= start),
+          hydrationLogs: rowsOf('hydration', id),
+          sleepLogs: rowsOf('sleep', id),
+          weightLogs: rowsOf('weight', id),
+          weightGoals: rowsOf('weightGoals', id)
+        },
+        tzById.get(id),
+        now
+      )
+    );
+  }
+  return out;
+}
+
+/** The decision inputs, from one user's logs. Pure. */
+function activityFromLogs(input, tz, now) {
+  const { foodLogs } = input;
   const summary = buildEngagementSummary({ ...input, tz, now, lang: 'he' });
   const streak = summary.streaks.anyLog;
 
@@ -142,6 +208,39 @@ async function deliverMessage({ decision, recipient, message, deps }) {
   });
 }
 
+/** Recipients per page: one bulk read per table covers a whole page. */
+const PAGE_SIZE = db.SCHEDULER_PAGE || 200;
+/** Recipients of one page handled at once (claims and deliveries are I/O). */
+const CONCURRENCY = 4;
+
+/** Keyset pages of recipients until a short page. `fetchPage(afterId)` → rows with `id`. */
+async function* pages(fetchPage) {
+  let afterId = null;
+  for (;;) {
+    const rows = await fetchPage(afterId);
+    if (!rows.length) return;
+    yield rows;
+    if (rows.length < PAGE_SIZE) return;
+    afterId = rows[rows.length - 1].id;
+  }
+}
+
+/** Run `fn` over `items`, at most `limit` at a time. */
+async function forEachLimit(items, limit, fn) {
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const item = items[next++];
+      await fn(item);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+}
+
+function zoneOf(prefs, cfg) {
+  return prefs && isValidTimeZone(prefs.timezone) ? prefs.timezone : cfg.defaultTz;
+}
+
 let running = false;
 
 /**
@@ -180,15 +279,6 @@ async function runLifecycle({ dryRun = false, now = new Date(), deps = {}, confi
       result.shabbat = true;
       return result;
     }
-
-    const [users, leads, prefsMap, sends] = await Promise.all([
-      db.getAllUsers(),
-      db.listLeads(),
-      db.listNotificationPrefs(),
-      db.listLifecycleSends()
-    ]);
-    const sendsBy = groupSends(sends);
-    const userEmails = new Set(users.map((u) => String(u.email || '').toLowerCase()));
 
     const act = async (decision, recipient, activity) => {
       const message = renderFor({ decision, recipient, activity });
@@ -233,52 +323,77 @@ async function runLifecycle({ dryRun = false, now = new Date(), deps = {}, confi
       }
     };
 
-    // Leads.
-    for (const lead of leads) {
-      result.evaluated.leads++;
-      try {
-        const leadSends = sendsBy.get(`lead:${lead.id}`) || [];
-        const decision = lifecycle.decideLead({
-          lead,
-          isUser: userEmails.has(String(lead.email || '').toLowerCase()),
-          sends: leadSends,
-          now,
-          config: cfg
-        });
-        if (decision.convert && !dryRun && leadSends.some((s) => s.status === 'sent' && !s.converted_at)) {
-          result.converted += await db.markLifecycleConverted('lead', lead.id, 'lead_nurture');
+    // Leads, a page at a time: the page's send log and which of its emails
+    // already have an account come in one query each.
+    for await (const leads of pages((afterId) => db.listLeadsPage({ afterId, limit: PAGE_SIZE }))) {
+      const [sends, accounts] = await Promise.all([
+        db.listLifecycleSendsFor('lead', leads.map((l) => l.id)),
+        db.findUsersByEmails(leads.map((l) => l.email))
+      ]);
+      const sendsBy = groupSends(sends);
+      const userEmails = new Set(accounts.map((u) => String(u.email || '').toLowerCase()));
+
+      await forEachLimit(leads, CONCURRENCY, async (lead) => {
+        result.evaluated.leads++;
+        try {
+          const leadSends = sendsBy.get(`lead:${lead.id}`) || [];
+          const decision = lifecycle.decideLead({
+            lead,
+            isUser: userEmails.has(String(lead.email || '').toLowerCase()),
+            sends: leadSends,
+            now,
+            config: cfg
+          });
+          if (decision.convert && !dryRun && leadSends.some((s) => s.status === 'sent' && !s.converted_at)) {
+            result.converted += await db.markLifecycleConverted('lead', lead.id, 'lead_nurture');
+          }
+          if (decision.action === 'send') await act(decision, lead, null);
+          else noteSkip(decision.reason);
+        } catch (error) {
+          noteSkip('error');
+          console.error(`[lifecycle] lead ${lead.id} failed: ${error.message}`);
         }
-        if (decision.action === 'send') await act(decision, lead, null);
-        else noteSkip(decision.reason);
-      } catch (error) {
-        noteSkip('error');
-        console.error(`[lifecycle] lead ${lead.id} failed: ${error.message}`);
-      }
+      });
     }
 
-    // Users.
-    for (const user of users) {
-      result.evaluated.users++;
-      try {
-        const prefs = { ...db.NOTIFICATION_DEFAULTS, ...(prefsMap.get(user.id) || {}) };
-        const tz = isValidTimeZone(prefs.timezone) ? prefs.timezone : cfg.defaultTz;
-        const userSends = sendsBy.get(`user:${user.id}`) || [];
-        const activity = await loadUserActivity(user.id, tz, now);
+    // Users, a page at a time: preferences and the send log first (the time
+    // zone decides how far back the food history goes), then every log table
+    // for the whole page.
+    for await (const users of pages((afterId) => db.listUsersPage({ afterId, limit: PAGE_SIZE }))) {
+      const ids = users.map((u) => u.id);
+      // Without the preferences or the send log no decision is safe, so a
+      // failure here fails the run, as it always has.
+      const [prefsMap, sends] = await Promise.all([
+        db.listNotificationPrefsFor(ids),
+        db.listLifecycleSendsFor('user', ids)
+      ]);
+      const sendsBy = groupSends(sends);
+      const tzById = new Map(ids.map((id) => [id, zoneOf(prefsMap.get(id), cfg)]));
+      const activityById = await loadActivityForUsers(tzById, now);
 
-        if (!dryRun) {
-          for (const id of lifecycle.conversionsFor({ sends: userSends, activity, tz })) {
-            await db.updateLifecycleSend(id, { converted_at: now.toISOString() });
-            result.converted++;
+      await forEachLimit(users, CONCURRENCY, async (user) => {
+        result.evaluated.users++;
+        try {
+          const prefs = { ...db.NOTIFICATION_DEFAULTS, ...(prefsMap.get(user.id) || {}) };
+          const tz = zoneOf(prefs, cfg);
+          const userSends = sendsBy.get(`user:${user.id}`) || [];
+          const activity = activityById.get(user.id);
+
+          if (!dryRun) {
+            for (const id of lifecycle.conversionsFor({ sends: userSends, activity, tz })) {
+              await db.updateLifecycleSend(id, { converted_at: now.toISOString() });
+              result.converted++;
+            }
           }
-        }
 
-        const decision = lifecycle.decideUser({ user, prefs, activity, sends: userSends, now, config: cfg });
-        if (decision.action === 'send') await act(decision, user, activity);
-        else noteSkip(decision.reason);
-      } catch (error) {
-        noteSkip('error');
-        console.error(`[lifecycle] user ${user.id} failed: ${error.message}`);
-      }
+          const decision = lifecycle.decideUser({ user, prefs, activity, sends: userSends, now, config: cfg });
+          if (decision.action === 'send') await act(decision, user, activity);
+          else noteSkip(decision.reason);
+        } catch (error) {
+          noteSkip('error');
+          console.error(`[lifecycle] user ${user.id} failed: ${error.message}`);
+        }
+      });
     }
 
     return result;
@@ -416,6 +531,7 @@ module.exports = {
   getCampaignStats,
   scheduleLifecycle,
   loadUserActivity,
+  loadActivityForUsers,
   renderFor,
   buildLinks,
   tokenSecret

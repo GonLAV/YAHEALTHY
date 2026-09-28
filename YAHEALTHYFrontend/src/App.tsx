@@ -5,12 +5,14 @@ import { OnboardingProvider } from '@/hooks/useOnboarding';
 import { LanguageProvider } from '@/i18n/LanguageContext';
 import { PrivateRoute } from '@/components/PrivateRoute';
 import { StaffRoute } from '@/components/StaffRoute';
-import { AppLayout } from '@/components/layout/AppLayout';
 import { WhatsAppWidget } from '@/components/WhatsAppWidget';
 import { PwaChrome } from '@/components/pwa/PwaChrome';
 import { captureAttribution } from '@/utils/attribution';
 import type { Lang } from '@/i18n/translations';
 
+// The signed-in chrome (sidebar, bottom nav, their icons) is only for private
+// routes, so it loads with the first one rather than with the public pages.
+const AppLayout = lazy(() => import('@/components/layout/AppLayout').then((m) => ({ default: m.AppLayout })));
 const LandingPage = lazy(() => import('@/pages/LandingPage').then((m) => ({ default: m.LandingPage })));
 const LoginPage = lazy(() => import('@/pages/LoginPage').then((m) => ({ default: m.LoginPage })));
 const SignupPage = lazy(() => import('@/pages/SignupPage').then((m) => ({ default: m.SignupPage })));

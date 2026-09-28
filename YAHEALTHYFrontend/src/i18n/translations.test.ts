@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { translations, type Lang } from './translations';
+// The staff dashboard's and onboarding's strings load with those pages; merge
+// them in so every check below covers the whole dictionary.
+import './strings/staff';
+import './strings/onboarding';
 
 const { en, he } = translations;
 const LANGS: Lang[] = ['he', 'en'];

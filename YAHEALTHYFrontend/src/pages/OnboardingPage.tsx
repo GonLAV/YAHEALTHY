@@ -8,6 +8,7 @@ import {
   hydrationApi, onboardingApi, preferencesApi, weightApi,
 } from '@/services/api';
 import { useLanguage } from '@/i18n/LanguageContext';
+import '@/i18n/strings/onboarding'; // this page's onb.* strings (kept off the public pages)
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { todayISO } from '@/utils/date';
 
