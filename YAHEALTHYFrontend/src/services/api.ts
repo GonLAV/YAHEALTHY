@@ -500,7 +500,8 @@ export interface LeadInput {
   website?: string;
 }
 
-export const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'] as const;
+// Lives in ./publicApi so the landing page can use it without this module (and axios).
+export { UTM_KEYS } from './publicApi';
 
 export const marketingApi = {
   getPlans: () => api.get<{ plans: MarketingPlan[] }>('/api/marketing/plans'),

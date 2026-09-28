@@ -2,9 +2,13 @@
  * Browser side of Web Push: permission, subscribe/unsubscribe, and keeping
  * the server's copy of this browser's subscription current.
  */
-import { pushApi } from '@/services/api';
 import { browserTimeZone } from '@/utils/date';
 import { isIOS, isStandalone, swSupported } from './pwa';
+
+// PwaChrome (in the shell of every page, public ones included) imports this
+// module, so the API client — and axios with it — is loaded only when a push
+// call is actually made, keeping it off the public pages' critical path.
+const loadPushApi = () => import('@/services/api').then((m) => m.pushApi);
 
 export type PushSupport =
   | 'supported'
@@ -71,7 +75,7 @@ export async function enablePush(lang: 'he' | 'en'): Promise<NotificationPermiss
 export async function syncPushSubscription(lang: 'he' | 'en', { create = false } = {}): Promise<boolean> {
   if (pushSupport() !== 'supported' || notificationPermission() !== 'granted') return false;
   const reg = await registration();
-  const { data } = await pushApi.getPublicKey();
+  const { data } = await (await loadPushApi()).getPublicKey();
   const key = urlBase64ToBuffer(data.publicKey);
 
   let sub = await reg.pushManager.getSubscription();
@@ -83,7 +87,7 @@ export async function syncPushSubscription(lang: 'he' | 'en', { create = false }
     if (!create) return false;
     sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
   }
-  await pushApi.subscribe(sub.toJSON(), { tz: browserTimeZone(), lang });
+  await (await loadPushApi()).subscribe(sub.toJSON(), { tz: browserTimeZone(), lang });
   return true;
 }
 
@@ -93,7 +97,9 @@ export async function disablePushOnThisDevice(): Promise<void> {
   const reg = await navigator.serviceWorker.getRegistration();
   const sub = await reg?.pushManager.getSubscription();
   if (!sub) return;
-  await pushApi.unsubscribe(sub.endpoint).catch(() => {});
+  await loadPushApi()
+    .then((api) => api.unsubscribe(sub.endpoint))
+    .catch(() => {});
   await sub.unsubscribe().catch(() => {});
 }
 
