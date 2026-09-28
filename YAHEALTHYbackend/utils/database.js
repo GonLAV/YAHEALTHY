@@ -1915,19 +1915,13 @@ async function getWeightLogs(userId, goalId = null) {
     const rows = memoryDb.weightLogs.filter(r => r.user_id === userId && (!goalId || r.goal_id === goalId));
     return sortByCreatedAtDesc(rows);
   }
-  let query = supabase
-    .from('weight_logs')
-    .select('*')
-    .eq('user_id', userId);
-  
-  if (goalId) {
-    query = query.eq('goal_id', goalId);
-  }
-  
-  const { data, error } = await query.order('created_at', { ascending: false });
-  
-  if (error) throw error;
-  return data || [];
+  // Paged past the row cap: a heavy logger's older rows would otherwise vanish
+  // from streaks, achievements and the weight chart.
+  return selectAllPages(() => {
+    let query = supabase.from('weight_logs').select('*').eq('user_id', userId);
+    if (goalId) query = query.eq('goal_id', goalId);
+    return query.order('created_at', { ascending: false }).order('id', { ascending: true });
+  }, Infinity);
 }
 
 /**
@@ -1967,19 +1961,12 @@ async function getHydrationLogs(userId, date = null) {
     const rows = memoryDb.hydrationLogs.filter(r => r.user_id === userId && (!date || r.date === date));
     return sortByCreatedAtDesc(rows);
   }
-  let query = supabase
-    .from('hydration_logs')
-    .select('*')
-    .eq('user_id', userId);
-  
-  if (date) {
-    query = query.eq('date', date);
-  }
-  
-  const { data, error } = await query.order('created_at', { ascending: false });
-  
-  if (error) throw error;
-  return data || [];
+  // Paged past the row cap (a few glasses a day passes 1000 rows within a year).
+  return selectAllPages(() => {
+    let query = supabase.from('hydration_logs').select('*').eq('user_id', userId);
+    if (date) query = query.eq('date', date);
+    return query.order('created_at', { ascending: false }).order('id', { ascending: true });
+  }, Infinity);
 }
 
 /**
@@ -2019,19 +2006,12 @@ async function getSleepLogs(userId, date = null) {
     const rows = memoryDb.sleepLogs.filter(r => r.user_id === userId && (!date || r.date === date));
     return sortByCreatedAtDesc(rows);
   }
-  let query = supabase
-    .from('sleep_logs')
-    .select('*')
-    .eq('user_id', userId);
-  
-  if (date) {
-    query = query.eq('date', date);
-  }
-  
-  const { data, error } = await query.order('created_at', { ascending: false });
-  
-  if (error) throw error;
-  return data || [];
+  // Paged past the row cap.
+  return selectAllPages(() => {
+    let query = supabase.from('sleep_logs').select('*').eq('user_id', userId);
+    if (date) query = query.eq('date', date);
+    return query.order('created_at', { ascending: false }).order('id', { ascending: true });
+  }, Infinity);
 }
 
 /**
@@ -2406,34 +2386,39 @@ async function getFoodLogs(userId, { start = null, end = null, date = null, limi
     return sliced.map(normalizeFoodLogRow);
   }
 
-  let query = supabase
-    .from('food_logs')
-    .select('*')
-    .eq('user_id', userId);
+  const build = () => {
+    let query = supabase
+      .from('food_logs')
+      .select('*')
+      .eq('user_id', userId);
 
-  if (date) {
-    query = query.eq('date', date);
-  }
-  if (start) {
-    query = query.gte('date', start);
-  }
-  if (end) {
-    query = query.lte('date', end);
-  }
-
-  query = query.order('created_at', { ascending: false });
+    if (date) {
+      query = query.eq('date', date);
+    }
+    if (start) {
+      query = query.gte('date', start);
+    }
+    if (end) {
+      query = query.lte('date', end);
+    }
+    return query.order('created_at', { ascending: false }).order('id', { ascending: true });
+  };
 
   if (limit != null) {
     const offsetNum = offset == null ? 0 : Number(offset);
     const limitNum = Number(limit);
     if (Number.isFinite(offsetNum) && Number.isFinite(limitNum) && limitNum > 0 && offsetNum >= 0) {
-      query = query.range(offsetNum, offsetNum + limitNum - 1);
+      // An explicit page (the food-log list): one request, as asked.
+      const { data, error } = await build().range(offsetNum, offsetNum + limitNum - 1);
+      if (error) throw error;
+      return (data || []).map(normalizeFoodLogRow);
     }
   }
 
-  const { data, error } = await query;
-  if (error) throw error;
-  return (data || []).map(normalizeFoodLogRow);
+  // Everything in range, paged past the row cap: streaks, the Health Score
+  // and the weekly summary need every row, not the newest 1000.
+  const data = await selectAllPages(build, Infinity);
+  return data.map(normalizeFoodLogRow);
 }
 
 async function getFoodDays(userId, { start, end }) {
@@ -2849,13 +2834,24 @@ async function selectAllPages(build, max = ANALYTICS_MAX_ROWS) {
   return rows;
 }
 
-async function selectByIds(client, table, columns, idColumn, ids, refine = (q) => q) {
+/**
+ * Rows whose `idColumn` is in `ids`: chunks of ANALYTICS_ID_CHUNK ids, each
+ * paged past the row cap by selectAllPages. `refine` adds filters (and may add
+ * its own ordering); `order` columns are appended last so every page has a
+ * stable, unique order — `id` by default, the primary key of every table read
+ * this way except notification_preferences (keyed by user_id). `max` bounds
+ * the rows per chunk.
+ */
+async function selectByIds(client, table, columns, idColumn, ids, refine = (q) => q, { order = ['id'], max } = {}) {
   const unique = Array.from(new Set(ids.filter(Boolean)));
   const rows = [];
   for (const part of chunkList(unique, ANALYTICS_ID_CHUNK)) {
-    rows.push(
-      ...(await selectAllPages(() => refine(client.from(table).select(columns).in(idColumn, part))))
-    );
+    const build = () => {
+      let query = refine(client.from(table).select(columns).in(idColumn, part));
+      for (const column of order) query = query.order(column, { ascending: true });
+      return query;
+    };
+    rows.push(...(await selectAllPages(build, max)));
   }
   return rows;
 }
@@ -3071,9 +3067,10 @@ async function listNotificationPrefsFor(userIds) {
     for (const id of userIds) if (memoryDb.notificationPrefs.has(id)) out.set(id, memoryDb.notificationPrefs.get(id));
     return out;
   }
-  const rows = await selectByIds(supabaseServiceRole, 'notification_preferences', '*', 'user_id', userIds, (q) =>
-    q.order('user_id', { ascending: true })
-  );
+  // Keyed by user_id (no id column): that is the stable page order.
+  const rows = await selectByIds(supabaseServiceRole, 'notification_preferences', '*', 'user_id', userIds, undefined, {
+    order: ['user_id']
+  });
   return new Map(rows.map((row) => [row.user_id, row]));
 }
 
@@ -3089,10 +3086,17 @@ async function listLifecycleSendsFor(recipientType, recipientIds) {
       .filter((s) => s.recipient_type === recipientType && wanted.has(s.recipient_id))
       .map((s) => ({ ...s }));
   }
-  const rows = await selectByIds(supabaseServiceRole, 'lifecycle_sends', LIFECYCLE_SEND_COLUMNS, 'recipient_id', recipientIds, (q) =>
-    q.eq('recipient_type', recipientType).order('created_at', { ascending: true }).order('id', { ascending: true })
+  // Every row: a send left out would let the daily cap and "step already
+  // sent" checks pass (see listLifecycleSends).
+  return selectByIds(
+    supabaseServiceRole,
+    'lifecycle_sends',
+    LIFECYCLE_SEND_COLUMNS,
+    'recipient_id',
+    recipientIds,
+    (q) => q.eq('recipient_type', recipientType).order('created_at', { ascending: true }),
+    { max: Infinity }
   );
-  return rows;
 }
 
 /**
@@ -3149,18 +3153,25 @@ async function listLogsForUsers(userIds, tables = {}) {
         return;
       }
 
-      const rows = await selectByIds(supabase, spec.table, spec.columns, 'user_id', ids, (q) => {
-        let out = q;
-        if (since) out = out.gte('date', since);
-        if (until) out = out.lte('date', until);
-        // user_id first, so (user_id, created_at desc) indexes return rows
-        // already in order for the `in` list (no sort per range() page); id
-        // breaks ties so pages never overlap or skip.
-        return out
-          .order('user_id', { ascending: true })
-          .order('created_at', { ascending: false })
-          .order('id', { ascending: true });
-      });
+      // user_id first, so (user_id, created_at desc) indexes return rows
+      // already in order for the `in` list (no sort per range() page); the
+      // id selectByIds appends breaks ties so pages never overlap or skip.
+      // No row cap: the page of users bounds it, and a user's missing rows
+      // would change their streak.
+      const rows = await selectByIds(
+        supabase,
+        spec.table,
+        spec.columns,
+        'user_id',
+        ids,
+        (q) => {
+          let out = q;
+          if (since) out = out.gte('date', since);
+          if (until) out = out.lte('date', until);
+          return out.order('user_id', { ascending: true }).order('created_at', { ascending: false });
+        },
+        { max: Infinity }
+      );
       result[name] = groupByUser(rows, ids);
     })
   );
@@ -3178,7 +3189,7 @@ async function listUserPreferencesFor(userIds) {
     }
     return out;
   }
-  const rows = await selectByIds(supabase, 'users', 'id, preferences', 'id', userIds, (q) => q.order('id', { ascending: true }));
+  const rows = await selectByIds(supabase, 'users', 'id, preferences', 'id', userIds);
   return new Map(rows.map((row) => [row.id, row.preferences || {}]));
 }
 
@@ -3191,7 +3202,7 @@ async function listLatestSurveysFor(userIds) {
     rows = memoryDb.surveys.filter((s) => wanted.has(s.user_id));
   } else {
     rows = await selectByIds(supabase, 'surveys', 'user_id, water_target_liters, sleep_target_hours, created_at', 'user_id', userIds, (q) =>
-      q.order('created_at', { ascending: false }).order('id', { ascending: true })
+      q.order('created_at', { ascending: false })
     );
   }
   const out = new Map();
@@ -3224,9 +3235,7 @@ async function listUsersWithPushSubscriptions(userIds) {
     const wanted = new Set(userIds);
     return new Set(memoryDb.pushSubscriptions.filter((r) => wanted.has(r.user_id)).map((r) => r.user_id));
   }
-  const rows = await selectByIds(supabaseServiceRole, 'push_subscriptions', 'user_id', 'user_id', userIds, (q) =>
-    q.order('id', { ascending: true })
-  );
+  const rows = await selectByIds(supabaseServiceRole, 'push_subscriptions', 'user_id', 'user_id', userIds);
   return new Set(rows.map((r) => r.user_id));
 }
 
