@@ -21,7 +21,11 @@
     "test:engagement": "node tests/engagement.test.js",
     "test:marketing": "node tests/marketing.test.js",
     "test:onboarding": "node tests/onboarding.test.js",
-    "test:lifecycle": "node tests/lifecycle.test.js"
+    "test:lifecycle": "node tests/lifecycle.test.js",
+    "test:config": "node tests/config-check.test.js",
+    "test:migrations": "node tests/migrations.test.js",
+    "check:migrations": "node scripts/check-migrations.js",
+    "build:migrations": "node scripts/check-migrations.js --write"
   },
   "keywords": [],
   "author": "",

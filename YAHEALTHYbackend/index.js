@@ -2,12 +2,15 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const mailer = require('./utils/mailer');
 const dotenv = require('dotenv');
-// Must run before any module that reads process.env at load time — utils/database.js
-// and utils/auth.js both do. This used to sit below those requires, so .env never
-// reached them; the silent memory fallback hid it.
+// Must run before any module that reads process.env at load time — utils/database.js,
+// utils/auth.js and utils/mailer.js all do. This used to sit below those requires, so
+// .env never reached them; the silent memory fallback hid it.
 dotenv.config();
+// One clear report of missing configuration (names only, never values); in
+// production it stops the boot when something required is absent.
+require('./utils/config-check').runStartupConfigCheck();
+const mailer = require('./utils/mailer');
 const path = require('path');
 const fs = require('fs');
 const swaggerUi = require('swagger-ui-express');
