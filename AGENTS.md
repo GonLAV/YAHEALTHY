@@ -13,6 +13,7 @@
 - **Backend env**: `ALLOW_MEMORY_DB=true` lets the backend start without Supabase. `JWT_SECRET` is auto-generated if missing in dev mode.
 - **AI Coach**: `utils/coach.js` (rule-based, data-grounded, bilingual) mounted at `/api/crm/users/:userId/insights` and `/ask` in index.js. The old `crm-routes.js`/`crm-ai-assistant.js` prototype (OpenAI + Postgres pool) was never integrated — do not wire it as-is.
 - **RTL**: Tailwind logical utilities (`ms-`, `ps-`, `text-start`, `start-*`) are used throughout; avoid `ml-`/`mr-`/`space-x`. `.num` class keeps numbers LTR inside RTL text.
+- **PWA / Web Push**: hand-written `public/sw.js` (no vite-plugin-pwa); the `swVersionPlugin` in both vite configs stamps its `SW_VERSION` at build so updates are detected. In dev it registers as `/sw.js?dev=1` with caching off. Push is `routes/push.js` + `utils/push.js` (`sendPush(userId, payload)` is the reusable delivery API); VAPID keys from `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT` (ephemeral in dev, push off in prod without them).
 - **Backend secrets** come from `/run/base44/app.env` (JWT_SECRET, optional SUPABASE_*); local dev placeholders are fine.
 
 ## Frontend structure

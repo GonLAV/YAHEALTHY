@@ -157,6 +157,7 @@ app.use('/api/foods', require('./routes/foods'));
 app.use('/api/referrals', require('./routes/referrals'));
 app.use('/api/engagement', require('./routes/engagement')); // streaks, Health Score, achievements (auth per-route)
 app.use('/api/marketing', require('./routes/marketing'));
+app.use('/api/push', require('./routes/push')); // Web Push: VAPID key, subscriptions, reminder settings (auth per-route)
 
 // WhatsApp inbound. The webhook is public (guarded by a path secret); the
 // listing endpoint underneath it requires auth because it returns message text.
@@ -3939,6 +3940,10 @@ if (!process.env.VERCEL) {
   }, { timezone: 'Asia/Jerusalem' });
   console.log('📧 Weekly summary emails scheduled: Sundays 08:00 (Asia/Jerusalem)');
 }
+
+// Push reminders (water / meal / streak), every 5 minutes in each user's own
+// time zone. utils/push.js keeps it off on Vercel and under NODE_ENV=test.
+require('./utils/push').scheduleReminders(cron);
 
 // ========== ERROR HANDLING ==========
 

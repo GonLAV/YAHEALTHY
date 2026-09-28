@@ -5,6 +5,7 @@ import { LanguageProvider } from '@/i18n/LanguageContext';
 import { PrivateRoute } from '@/components/PrivateRoute';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { WhatsAppWidget } from '@/components/WhatsAppWidget';
+import { PwaChrome } from '@/components/pwa/PwaChrome';
 
 const LandingPage = lazy(() => import('@/pages/LandingPage').then((m) => ({ default: m.LandingPage })));
 const LoginPage = lazy(() => import('@/pages/LoginPage').then((m) => ({ default: m.LoginPage })));
@@ -17,6 +18,7 @@ const WeightPage = lazy(() => import('@/pages/WeightPage').then((m) => ({ defaul
 const CoachingPage = lazy(() => import('@/pages/CoachingPage').then((m) => ({ default: m.CoachingPage })));
 const ProgressPage = lazy(() => import('@/pages/ProgressPage').then((m) => ({ default: m.ProgressPage })));
 const InvitePage = lazy(() => import('@/pages/InvitePage').then((m) => ({ default: m.InvitePage })));
+const RemindersPage = lazy(() => import('@/pages/RemindersPage').then((m) => ({ default: m.RemindersPage })));
 const AchievementsPage = lazy(() => import('@/pages/AchievementsPage').then((m) => ({ default: m.AchievementsPage })));
 
 const PageLoader = () => (
@@ -128,6 +130,16 @@ const AppRoutes = () => (
           </PrivateRoute>
         }
       />
+      <Route
+        path="/reminders"
+        element={
+          <PrivateRoute>
+            <AppLayout>
+              <RemindersPage />
+            </AppLayout>
+          </PrivateRoute>
+        }
+      />
       <Route path="/" element={<HomeRoute />} />
       {/* Unknown paths land on "/", which sends signed-in users on to /dashboard. */}
       <Route path="*" element={<Navigate to="/" replace />} />
@@ -141,6 +153,7 @@ function App() {
       <LanguageProvider>
         <AuthProvider>
           <AppRoutes />
+          <PwaChrome />
         </AuthProvider>
         <WhatsAppWidget />
       </LanguageProvider>

@@ -70,7 +70,9 @@ const memoryDb = {
   whapiConversations: new Map(),
   whapiMessages: [],
   referrals: [],
-  referralRewards: []
+  referralRewards: [],
+  pushSubscriptions: [],
+  pushReminderSettings: []
 };
 
 function sortByCreatedAtDesc(items) {
@@ -578,6 +580,203 @@ async function getReferralRewards(userId) {
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Web Push — browser subscriptions and reminder settings (migrations/020).
+ *
+ * A subscription is one browser on one device; `endpoint` is its identity and
+ * is unique, so a browser that switches accounts moves its row to the new
+ * user instead of notifying both. The p256dh/auth keys let anyone holding them
+ * send to that browser, so on Supabase these tables are reached with the
+ * service-role client (RLS on, no policies), like marketing_leads.
+ *
+ * Reminder settings are per user, not per device: one row holding what the
+ * user chose plus `state` (when each reminder last went out), which only the
+ * scheduler writes.
+ */
+async function savePushSubscription(userId, { endpoint, p256dh, auth, userAgent = null }) {
+  const now = new Date().toISOString();
+  const row = { user_id: userId, endpoint, p256dh, auth, user_agent: userAgent };
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const existing = memoryDb.pushSubscriptions.find((r) => r.endpoint === endpoint);
+    if (existing) {
+      Object.assign(existing, row, { updated_at: now, failure_count: 0 });
+      return existing;
+    }
+    const created = { id: uuidv4(), ...row, failure_count: 0, created_at: now, updated_at: now };
+    memoryDb.pushSubscriptions.push(created);
+    return created;
+  }
+
+  const { data, error } = await supabaseServiceRole
+    .from('push_subscriptions')
+    .upsert([{ ...row, failure_count: 0, updated_at: now }], { onConflict: 'endpoint' })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+async function getPushSubscriptions(userId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.pushSubscriptions.filter((r) => r.user_id === userId);
+  }
+
+  const { data, error } = await supabaseServiceRole
+    .from('push_subscriptions')
+    .select('*')
+    .eq('user_id', userId);
+  if (error) throw error;
+  return data || [];
+}
+
+/** Remove one of this user's subscriptions. Another user's endpoint is left alone. */
+async function deletePushSubscription(userId, endpoint) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const before = memoryDb.pushSubscriptions.length;
+    memoryDb.pushSubscriptions = memoryDb.pushSubscriptions.filter(
+      (r) => !(r.user_id === userId && r.endpoint === endpoint)
+    );
+    return memoryDb.pushSubscriptions.length < before;
+  }
+
+  const { data, error } = await supabaseServiceRole
+    .from('push_subscriptions')
+    .delete()
+    .eq('user_id', userId)
+    .eq('endpoint', endpoint)
+    .select('id');
+  if (error) throw error;
+  return (data || []).length > 0;
+}
+
+/** The push service said this endpoint is gone (404/410): drop it, whoever owns it. */
+async function deletePushSubscriptionByEndpoint(endpoint) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const before = memoryDb.pushSubscriptions.length;
+    memoryDb.pushSubscriptions = memoryDb.pushSubscriptions.filter((r) => r.endpoint !== endpoint);
+    return memoryDb.pushSubscriptions.length < before;
+  }
+
+  const { error } = await supabaseServiceRole.from('push_subscriptions').delete().eq('endpoint', endpoint);
+  if (error) throw error;
+  return true;
+}
+
+/** Record a delivery outcome: success resets the failure count, failure bumps it. */
+async function markPushSubscriptionResult(endpoint, ok) {
+  const now = new Date().toISOString();
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const row = memoryDb.pushSubscriptions.find((r) => r.endpoint === endpoint);
+    if (!row) return null;
+    if (ok) {
+      row.failure_count = 0;
+      row.last_success_at = now;
+    } else {
+      row.failure_count = (row.failure_count || 0) + 1;
+    }
+    return row;
+  }
+
+  if (ok) {
+    const { error } = await supabaseServiceRole
+      .from('push_subscriptions')
+      .update({ failure_count: 0, last_success_at: now })
+      .eq('endpoint', endpoint);
+    if (error) throw error;
+    return true;
+  }
+  const { data: current, error: readError } = await supabaseServiceRole
+    .from('push_subscriptions')
+    .select('failure_count')
+    .eq('endpoint', endpoint)
+    .maybeSingle();
+  if (readError) throw readError;
+  if (!current) return null;
+  const { error } = await supabaseServiceRole
+    .from('push_subscriptions')
+    .update({ failure_count: (current.failure_count || 0) + 1 })
+    .eq('endpoint', endpoint);
+  if (error) throw error;
+  return true;
+}
+
+async function getPushReminderSettings(userId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.pushReminderSettings.find((r) => r.user_id === userId) || null;
+  }
+
+  const { data, error } = await supabaseServiceRole
+    .from('push_reminder_settings')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
+/** Save what the user chose. Leaves `state` (the scheduler's bookkeeping) as it was. */
+async function savePushReminderSettings(userId, { enabled, tz, lang, settings }) {
+  const now = new Date().toISOString();
+  const row = { user_id: userId, enabled: Boolean(enabled), tz, lang, settings, updated_at: now };
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const existing = memoryDb.pushReminderSettings.find((r) => r.user_id === userId);
+    if (existing) return Object.assign(existing, row);
+    const created = { ...row, state: {}, created_at: now };
+    memoryDb.pushReminderSettings.push(created);
+    return created;
+  }
+
+  const { data, error } = await supabaseServiceRole
+    .from('push_reminder_settings')
+    .upsert([row], { onConflict: 'user_id' })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+async function updatePushReminderState(userId, state) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const existing = memoryDb.pushReminderSettings.find((r) => r.user_id === userId);
+    if (!existing) return null;
+    existing.state = state;
+    return existing;
+  }
+
+  const { error } = await supabaseServiceRole
+    .from('push_reminder_settings')
+    .update({ state })
+    .eq('user_id', userId);
+  if (error) throw error;
+  return true;
+}
+
+/** Every user with reminders switched on — the scheduler's work list. */
+async function listEnabledPushReminderSettings() {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.pushReminderSettings.filter((r) => r.enabled);
+  }
+
+  const { data, error } = await supabaseServiceRole
+    .from('push_reminder_settings')
+    .select('*')
+    .eq('enabled', true);
   if (error) throw error;
   return data || [];
 }
@@ -2365,5 +2564,15 @@ module.exports = {
   getReferralsByReferrer,
   countSubscribedUsers,
   createReferralReward,
-  getReferralRewards
+  getReferralRewards,
+  // Web Push
+  savePushSubscription,
+  getPushSubscriptions,
+  deletePushSubscription,
+  deletePushSubscriptionByEndpoint,
+  markPushSubscriptionResult,
+  getPushReminderSettings,
+  savePushReminderSettings,
+  updatePushReminderState,
+  listEnabledPushReminderSettings
 };
