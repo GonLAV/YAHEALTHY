@@ -5,7 +5,16 @@ on:
     branches: [ main ]
   pull_request:
 
+# A newer push to the same branch/PR makes the older run pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
+  # Name kept as-is: it may be a required status check.
   backend-system-test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -48,3 +57,150 @@ jobs:
           name: server-log
           path: /tmp/yahealthy_server.log
           if-no-files-found: ignore
+
+  # Every tests/*.test.js: unit + integration on the in-memory store, plus the
+  # env/config-check and migrations/ALL.sql drift checks.
+  backend-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: YAHEALTHYbackend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: YAHEALTHYbackend
+        run: npm ci
+
+      - name: Run all backend suites
+        working-directory: YAHEALTHYbackend
+        run: node tests/run-all.js
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Absolute URLs in canonical/sitemap; a placeholder keeps the build from
+      # warning about a missing site URL.
+      VITE_SITE_URL: https://example.invalid
+    steps:
+      - uses: actions/checkout@v4
+
+      # Must run on the fresh checkout, before tsc -b emits anything: a
+      # committed .js next to its .tsx/.ts silently shadows the source (Vite
+      # resolves .js first). See AGENTS.md "Quirks".
+      - name: No compiled .js next to TypeScript sources
+        run: |
+          bad=""
+          while IFS= read -r js; do
+            base="${js%.js}"
+            if [ -e "$base.tsx" ] || [ -e "$base.ts" ]; then bad="$bad $js"; fi
+          done < <(find YAHEALTHYFrontend/src -name '*.js' -type f)
+          if [ -n "$bad" ]; then
+            for f in $bad; do echo "::error file=$f::compiled .js next to its TypeScript source"; done
+            exit 1
+          fi
+          echo "No shadowing .js files in YAHEALTHYFrontend/src."
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            YAHEALTHYFrontend/package-lock.json
+            e2e/package-lock.json
+
+      - name: Install dependencies
+        working-directory: YAHEALTHYFrontend
+        run: npm ci
+
+      - name: Type check
+        working-directory: YAHEALTHYFrontend
+        run: npx tsc -b
+
+      - name: Build (incl. prerender)
+        working-directory: YAHEALTHYFrontend
+        run: npm run build
+
+      - name: SEO tests
+        working-directory: YAHEALTHYFrontend
+        run: npm run test:seo
+
+      - name: Unit tests
+        working-directory: YAHEALTHYFrontend
+        run: npm run test:unit --if-present
+
+      # perf:public loads Playwright from ../e2e (scripts/lib/playwright.mjs)
+      # and would silently skip without it, so install it and a browser here.
+      - name: Install Playwright + Chromium
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Public page performance checks
+        working-directory: YAHEALTHYFrontend
+        run: npm run perf:public
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            YAHEALTHYbackend/package-lock.json
+            YAHEALTHYFrontend/package-lock.json
+            e2e/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          npm ci --prefix YAHEALTHYbackend
+          npm ci --prefix YAHEALTHYFrontend
+          npm ci --prefix e2e
+
+      # No /opt/pw-browsers on GitHub runners: playwright.config.mjs then
+      # leaves PLAYWRIGHT_BROWSERS_PATH unset and uses this default install.
+      - name: Install Chromium
+        working-directory: e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright smoke tests
+        working-directory: e2e
+        run: npm test
+
+      - name: Upload test results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results
+          path: e2e/test-results/
+          if-no-files-found: ignore
+
+  # Case-file schema + a dry run of the eval harness: no API key, no network,
+  # no dependencies (the SDK is only imported for real runs).
+  evals-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validate cases
+        working-directory: evals
+        run: node validate-cases.mjs
+
+      - name: Dry run
+        working-directory: evals
+        run: node run-eval.mjs --bot all --dry-run
