@@ -72,7 +72,15 @@ async function findRow(token) {
 /** The live share for a token, or null (unknown, expired, revoked alike). */
 async function getLiveShareCard(token, now = new Date()) {
   const row = await findRow(token);
-  return isLive(row, now) ? row : null;
+  if (!isLive(row, now)) return null;
+  // On Supabase, deleting the account cascades to share_cards. This Map has
+  // no foreign key, so without this check a deleted user's week (and first
+  // name) would stay public until the link expired.
+  if (db.isMemoryMode() && !(await db.getUser(row.user_id))) {
+    memory.delete(row.token_hash);
+    return null;
+  }
+  return row;
 }
 
 /**
