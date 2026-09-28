@@ -227,7 +227,7 @@ async function runApi() {
   const t = await call('POST', '/api/push/test', { token: alice.token, body: { lang: 'en' } });
   check('a test push reaches the device', t.status === 200 && t.body?.sent === 1 && sent.length === 1, JSON.stringify(t.body));
   check('the pushed payload is the documented shape',
-    sent[0]?.payload?.title && sent[0]?.payload?.url === '/reminders' && sent[0]?.payload?.lang === 'en' && sent[0]?.payload?.icon,
+    sent[0]?.payload?.title && sent[0]?.payload?.url === '/settings#reminders' && sent[0]?.payload?.lang === 'en' && sent[0]?.payload?.icon,
     JSON.stringify(sent[0]?.payload));
   check('VAPID details are passed per send', sent[0]?.options?.vapidDetails?.publicKey === process.env.VAPID_PUBLIC_KEY && sent[0]?.options?.TTL > 0);
 

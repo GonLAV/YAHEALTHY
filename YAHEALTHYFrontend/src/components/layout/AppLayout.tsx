@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, UtensilsCrossed, Droplets, Moon, Scale,
   MessageCircleHeart, LogOut, Languages, Heart, BarChart3, Gift, Trophy, Megaphone,
-  MoreHorizontal, X, Bell,
+  MoreHorizontal, X, Settings,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/i18n/LanguageContext';
@@ -31,7 +31,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/coaching', key: 'nav.coaching', icon: <MessageCircleHeart size={20} />, mobile: 'tab', shortKey: 'nav.coachingShort' },
   { to: '/invite', key: 'nav.invite', icon: <Gift size={20} />, mobile: 'more' },
   { to: '/admin/marketing', key: 'nav.marketing', icon: <Megaphone size={20} />, mobile: 'more', staffOnly: true },
-  { to: '/reminders', key: 'nav.reminders', icon: <Bell size={20} />, mobile: 'more' },
+  { to: '/settings', key: 'nav.settings', icon: <Settings size={20} />, mobile: 'more' },
 ];
 
 // Mobile bottom bar: four primary tabs in this order, then "More".

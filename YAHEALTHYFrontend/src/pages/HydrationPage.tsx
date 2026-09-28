@@ -134,7 +134,11 @@ export const HydrationPage = () => {
 
         {/* Custom amount */}
         <form onSubmit={handleCustom} className="flex w-full gap-2">
+          <label htmlFor="water-custom-ml" className="sr-only">
+            {t('water.custom')}
+          </label>
           <input
+            id="water-custom-ml"
             type="number"
             min="1"
             max="10000"
@@ -153,7 +157,7 @@ export const HydrationPage = () => {
         </form>
 
         {error && (
-          <p className="text-sm text-rose-600">{error}</p>
+          <p role="alert" className="text-sm text-rose-600">{error}</p>
         )}
       </div>
 

@@ -21,7 +21,7 @@
 - `src/i18n/` — translations + LanguageContext (add all user-facing strings here)
 - `src/components/layout/AppLayout.tsx` — sidebar (desktop) + bottom nav (mobile) + language toggle + skip link
 - `src/components/ui/` — PageHeader, StatCard, ProgressBar, ProgressRing, EmptyState
-- `src/pages/` — Landing (`/`, public), Login, Signup, Onboarding (`/onboarding`), Dashboard, FoodLog, Hydration, Sleep, Weight, Coaching, Progress, Achievements (`/achievements`), Invite (`/invite`), MarketingDashboard (`/admin/marketing`, `StaffRoute`), Recipes
+- `src/pages/` — Landing (`/`, public), Login, Signup, Onboarding (`/onboarding`), Dashboard, FoodLog, Hydration, Sleep, Weight, Coaching, Progress, Achievements (`/achievements`), Invite (`/invite`), Settings (`/settings`: messaging prefs, push reminders from `components/settings/RemindersSettings.tsx`, targets + re-run onboarding, language, password/logout; `/reminders` redirects to `/settings#reminders`), MarketingDashboard (`/admin/marketing`, `StaffRoute`; includes lifecycle campaign stats), Recipes
 - `src/components/` — `PrivateRoute` (redirects un-onboarded users to `/onboarding`; the onboarding route opts out with `allowIncompleteOnboarding`), `StaffRoute`, `share/` (Share-my-week modal), `engagement/`
 - `src/utils/attribution.ts` — first-touch UTM/referral capture sent with signup
 
@@ -65,7 +65,7 @@ Backend unit/integration suites (in-memory store, no Docker needed): `cd YAHEALT
 cd e2e && npm install          # @playwright/test only; never run `playwright install`
 npm test                       # or from YAHEALTHYFrontend: npm run test:e2e
 ```
-Chromium is taken from `PLAYWRIGHT_BROWSERS_PATH` (defaults to the preinstalled `/opt/pw-browsers`). Server logs and failure traces land in `e2e/test-results/`. Covers landing (he/en) lead form, `?ref=`+utm → signup → onboarding → Health Score, water → streak, `/invite` copy, share link create/visit/sign-up/revoke, staff page blocked for non-staff, mobile More sheet keyboard/RTL.
+Chromium is taken from `PLAYWRIGHT_BROWSERS_PATH` (defaults to the preinstalled `/opt/pw-browsers`). Server logs and failure traces land in `e2e/test-results/`. Covers landing (he/en) lead form, `?ref=`+utm → signup → onboarding → Health Score, water → streak, `/invite` copy, share link create/visit/sign-up/revoke, staff page blocked for non-staff, mobile More sheet keyboard/RTL, settings (pref persists across reload, `/reminders` redirect, password change, campaigns table with mocked stats).
 
 ## Dev Commands
 - Frontend: `npm run dev` (Vite with HMR)

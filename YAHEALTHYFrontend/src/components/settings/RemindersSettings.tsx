@@ -2,7 +2,6 @@ import { FormEvent, ReactNode, useEffect, useState } from 'react';
 import { Bell, BellOff, Droplets, Flame, MoonStar, Send, UtensilsCrossed } from 'lucide-react';
 import { pushApi, ReminderSettings } from '@/services/api';
 import { useLanguage } from '@/i18n/LanguageContext';
-import PageHeader from '@/components/ui/PageHeader';
 import { browserTimeZone } from '@/utils/date';
 import {
   disablePushOnThisDevice,
@@ -49,7 +48,11 @@ const Section = ({
 const inputClass =
   'num mt-1 block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200 disabled:bg-slate-50 disabled:text-slate-400';
 
-export const RemindersPage = () => {
+/**
+ * Push reminders (water, meal, streak, quiet hours) — a section of /settings.
+ * The old /reminders route redirects to /settings#reminders.
+ */
+export const RemindersSettings = () => {
   const { t, lang } = useLanguage();
   const [form, setForm] = useState<Form | null>(null);
   const [devices, setDevices] = useState(0);
@@ -164,8 +167,7 @@ export const RemindersPage = () => {
   const off = !form?.enabled;
 
   return (
-    <div className="mx-auto max-w-3xl p-4 md:p-8">
-      <PageHeader title={t('reminders.title')} subtitle={t('reminders.subtitle')} icon={<Bell size={24} />} />
+    <div>
 
       {loadError && (
         <p role="alert" className="mb-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-rose-100">
@@ -394,4 +396,4 @@ export const RemindersPage = () => {
   );
 };
 
-export default RemindersPage;
+export default RemindersSettings;

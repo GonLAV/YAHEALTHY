@@ -23,9 +23,9 @@ const CoachingPage = lazy(() => import('@/pages/CoachingPage').then((m) => ({ de
 const ProgressPage = lazy(() => import('@/pages/ProgressPage').then((m) => ({ default: m.ProgressPage })));
 const InvitePage = lazy(() => import('@/pages/InvitePage').then((m) => ({ default: m.InvitePage })));
 const OnboardingPage = lazy(() => import('@/pages/OnboardingPage').then((m) => ({ default: m.OnboardingPage })));
-const RemindersPage = lazy(() => import('@/pages/RemindersPage').then((m) => ({ default: m.RemindersPage })));
 const GuidesIndexPage = lazy(() => import('@/pages/GuidesPage').then((m) => ({ default: m.GuidesIndexPage })));
 const GuidePage = lazy(() => import('@/pages/GuidesPage').then((m) => ({ default: m.GuidePage })));
+const SettingsPage = lazy(() => import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 const AchievementsPage = lazy(() => import('@/pages/AchievementsPage').then((m) => ({ default: m.AchievementsPage })));
 const MarketingDashboardPage = lazy(() =>
   import('@/pages/MarketingDashboardPage').then((m) => ({ default: m.MarketingDashboardPage })),
@@ -175,15 +175,17 @@ const AppRoutes = () => (
         }
       />
       <Route
-        path="/reminders"
+        path="/settings"
         element={
           <PrivateRoute>
             <AppLayout>
-              <RemindersPage />
+              <SettingsPage />
             </AppLayout>
           </PrivateRoute>
         }
       />
+      {/* Reminders now live in Settings; old bookmarks and notification links keep working. */}
+      <Route path="/reminders" element={<Navigate to="/settings#reminders" replace />} />
       {/* Public, indexable pages. Hebrew at the root, English under /en.
           Keep in step with src/seo/site.ts (sitemap + prerender). */}
       <Route path="/" element={<HomeRoute />} />

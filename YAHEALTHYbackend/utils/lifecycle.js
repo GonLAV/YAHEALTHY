@@ -426,20 +426,22 @@ function summarizeStats(sends = []) {
   for (const s of sends) {
     const c = out[s.campaign];
     if (!c) continue;
+    const step = (c.byStep[s.step] = c.byStep[s.step] || { sent: 0, failed: 0, pending: 0, converted: 0 });
     if (s.status === 'sent') {
       c.sent++;
       c.byChannel[s.channel] = (c.byChannel[s.channel] || 0) + 1;
-      c.byStep[s.step] = c.byStep[s.step] || { sent: 0, converted: 0 };
-      c.byStep[s.step].sent++;
+      step.sent++;
       if (s.converted_at) {
         c.converted++;
-        c.byStep[s.step].converted++;
+        step.converted++;
       }
       if (s.opened_at) c.opened = (c.opened || 0) + 1;
     } else if (s.status === 'failed') {
       c.failed++;
+      step.failed++;
     } else {
       c.pending++;
+      step.pending++;
     }
   }
   for (const c of Object.values(out)) {

@@ -8,6 +8,8 @@ import {
   marketingAnalyticsApi,
   type AcquisitionResponse,
   type AcquisitionRow,
+  type CampaignStatsResponse,
+  type CampaignStepStats,
   type DateRangeQuery,
   type FunnelResponse,
   type LeadsSummaryResponse,
@@ -62,6 +64,19 @@ const HEAT_STEPS = [
   { min: 0, bg: 'bg-emerald-50', text: 'text-emerald-900' },
 ];
 const heat = (rate: number) => HEAT_STEPS.find((s) => rate >= s.min) ?? HEAT_STEPS[HEAT_STEPS.length - 1];
+
+// Send order of each lifecycle campaign's steps (utils/lifecycle.js CAMPAIGNS);
+// a step the server knows and this list does not is shown after these.
+const CAMPAIGN_STEP_ORDER: Record<string, string[]> = {
+  lead_nurture: ['welcome', 'day2', 'day5'],
+  onboarding: ['day0', 'day1', 'day3', 'day7'],
+  streak_risk: ['evening'],
+  win_back: ['d7', 'd21'],
+};
+const orderedSteps = (campaign: string, byStep: Record<string, CampaignStepStats>) => {
+  const known = CAMPAIGN_STEP_ORDER[campaign] ?? [];
+  return [...known.filter((s) => s in byStep), ...Object.keys(byStep).filter((s) => !known.includes(s))];
+};
 
 // ─── small building blocks ──────────────────────────────────────────────────
 const Card = ({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) => (
@@ -139,6 +154,7 @@ export const MarketingDashboardPage = () => {
   const [sections, setSections] = useState<Sections>(LOADING);
   const [exportError, setExportError] = useState(false);
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({ key: 'signups', dir: 'desc' });
+  const [campaigns, setCampaigns] = useState<Loadable<CampaignStatsResponse>>({ status: 'loading' });
 
   const locale = lang === 'he' ? 'he-IL' : 'en-US';
   const pct = useMemo(() => new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 1 }), [locale]);
@@ -168,6 +184,14 @@ export const MarketingDashboardPage = () => {
   useEffect(() => {
     load(range);
   }, [load, range]);
+
+  // Lifecycle campaign counts are all-time, so they do not follow the range.
+  useEffect(() => {
+    marketingAnalyticsApi
+      .campaignStats()
+      .then((res) => setCampaigns({ status: 'ready', data: res.data }))
+      .catch(() => setCampaigns({ status: 'error' }));
+  }, []);
 
   const choosePreset = (p: Preset) => {
     setPreset(p);
@@ -679,6 +703,71 @@ export const MarketingDashboardPage = () => {
           </SectionStatus>
         </Card>
       </div>
+
+      {/* Lifecycle campaigns */}
+      <Card title={t('analytics.camp.title')}>
+        <SectionStatus state={campaigns}>
+          {campaigns.status === 'ready' && (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[640px] text-sm">
+                  <caption className="mb-2 text-start text-xs text-slate-500">{t('analytics.camp.caption')}</caption>
+                  <thead className="bg-slate-50 text-xs text-slate-600">
+                    <tr>
+                      <th scope="col" className={thText}>{t('analytics.camp.campaign')}</th>
+                      <th scope="col" className={thNum}>{t('analytics.camp.sent')}</th>
+                      <th scope="col" className={thNum}>{t('analytics.camp.failed')}</th>
+                      <th scope="col" className={thNum}>{t('analytics.camp.pending')}</th>
+                      <th scope="col" className={thNum}>{t('analytics.camp.converted')}</th>
+                      <th scope="col" className={thNum}>{t('analytics.camp.rate')}</th>
+                    </tr>
+                  </thead>
+                  {Object.values(campaigns.data.campaigns).map((c) => {
+                    const name = t(`analytics.camp.name.${c.campaign}`);
+                    return (
+                      <tbody key={c.campaign} className="border-t border-slate-200">
+                        <tr className="bg-white font-semibold text-slate-800">
+                          <th scope="row" className={`${tdText} font-semibold`}>
+                            {name}
+                            {c.marketing && (
+                              <span className="ms-2 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                                {t('analytics.camp.marketing')}
+                              </span>
+                            )}
+                            <span className="sr-only"> — {t('analytics.camp.total')}</span>
+                          </th>
+                          <td className={tdNum}>{num.format(c.sent)}</td>
+                          <td className={tdNum}>{num.format(c.failed)}</td>
+                          <td className={tdNum}>{num.format(c.pending)}</td>
+                          <td className={tdNum}>{num.format(c.converted)}</td>
+                          <td className={tdNum}>{fmtRate(c.conversionRate)}</td>
+                        </tr>
+                        {orderedSteps(c.campaign, c.byStep).map((step) => {
+                          const s = c.byStep[step];
+                          return (
+                            <tr key={step} className="text-slate-600">
+                              <th scope="row" className={`${tdText} ps-8 font-normal`}>
+                                <span className="sr-only">{name} — </span>
+                                {t('analytics.camp.step')} <span className="num font-mono text-xs" dir="ltr">{step}</span>
+                              </th>
+                              <td className={tdNum}>{num.format(s.sent ?? 0)}</td>
+                              <td className={tdNum}>{num.format(s.failed ?? 0)}</td>
+                              <td className={tdNum}>{num.format(s.pending ?? 0)}</td>
+                              <td className={tdNum}>{num.format(s.converted ?? 0)}</td>
+                              <td className={tdNum}>{fmtRate(s.sent ? s.converted / s.sent : null)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    );
+                  })}
+                </table>
+              </div>
+              <p className="mt-3 text-xs text-slate-500">{t('analytics.camp.notes')}</p>
+            </>
+          )}
+        </SectionStatus>
+      </Card>
     </div>
   );
 };
