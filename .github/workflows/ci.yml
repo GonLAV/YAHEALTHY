@@ -48,3 +48,73 @@ jobs:
           name: server-log
           path: /tmp/yahealthy_server.log
           if-no-files-found: ignore
+
+  # Every suite in YAHEALTHYbackend/tests: payments, booking against a stubbed
+  # Google, the Yoni paywall, the health boundary, staff access, migrations
+  # (ALL.sql must match what scripts/build-all-sql.js generates), and the rest.
+  # Each suite starts what it needs itself; none of them talks to the network.
+  backend-suites:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ALLOW_MEMORY_DB: 'true'
+      JWT_SECRET: ci-test-secret-not-used-anywhere-else
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: YAHEALTHYbackend/package-lock.json
+      - name: Install dependencies
+        working-directory: YAHEALTHYbackend
+        run: npm ci
+      - name: Run every suite
+        working-directory: YAHEALTHYbackend
+        run: node tests/run-all.js
+
+  # Vite builds without type-checking, which is how a Progress page that failed
+  # `tsc` reached main unnoticed. This is the type check, then the build.
+  # `tsc -b` is avoided on purpose: it emits .js next to the .tsx sources, and
+  # Vite resolves .js first (see AGENTS.md, Quirks).
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: YAHEALTHYFrontend/package-lock.json
+      - name: Install dependencies
+        working-directory: YAHEALTHYFrontend
+        run: npm ci
+      - name: Type check
+        working-directory: YAHEALTHYFrontend
+        run: npx tsc --noEmit -p tsconfig.json
+      - name: Build
+        working-directory: YAHEALTHYFrontend
+        run: npx vite build
+
+  # The eval cases are data a person edits by hand. A dry run parses the file
+  # and selects cases the way a real run would, without calling any model.
+  evals-parse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: evals/package-lock.json
+      - name: Install dependencies
+        working-directory: evals
+        run: npm ci
+      - name: Dry run, bare prompts
+        working-directory: evals
+        run: node run-eval.mjs --bot both --dry-run
+      - name: Dry run, with tools
+        working-directory: evals
+        run: node run-eval.mjs --bot chef --only recipes --live --dry-run
