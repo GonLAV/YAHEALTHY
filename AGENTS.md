@@ -36,6 +36,15 @@ curl http://localhost:5000/api/health   # backend health (also via proxy: :3000/
 curl http://localhost:3000              # should return Vite HTML (lang="he" dir="rtl")
 ```
 
+Backend unit/integration suites (in-memory store, no Docker needed): `cd YAHEALTHYbackend && node tests/run-all.js`.
+
+**E2E smoke tests (Playwright, `e2e/`)** — self-contained: global setup starts the backend (`ALLOW_MEMORY_DB=true`) and Vite on free ports, runs Chromium, then kills only the process groups it started. Needs `npm install` in `YAHEALTHYbackend/` and `YAHEALTHYFrontend/` first.
+```bash
+cd e2e && npm install          # @playwright/test only; never run `playwright install`
+npm test                       # or from YAHEALTHYFrontend: npm run test:e2e
+```
+Chromium is taken from `PLAYWRIGHT_BROWSERS_PATH` (defaults to the preinstalled `/opt/pw-browsers`). Server logs and failure traces land in `e2e/test-results/`. Covers landing (he/en) lead form, `?ref=`+utm → signup → onboarding → Health Score, water → streak, `/invite` copy, share link create/visit/sign-up/revoke, staff page blocked for non-staff, mobile More sheet keyboard/RTL.
+
 ## Dev Commands
 - Frontend: `npm run dev` (Vite with HMR)
 - Backend: `npm run dev` (nodemon with auto-reload)

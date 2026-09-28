@@ -1,0 +1,13 @@
+{
+  "name": "yahealthy-e2e",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Playwright smoke tests: boots the backend (ALLOW_MEMORY_DB) and Vite on free ports, then drives Chromium.",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
+  }
+}
