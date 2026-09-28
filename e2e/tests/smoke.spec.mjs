@@ -115,47 +115,7 @@ test('invite page: copy link puts the referral signup URL on the clipboard', asy
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(body.shareUrl);
 });
 
-test('share my week: a link created while the preview is refreshing never publishes the stale image', async ({ page, api }) => {
-  const owner = await api.signup({ name: 'Noa' });
-  const goal = await api.call('POST', '/api/weight-goals', { token: owner.token, data: { startWeightKg: 80, targetWeightKg: 75 } });
-  expect(goal.status).toBe(201);
-  for (const weightKg of [80, 79.2]) {
-    const w = await api.call('POST', '/api/weight-logs', { token: owner.token, data: { goalId: goal.body.id, weightKg } });
-    expect(w.status).toBe(201);
-  }
-  await prime(page, { lang: 'en', token: owner.token });
-  await page.goto('/dashboard');
-  await page.getByRole('button', { name: 'Share my week' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Share my week' });
-  await expect(dialog.locator('figure img')).toBeVisible();
-
-  // Weight on: the preview now shows the week's change.
-  const weight = dialog.getByLabel('Include my weight change');
-  const withWeight = page.waitForResponse((r) => r.url().includes('/api/share/weekly-card?') && r.url().includes('includeWeight=1'));
-  await weight.check();
-  expect((await (await withWeight).json()).snapshot.weightChangeKg).toBe(-0.8);
-
-  // Weight off again, and "Create" before the refreshed preview arrives.
-  await page.route(/\/api\/share\/weekly-card\?.*includeWeight=0/, async (route) => {
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    await route.continue();
-  });
-  const uploads = [];
-  page.on('request', (r) => {
-    if (r.method() === 'PUT' && /\/api\/share\/c\/[^/]+\/image$/.test(r.url())) uploads.push(r.url());
-  });
-  const created = page.waitForResponse((r) => r.url().endsWith('/api/share/weekly-card/link') && r.request().method() === 'POST');
-  await weight.uncheck();
-  await dialog.getByRole('button', { name: 'Create share link' }).click();
-  const link = await (await created).json();
-  expect(link.snapshot.weightChangeKg).toBeUndefined();
-  await expect(dialog.getByText('Your share link is ready.')).toBeVisible();
-  // The PNG on screen still carries the weight the link was made without: it must not be uploaded.
-  await page.waitForTimeout(3000);
-  expect(uploads).toEqual([]);
-});
-
-test('share my week: create a link, visit /s/:token, sign up from it, revoke it', async ({ page, context, api, browser }) => {
+test('share my week: create a link, visit /s/:token, sign up from it, revoke it; a stale preview is never published', async ({ page, context, api, browser }) => {
   const owner = await api.signup({ name: 'Maya Cohen' });
   await prime(page, { lang: 'en', token: owner.token });
   await page.goto('/dashboard');
@@ -206,6 +166,43 @@ test('share my week: create a link, visit /s/:token, sign up from it, revoke it'
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
   await expect(page.getByRole('button', { name: 'Share my week' })).toBeFocused();
+
+  // A link created while the preview is still refreshing must not publish
+  // the stale PNG. (Same user as above: the auth rate limit is shared by the
+  // whole suite, so no extra signup.)
+  const goal = await api.call('POST', '/api/weight-goals', { token: owner.token, data: { startWeightKg: 80, targetWeightKg: 75 } });
+  expect(goal.status).toBe(201);
+  for (const weightKg of [80, 79.2]) {
+    const w = await api.call('POST', '/api/weight-logs', { token: owner.token, data: { goalId: goal.body.id, weightKg } });
+    expect(w.status).toBe(201);
+  }
+  await page.getByRole('button', { name: 'Share my week' }).click();
+  await expect(dialog.locator('figure img')).toBeVisible();
+
+  // Weight on: the preview now shows the week's change.
+  const weight = dialog.getByLabel('Include my weight change');
+  const withWeight = page.waitForResponse((r) => r.url().includes('/api/share/weekly-card?') && r.url().includes('includeWeight=1'));
+  await weight.check();
+  expect((await (await withWeight).json()).snapshot.weightChangeKg).toBe(-0.8);
+
+  // Weight off again, and "Create" before the refreshed preview arrives.
+  await page.route(/\/api\/share\/weekly-card\?.*includeWeight=0/, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await route.continue();
+  });
+  const uploads = [];
+  page.on('request', (r) => {
+    if (r.method() === 'PUT' && /\/api\/share\/c\/[^/]+\/image$/.test(r.url())) uploads.push(r.url());
+  });
+  const created = page.waitForResponse((r) => r.url().endsWith('/api/share/weekly-card/link') && r.request().method() === 'POST');
+  await weight.uncheck();
+  await dialog.getByRole('button', { name: 'Create share link' }).click();
+  const staleLink = await (await created).json();
+  expect(staleLink.snapshot.weightChangeKg).toBeUndefined();
+  await expect(dialog.getByText('Your share link is ready.')).toBeVisible();
+  // The PNG on screen still carries the weight this link was made without.
+  await page.waitForTimeout(3000);
+  expect(uploads).toEqual([]);
 });
 
 test('staff analytics is blocked for a non-staff user (UI and API)', async ({ page, api }) => {
