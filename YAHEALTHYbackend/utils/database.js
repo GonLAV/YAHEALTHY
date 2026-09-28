@@ -2999,6 +2999,217 @@ async function listRewardsForReferrals(referralIds) {
   );
 }
 
+/**
+ * Scheduler bulk reads — the hourly lifecycle run (utils/lifecycle-runner.js)
+ * and the five-minute push reminder tick (utils/push.js).
+ *
+ * Both walk every recipient. They do it in pages: one keyset page of
+ * recipients (ordered by id, so a row added or removed mid-run never shifts
+ * the rest), then one chunked `.in()` read per table for the whole page. A
+ * pass costs a few queries per SCHEDULER_PAGE recipients instead of five or
+ * more per recipient. Only the columns the decisions read are selected.
+ */
+const SCHEDULER_PAGE = 200;
+
+const pageAfter = (rows, key, afterId, limit) =>
+  rows
+    .filter((r) => afterId == null || String(r[key]) > String(afterId))
+    .sort((a, b) => (String(a[key]) < String(b[key]) ? -1 : String(a[key]) > String(b[key]) ? 1 : 0))
+    .slice(0, limit);
+
+/** Users ordered by id, `limit` after `afterId` (same columns as getAllUsers). */
+async function listUsersPage({ afterId = null, limit = SCHEDULER_PAGE } = {}) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return pageAfter(Array.from(memoryDb.usersById.values()), 'id', afterId, limit);
+  }
+  let query = supabase.from('users').select('id, email, name, phone, created_at').order('id', { ascending: true }).limit(limit);
+  if (afterId != null) query = query.gt('id', afterId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+}
+
+/** Marketing leads ordered by id, `limit` after `afterId`. */
+async function listLeadsPage({ afterId = null, limit = SCHEDULER_PAGE } = {}) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return pageAfter(memoryDb.leads, 'id', afterId, limit);
+  }
+  let query = supabaseServiceRole.from('marketing_leads').select('*').order('id', { ascending: true }).limit(limit);
+  if (afterId != null) query = query.gt('id', afterId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+}
+
+/** Stored notification preference rows for these users, keyed by user id. */
+async function listNotificationPrefsFor(userIds) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const out = new Map();
+    for (const id of userIds) if (memoryDb.notificationPrefs.has(id)) out.set(id, memoryDb.notificationPrefs.get(id));
+    return out;
+  }
+  const rows = await selectByIds(supabaseServiceRole, 'notification_preferences', '*', 'user_id', userIds, (q) =>
+    q.order('user_id', { ascending: true })
+  );
+  return new Map(rows.map((row) => [row.user_id, row]));
+}
+
+const LIFECYCLE_SEND_COLUMNS =
+  'id, recipient_type, recipient_id, campaign, step, period_key, channel, status, created_at, sent_at, opened_at, converted_at';
+
+/** Every send-log row of these recipients, oldest first (as listLifecycleSends orders them). */
+async function listLifecycleSendsFor(recipientType, recipientIds) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const wanted = new Set(recipientIds);
+    return memoryDb.lifecycleSends
+      .filter((s) => s.recipient_type === recipientType && wanted.has(s.recipient_id))
+      .map((s) => ({ ...s }));
+  }
+  const rows = await selectByIds(supabaseServiceRole, 'lifecycle_sends', LIFECYCLE_SEND_COLUMNS, 'recipient_id', recipientIds, (q) =>
+    q.eq('recipient_type', recipientType).order('created_at', { ascending: true }).order('id', { ascending: true })
+  );
+  return rows;
+}
+
+/**
+ * Log rows for a set of users, for the scheduler's per-user decisions.
+ *
+ * `tables` names what to read and how far back:
+ *   { food: { since }, hydration: { since, until } | true, sleep: true, weight: true, weightGoals: true }
+ * `true` is the whole history (what the per-user getters return); `since` /
+ * `until` bound the `date` column (YYYY-MM-DD, inclusive), exactly like
+ * getFoodLogs({ start }) and getHydrationLogs(userId, date). The caller trims
+ * each user's rows to that user's own bounds.
+ *
+ * Returns { food, hydration, sleep, weight, weightGoals }, each a Map of
+ * user id → rows, newest first like the per-user getters.
+ */
+const BULK_LOG_TABLES = {
+  food: { memory: 'foodLogs', table: 'food_logs', columns: 'user_id, date, meal_type, calories, created_at', dated: true },
+  hydration: { memory: 'hydrationLogs', table: 'hydration_logs', columns: 'user_id, date, liters_consumed, created_at', dated: true },
+  sleep: { memory: 'sleepLogs', table: 'sleep_logs', columns: 'user_id, date, sleep_hours, created_at', dated: true },
+  weight: { memory: 'weightLogs', table: 'weight_logs', columns: 'user_id, weight_kg, created_at', dated: false },
+  weightGoals: { memory: 'weightGoals', table: 'weight_goals', columns: 'user_id, start_weight_kg, target_weight_kg, created_at', dated: false }
+};
+
+function groupByUser(rows, userIds) {
+  const out = new Map(userIds.map((id) => [id, []]));
+  for (const row of sortByCreatedAtDesc(rows)) {
+    if (out.has(row.user_id)) out.get(row.user_id).push(row);
+  }
+  return out;
+}
+
+async function listLogsForUsers(userIds, tables = {}) {
+  const ids = Array.from(new Set(userIds.filter(Boolean)));
+  const result = {};
+  await Promise.all(
+    Object.entries(BULK_LOG_TABLES).map(async ([name, spec]) => {
+      const want = tables[name];
+      if (!want) return;
+      const since = spec.dated && want !== true ? want.since || null : null;
+      const until = spec.dated && want !== true ? want.until || null : null;
+      if (!ids.length) {
+        result[name] = new Map();
+        return;
+      }
+
+      if (USE_MEMORY_DB) {
+        maybeLogMemoryMode();
+        const wanted = new Set(ids);
+        const day = (r) => String(r.date || '').slice(0, 10);
+        const rows = memoryDb[spec.memory].filter(
+          (r) => wanted.has(r.user_id) && (!since || day(r) >= since) && (!until || day(r) <= until)
+        );
+        result[name] = groupByUser(rows, ids);
+        return;
+      }
+
+      const rows = await selectByIds(supabase, spec.table, spec.columns, 'user_id', ids, (q) => {
+        let out = q;
+        if (since) out = out.gte('date', since);
+        if (until) out = out.lte('date', until);
+        // user_id first, so (user_id, created_at desc) indexes return rows
+        // already in order for the `in` list (no sort per range() page); id
+        // breaks ties so pages never overlap or skip.
+        return out
+          .order('user_id', { ascending: true })
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: true });
+      });
+      result[name] = groupByUser(rows, ids);
+    })
+  );
+  return result;
+}
+
+/** `users.preferences` for these users (what getUserPreferences returns), keyed by id. */
+async function listUserPreferencesFor(userIds) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const out = new Map();
+    for (const id of new Set(userIds)) {
+      const user = memoryDb.usersById.get(id);
+      if (user) out.set(id, user.preferences || {});
+    }
+    return out;
+  }
+  const rows = await selectByIds(supabase, 'users', 'id, preferences', 'id', userIds, (q) => q.order('id', { ascending: true }));
+  return new Map(rows.map((row) => [row.id, row.preferences || {}]));
+}
+
+/** Each user's newest survey — only the target columns the reminders read — keyed by user id. */
+async function listLatestSurveysFor(userIds) {
+  let rows;
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const wanted = new Set(userIds);
+    rows = memoryDb.surveys.filter((s) => wanted.has(s.user_id));
+  } else {
+    rows = await selectByIds(supabase, 'surveys', 'user_id, water_target_liters, sleep_target_hours, created_at', 'user_id', userIds, (q) =>
+      q.order('created_at', { ascending: false }).order('id', { ascending: true })
+    );
+  }
+  const out = new Map();
+  for (const row of sortByCreatedAtDesc(rows)) if (!out.has(row.user_id)) out.set(row.user_id, row);
+  return out;
+}
+
+/** Enabled reminder settings ordered by user id, `limit` after `afterUserId`. */
+async function listEnabledPushReminderSettingsPage({ afterUserId = null, limit = SCHEDULER_PAGE } = {}) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return pageAfter(memoryDb.pushReminderSettings.filter((r) => r.enabled), 'user_id', afterUserId, limit);
+  }
+  let query = supabaseServiceRole
+    .from('push_reminder_settings')
+    .select('user_id, enabled, tz, lang, settings, state')
+    .eq('enabled', true)
+    .order('user_id', { ascending: true })
+    .limit(limit);
+  if (afterUserId != null) query = query.gt('user_id', afterUserId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+}
+
+/** Which of these users have at least one push subscription. */
+async function listUsersWithPushSubscriptions(userIds) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const wanted = new Set(userIds);
+    return new Set(memoryDb.pushSubscriptions.filter((r) => wanted.has(r.user_id)).map((r) => r.user_id));
+  }
+  const rows = await selectByIds(supabaseServiceRole, 'push_subscriptions', 'user_id', 'user_id', userIds, (q) =>
+    q.order('id', { ascending: true })
+  );
+  return new Set(rows.map((r) => r.user_id));
+}
+
 module.exports = {
   saveWhatsappMessage,
   getWhatsappMessages,
@@ -3126,5 +3337,16 @@ module.exports = {
   getPushReminderSettings,
   savePushReminderSettings,
   updatePushReminderState,
-  listEnabledPushReminderSettings
+  listEnabledPushReminderSettings,
+  // Scheduler bulk reads (lifecycle run, push reminder tick)
+  SCHEDULER_PAGE,
+  listUsersPage,
+  listLeadsPage,
+  listNotificationPrefsFor,
+  listLifecycleSendsFor,
+  listLogsForUsers,
+  listUserPreferencesFor,
+  listLatestSurveysFor,
+  listEnabledPushReminderSettingsPage,
+  listUsersWithPushSubscriptions
 };
