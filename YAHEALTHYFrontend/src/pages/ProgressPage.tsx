@@ -123,9 +123,11 @@ export const ProgressPage = () => {
           .map((w) => ({
             date: w.date ? w.date.slice(0, 10) : w.created_at ? localDateISO(new Date(w.created_at)) : '',
             weight: w.weight_kg,
+            at: w.created_at || '',
           }))
           .filter((w) => w.date)
-          .sort((a, b) => a.date.localeCompare(b.date))
+          // Same-day weigh-ins keep their time order (the API lists newest first).
+          .sort((a, b) => a.date.localeCompare(b.date) || a.at.localeCompare(b.at))
           .map((w) => ({
             label: dayLabel(parseLocalDate(w.date)),
             weight: w.weight,

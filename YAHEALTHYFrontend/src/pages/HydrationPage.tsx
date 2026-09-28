@@ -177,8 +177,8 @@ export const HydrationPage = () => {
                     <GlassWater size={16} />
                   </span>
                   <div>
-                    <span className="num font-semibold text-slate-800">
-                      {(log.liters_consumed * 1000).toFixed(0)} ml
+                    <span className="font-semibold text-slate-800">
+                      <span className="num">{(log.liters_consumed * 1000).toFixed(0)}</span> {t('common.ml')}
                     </span>
                     {log.time_of_day && (
                       <span className="ms-2 text-xs text-slate-400">

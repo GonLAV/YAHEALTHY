@@ -80,7 +80,7 @@ const orderedSteps = (campaign: string, byStep: Record<string, CampaignStepStats
 
 // ─── small building blocks ──────────────────────────────────────────────────
 const Card = ({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) => (
-  <section aria-label={title} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+  <section aria-label={title} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
     <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
       <h2 className="text-base font-semibold text-slate-900">{title}</h2>
       {action}

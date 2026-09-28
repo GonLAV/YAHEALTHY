@@ -180,8 +180,8 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
         <LangToggle />
       </header>
 
-      {/* Main content */}
-      <main id="main-content" className="pb-20 md:pb-8 md:ms-64">{children}</main>
+      {/* Main content. pb-36 on mobile: the last content scrolls clear of the bottom nav and the WhatsApp button above it. */}
+      <main id="main-content" className="pb-36 md:pb-8 md:ms-64">{children}</main>
 
       {/* Mobile bottom nav: primary tabs + "More" */}
       <nav
@@ -219,7 +219,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
       </nav>
 
       {moreOpen && (
-        <div className="fixed inset-0 z-40 md:hidden">
+        <div className="fixed inset-0 z-50 md:hidden">
           <div
             className="absolute inset-0 bg-slate-900/40"
             aria-hidden="true"

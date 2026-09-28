@@ -89,7 +89,7 @@ export const SleepPage = () => {
 
   return (
     <div className="mx-auto max-w-4xl p-4 md:p-8">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3">
         <PageHeader
           title={t('sleep.title')}
           subtitle={t('sleep.subtitle')}
@@ -97,7 +97,7 @@ export const SleepPage = () => {
         />
         <button
           onClick={() => setShowForm(!showForm)}
-          className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-md transition ${
+          className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-md transition sm:px-5 ${
             showForm
               ? 'bg-slate-500 hover:bg-slate-600'
               : 'bg-indigo-600 shadow-indigo-200 hover:bg-indigo-700'
@@ -116,7 +116,7 @@ export const SleepPage = () => {
             {todayLog ? (
               <div className="mt-1 flex items-baseline gap-1">
                 <span className="num text-4xl font-extrabold">{todayLog.sleep_hours.toFixed(1)}</span>
-                <span className="text-lg font-medium text-indigo-200">h</span>
+                <span className="text-lg font-medium text-indigo-200">{t('common.hoursShort')}</span>
               </div>
             ) : (
               <p className="mt-1 text-lg font-medium text-indigo-200">{t('dash.noSleepLogged')}</p>
@@ -226,8 +226,8 @@ export const SleepPage = () => {
                   <Moon size={20} />
                 </span>
                 <div>
-                  <div className="num font-bold text-slate-900">
-                    {log.sleep_hours.toFixed(1)}h
+                  <div className="font-bold text-slate-900">
+                    <span className="num">{log.sleep_hours.toFixed(1)}</span>{'\u00a0'}{t('common.hoursShort')}
                   </div>
                   <div className="text-xs text-slate-400">{formatDate(log.date)}</div>
                 </div>

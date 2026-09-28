@@ -33,7 +33,7 @@ const Section = ({
   <fieldset className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100" aria-describedby={`${id}-hint`}>
     <legend className="sr-only">{title}</legend>
     <div className="mb-3 flex items-center gap-2.5">
-      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700" aria-hidden="true">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700" aria-hidden="true">
         {icon}
       </span>
       <div>

@@ -29,7 +29,8 @@ export const WeightPage = () => {
     try {
       const goalsRes = await weightApi.getGoals();
       const goals = goalsRes.data;
-      const latest = goals.length > 0 ? goals[goals.length - 1] : null;
+      // The API returns goals and logs newest first.
+      const latest = goals.length > 0 ? goals[0] : null;
       setGoal(latest);
       if (latest) {
         const logsRes = await weightApi.getLogs({ goalId: latest.id });
@@ -92,7 +93,7 @@ export const WeightPage = () => {
 
   const current = useMemo(() => {
     if (logs.length === 0) return goal?.start_weight_kg ?? null;
-    return logs[logs.length - 1].weight_kg;
+    return logs[0].weight_kg;
   }, [logs, goal]);
 
   const progressPct = useMemo(() => {
@@ -350,7 +351,7 @@ export const WeightPage = () => {
             <EmptyState icon={<Scale size={26} />} text={t('weight.noLogs')} />
           ) : (
             <div className="space-y-2">
-              {[...logs].reverse().slice(0, 10).map((log) => {
+              {logs.slice(0, 10).map((log) => {
                 const diff = current != null && log.weight_kg != null ? log.weight_kg - (goal?.start_weight_kg ?? log.weight_kg) : 0;
                 return (
                   <div
