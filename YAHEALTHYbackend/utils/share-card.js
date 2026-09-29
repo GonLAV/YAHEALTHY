@@ -434,10 +434,10 @@ function renderSharePage({ snap, pageUrl, imageUrl, imageType, ctaUrl }) {
   ul { list-style: none; padding: 0; margin: 0 0 20px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   li { background: #ecfdf5; border-radius: 16px; padding: 12px; }
   li b { display: block; font-size: 1.4rem; color: #047857; direction: ltr; unicode-bidi: isolate; text-align: start; }
-  a.cta { display: block; text-align: center; background: #059669; color: #fff; text-decoration: none; font-weight: 700; padding: 14px 20px; border-radius: 999px; font-size: 1.05rem; }
-  a.cta:hover { background: #047857; }
+  a.cta { display: block; text-align: center; background: #047857; color: #fff; text-decoration: none; font-weight: 700; padding: 14px 20px; border-radius: 999px; font-size: 1.05rem; }
+  a.cta:hover { background: #065f46; }
   a.cta:focus-visible { outline: 3px solid #0f172a; outline-offset: 3px; }
-  small { display: block; margin-top: 16px; color: #94a3b8; font-size: .75rem; }
+  small { display: block; margin-top: 16px; color: #64748b; font-size: .75rem; }
 </style>
 </head>
 <body>
@@ -471,7 +471,7 @@ function renderNotFoundPage({ lang, ctaUrl }) {
 <style>
   body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; font-family: Heebo, Inter, 'Segoe UI', Arial, sans-serif; background: #ecfdf5; color: #0f172a; }
   main { max-width: 480px; background: #fff; border-radius: 24px; padding: 28px; text-align: center; }
-  a { display: inline-block; margin-top: 12px; background: #059669; color: #fff; text-decoration: none; font-weight: 700; padding: 12px 20px; border-radius: 999px; }
+  a { display: inline-block; margin-top: 12px; background: #047857; color: #fff; text-decoration: none; font-weight: 700; padding: 12px 20px; border-radius: 999px; }
   a:focus-visible { outline: 3px solid #0f172a; outline-offset: 3px; }
 </style>
 </head>

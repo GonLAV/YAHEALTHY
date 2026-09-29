@@ -37,7 +37,7 @@ export const HABIT_ICONS: Record<HabitKey, ReactNode> = {
 
 /** Score colour bands (display only). */
 export const scoreColor = (score: number) =>
-  score >= 75 ? { hex: '#059669', text: 'text-emerald-600', bar: 'bg-emerald-500' }
+  score >= 75 ? { hex: '#059669', text: 'text-emerald-700', bar: 'bg-emerald-500' }
   : score >= 45 ? { hex: '#d97706', text: 'text-amber-600', bar: 'bg-amber-500' }
   : { hex: '#e11d48', text: 'text-rose-600', bar: 'bg-rose-500' };
 
@@ -68,7 +68,7 @@ export const HealthScoreCard = ({ summary }: { summary: EngagementSummary }) => 
         <div className="shrink-0" aria-hidden="true">
           <ProgressRing value={score} target={100} size={140} strokeWidth={12} color={c.hex}>
             <span className={`num text-4xl font-extrabold ${c.text}`}>{score}</span>
-            <span className="text-xs font-medium text-slate-400">{t('eng.scoreOutOf')}</span>
+            <span className="text-xs font-medium text-slate-500">{t('eng.scoreOutOf')}</span>
           </ProgressRing>
         </div>
         <p className="sr-only">{t('eng.scoreAria', { n: score })}</p>
@@ -94,7 +94,7 @@ export const HealthScoreCard = ({ summary }: { summary: EngagementSummary }) => 
           })}
         </ul>
       </div>
-      <p className="mt-4 text-xs text-slate-400">{t('eng.scoreDisclaimer')}</p>
+      <p className="mt-4 text-xs text-slate-500">{t('eng.scoreDisclaimer')}</p>
     </section>
   );
 };
@@ -139,8 +139,8 @@ export const StreaksStrip = ({ summary }: { summary: EngagementSummary }) => {
                 <span className="num text-xl font-bold text-slate-900">{s.current}</span>
               </div>
               <div className="mt-1 flex items-center justify-between text-[11px]" aria-hidden="true">
-                <span className="text-slate-400">{t('eng.best', { n: s.best })}</span>
-                <span className={s.todayDone ? 'text-emerald-600' : 'text-slate-400'}>
+                <span className="text-slate-500">{t('eng.best', { n: s.best })}</span>
+                <span className={s.todayDone ? 'text-emerald-700' : 'text-slate-500'}>
                   {s.todayDone ? t('eng.doneToday') : t('eng.notYetToday')}
                 </span>
               </div>

@@ -443,7 +443,7 @@ export const OnboardingPage = () => {
     <div>
       <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-slate-700">
         {label}
-        {optional && <span className="ms-1 font-normal text-slate-400">({t('onb.optional')})</span>}
+        {optional && <span className="ms-1 font-normal text-slate-500">({t('onb.optional')})</span>}
       </label>
       <input
         id={id}
@@ -563,7 +563,7 @@ export const OnboardingPage = () => {
       <div className="mt-5">
         <label htmlFor="onb-allergies" className="mb-1.5 block text-sm font-medium text-slate-700">
           {t('onb.diet.allergies')}
-          <span className="ms-1 font-normal text-slate-400">({t('onb.optional')})</span>
+          <span className="ms-1 font-normal text-slate-500">({t('onb.optional')})</span>
         </label>
         <textarea
           id="onb-allergies"
@@ -682,7 +682,7 @@ export const OnboardingPage = () => {
     <fieldset>
       {legend({ title: t('onb.win.title'), hint: t('onb.win.hint') })}
       <div className="flex flex-col items-center gap-4 rounded-3xl bg-sky-50 p-6 text-center">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-sky-100 text-sky-600">
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-sky-100 text-sky-700">
           {winState === 'done' ? <Check size={30} aria-hidden="true" /> : <GlassWater size={30} aria-hidden="true" />}
         </div>
         {winState !== 'done' && (
@@ -690,7 +690,7 @@ export const OnboardingPage = () => {
             type="button"
             onClick={logFirstWater}
             disabled={winState === 'logging'}
-            className="rounded-xl bg-sky-600 px-6 py-3 font-semibold text-white shadow-md shadow-sky-200 transition hover:bg-sky-700 disabled:opacity-60"
+            className="rounded-xl bg-sky-700 px-6 py-3 font-semibold text-white shadow-md shadow-sky-200 transition hover:bg-sky-800 disabled:opacity-60"
           >
             {winState === 'logging' ? t('onb.win.logging') : t('onb.win.logWater')}
           </button>
@@ -720,13 +720,13 @@ export const OnboardingPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-sky-50">
-      <a href="#onboarding-main" className="skip-link rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-lg">
+      <a href="#onboarding-main" className="skip-link rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-lg">
         {t('a11y.skipToContent')}
       </a>
 
       <header className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 pt-6">
         <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-700">
             <Heart size={18} className="text-white" fill="white" aria-hidden="true" />
           </div>
           <span className="text-lg font-extrabold text-slate-900">{t('app.name')}</span>
@@ -753,7 +753,7 @@ export const OnboardingPage = () => {
         </div>
       </header>
 
-      <main id="onboarding-main" className="mx-auto max-w-2xl px-4 pb-12 pt-6">
+      <main id="onboarding-main" tabIndex={-1} className="mx-auto max-w-2xl px-4 pb-12 pt-6 outline-none">
         <h1 className="sr-only">{t('onb.pageTitle')}</h1>
 
         {/* Progress */}
@@ -826,7 +826,7 @@ export const OnboardingPage = () => {
                   ref={dashboardButtonRef}
                   type="button"
                   onClick={finish}
-                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700"
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800"
                 >
                   {winState === 'done' ? t('onb.win.toDashboard') : t('onb.win.skipToDashboard')}
                   <NextIcon size={16} aria-hidden="true" />
@@ -835,7 +835,7 @@ export const OnboardingPage = () => {
                 <button
                   type="submit"
                   disabled={saving || previewLoading}
-                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700 disabled:opacity-60"
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800 disabled:opacity-60"
                 >
                   {stepKey === 'reminders' ? (saving ? t('onb.saving') : t('onb.saveContinue')) : t('onb.next')}
                   <NextIcon size={16} aria-hidden="true" />

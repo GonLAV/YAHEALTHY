@@ -34,7 +34,7 @@ export const usePublicPage = (): PublicRouteMatch | null => {
 
 export const Brand = () => (
   <span className="flex items-center gap-2.5">
-    <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-600 shadow-sm shadow-emerald-200">
+    <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-700 shadow-sm shadow-emerald-200">
       <Heart size={18} className="text-white" fill="white" aria-hidden="true" />
     </span>
     <span className="text-lg font-extrabold tracking-tight text-slate-900">YAHealthy</span>
@@ -104,7 +104,7 @@ export const PublicHeader = ({ nav }: { nav: PublicNavLink[] }) => {
             <NavItem
               key={link.href}
               link={link}
-              className="text-sm font-medium text-slate-600 transition hover:text-emerald-700 aria-[current=page]:text-emerald-700"
+              className="text-sm font-medium text-slate-600 transition hover:text-emerald-800 aria-[current=page]:text-emerald-700"
             />
           ))}
         </nav>
@@ -118,7 +118,7 @@ export const PublicHeader = ({ nav }: { nav: PublicNavLink[] }) => {
           </Link>
           <Link
             to="/signup"
-            className="inline-flex rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+            className="inline-flex rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800"
           >
             {t('landing.nav.signup')}
           </Link>
@@ -137,7 +137,7 @@ const FooterColumn = ({ title, children }: { title: string; children: ReactNode 
 
 export const PublicFooter = ({ nav }: { nav: PublicNavLink[] }) => {
   const { t, lang } = useLanguage();
-  const linkClass = 'text-slate-600 transition hover:text-emerald-700';
+  const linkClass = 'text-slate-600 transition hover:text-emerald-800';
   const guidesHref = localizePath(lang, '/guides');
   return (
     <footer className="border-t border-slate-200 bg-white px-4 pb-24 pt-12 sm:px-6 md:pb-12">

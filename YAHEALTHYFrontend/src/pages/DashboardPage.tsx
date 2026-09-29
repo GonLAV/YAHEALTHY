@@ -26,7 +26,7 @@ const BADGE_ICONS: Record<string, JSX.Element> = {
 
 const MACRO_STYLES = {
   protein: { icon: <Beef size={17} />, color: 'bg-rose-500', text: 'text-rose-600', bg: 'bg-rose-100' },
-  carbs: { icon: <Wheat size={17} />, color: 'bg-sky-500', text: 'text-sky-600', bg: 'bg-sky-100' },
+  carbs: { icon: <Wheat size={17} />, color: 'bg-sky-500', text: 'text-sky-700', bg: 'bg-sky-100' },
   fat: { icon: <Croissant size={17} />, color: 'bg-amber-500', text: 'text-amber-600', bg: 'bg-amber-100' },
 };
 
@@ -180,7 +180,7 @@ export const DashboardPage = () => {
         <div className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100 lg:col-span-2">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-semibold text-slate-900">{t('dash.overview')}</h2>
-            <span className="text-xs font-medium text-slate-400">{t('dash.calories')}</span>
+            <span className="text-xs font-medium text-slate-500">{t('dash.calories')}</span>
           </div>
           <div className="flex flex-col items-center gap-4">
             <ProgressRing
@@ -189,12 +189,12 @@ export const DashboardPage = () => {
               color={caloriePct && caloriePct > 100 ? '#e11d48' : '#059669'}
             >
               <span className="num text-3xl font-extrabold text-slate-900">{data?.calories ?? 0}</span>
-              <span className="text-xs font-medium text-slate-400">
+              <span className="text-xs font-medium text-slate-500">
                 {calorieTarget ? `/ ${calorieTarget}` : t('dash.noTargets')}
               </span>
             </ProgressRing>
             {caloriePct !== null && (
-              <p className={`num text-sm font-semibold ${caloriePct > 100 ? 'text-rose-600' : 'text-emerald-600'}`}>
+              <p className={`num text-sm font-semibold ${caloriePct > 100 ? 'text-rose-600' : 'text-emerald-700'}`}>
                 {caloriePct}% {t('common.of')} {t('common.target')}
               </p>
             )}
@@ -250,7 +250,7 @@ export const DashboardPage = () => {
         {/* Water */}
         <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
           <div className="mb-3 flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-100 text-sky-700">
               <Droplets size={18} />
             </span>
             <span className="font-medium text-slate-700">{t('dash.waterToday')}</span>
@@ -259,7 +259,7 @@ export const DashboardPage = () => {
             <span className="num text-2xl font-bold text-slate-900">
               {(data?.waterLiters ?? 0).toFixed(2)}
             </span>
-            <span className="text-sm font-medium text-slate-400">{t('common.liters')}</span>
+            <span className="text-sm font-medium text-slate-500">{t('common.liters')}</span>
           </div>
           <ProgressBar value={data?.waterLiters ?? 0} target={2.5} color="bg-sky-500" height="h-2" />
         </div>
@@ -276,12 +276,12 @@ export const DashboardPage = () => {
             <>
               <div className="flex items-baseline gap-1">
                 <span className="num text-2xl font-bold text-slate-900">{data.sleepHours.toFixed(1)}</span>
-                <span className="text-sm font-medium text-slate-400">{t('common.hoursShort')}</span>
+                <span className="text-sm font-medium text-slate-500">{t('common.hoursShort')}</span>
               </div>
               <ProgressBar value={data.sleepHours} target={8} color="bg-indigo-500" height="h-2" />
             </>
           ) : (
-            <p className="text-sm text-slate-400">{t('dash.noSleepLogged')}</p>
+            <p className="text-sm text-slate-500">{t('dash.noSleepLogged')}</p>
           )}
         </div>
 
@@ -298,6 +298,7 @@ export const DashboardPage = () => {
               {data.badges.map((b) => (
                 <div
                   key={b.id}
+                  role="img"
                   title={t(`badge.${b.id}.desc`)}
                   className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600"
                   aria-label={t(`badge.${b.id}.name`)}
@@ -307,7 +308,7 @@ export const DashboardPage = () => {
               ))}
             </div>
           ) : (
-            <p className="text-xs text-slate-400">{t('dash.noBadgesYet')}</p>
+            <p className="text-xs text-slate-500">{t('dash.noBadgesYet')}</p>
           )}
         </div>
       </div>
@@ -316,7 +317,7 @@ export const DashboardPage = () => {
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <Link
           to="/food-log"
-          className="group flex items-center justify-between rounded-2xl bg-emerald-600 p-5 text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700"
+          className="group flex items-center justify-between rounded-2xl bg-emerald-700 p-5 text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800"
         >
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/20">
@@ -331,7 +332,7 @@ export const DashboardPage = () => {
         </Link>
         <Link
           to="/hydration"
-          className="group flex items-center justify-between rounded-2xl bg-sky-600 p-5 text-white shadow-md shadow-sky-200 transition hover:bg-sky-700"
+          className="group flex items-center justify-between rounded-2xl bg-sky-700 p-5 text-white shadow-md shadow-sky-200 transition hover:bg-sky-800"
         >
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/20">
@@ -349,7 +350,7 @@ export const DashboardPage = () => {
       {/* Recent meals */}
       <div className="mt-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
         <div className="mb-4 flex items-center gap-2.5">
-          <Dumbbell size={18} className="text-slate-400" />
+          <Dumbbell size={18} className="text-slate-500" />
           <h2 className="font-semibold text-slate-900">{t('dash.recentMeals')}</h2>
         </div>
         {data?.recentMeals?.length ? (
@@ -359,7 +360,7 @@ export const DashboardPage = () => {
                 <div className="min-w-0">
                   <div className="break-words font-medium text-slate-800"><bdi>{meal.name}</bdi></div>
                   {meal.meal_type && (
-                    <div className="text-xs text-slate-400">{t(`meal.${meal.meal_type}`)}</div>
+                    <div className="text-xs text-slate-500">{t(`meal.${meal.meal_type}`)}</div>
                   )}
                 </div>
                 <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-slate-600">
@@ -369,7 +370,7 @@ export const DashboardPage = () => {
             ))}
           </ul>
         ) : (
-          <p className="py-4 text-center text-sm text-slate-400">{t('dash.noMealsYet')}</p>
+          <p className="py-4 text-center text-sm text-slate-500">{t('dash.noMealsYet')}</p>
         )}
       </div>
     </div>

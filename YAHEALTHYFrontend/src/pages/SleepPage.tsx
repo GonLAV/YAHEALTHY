@@ -211,7 +211,7 @@ export const SleepPage = () => {
       {/* History */}
       <h2 className="mb-4 font-semibold text-slate-900">{t('sleep.history')}</h2>
       {loading ? (
-        <p className="py-8 text-center text-sm text-slate-400">{t('common.loading')}</p>
+        <p className="py-8 text-center text-sm text-slate-500">{t('common.loading')}</p>
       ) : logs.length === 0 ? (
         <EmptyState icon={<Moon size={26} />} text={t('sleep.noLogs')} />
       ) : (
@@ -229,7 +229,7 @@ export const SleepPage = () => {
                   <div className="font-bold text-slate-900">
                     <span className="num">{log.sleep_hours.toFixed(1)}</span>{'\u00a0'}{t('common.hoursShort')}
                   </div>
-                  <div className="text-xs text-slate-400">{formatDate(log.date)}</div>
+                  <div className="text-xs text-slate-500">{formatDate(log.date)}</div>
                 </div>
               </div>
               <div className="flex flex-col items-end gap-1">
@@ -243,7 +243,7 @@ export const SleepPage = () => {
                   </span>
                 )}
                 {log.notes && (
-                  <span className="max-w-40 truncate text-xs text-slate-400">{log.notes}</span>
+                  <span className="max-w-40 truncate text-xs text-slate-500">{log.notes}</span>
                 )}
               </div>
             </div>

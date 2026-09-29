@@ -47,7 +47,7 @@ export function ErrorFallback({ onReload }: { onReload?: () => void }) {
           <button
             type="button"
             onClick={reload}
-            className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
+            className="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800"
           >
             {t('errorPage.reload')}
           </button>

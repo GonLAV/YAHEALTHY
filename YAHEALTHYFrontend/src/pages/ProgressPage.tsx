@@ -13,6 +13,10 @@ import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import { addDaysISO, localDateISO, parseLocalDate } from '@/utils/date';
 
+// Tooltip rows default to the series colour, which is too light to read as
+// text on white (WCAG 1.4.3); the lines/bars keep the colour.
+const TOOLTIP_ITEM_STYLE = { color: '#0f172a' };
+
 const RANGE_DAYS = 14;
 
 const MACRO_COLORS = ['#10b981', '#3b82f6', '#f59e0b'];
@@ -200,7 +204,7 @@ export const ProgressPage = () => {
     .join(', ');
 
   const noChartData = (
-    <p className="flex h-full items-center justify-center px-6 text-center text-sm text-slate-400">
+    <p className="flex h-full items-center justify-center px-6 text-center text-sm text-slate-500">
       {t('progress.noData')}
     </p>
   );
@@ -227,7 +231,7 @@ export const ProgressPage = () => {
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 12 }} />
                   <YAxis />
-                  <Tooltip />
+                  <Tooltip itemStyle={TOOLTIP_ITEM_STYLE} />
                   <Line
                     type="monotone"
                     dataKey="calories"
@@ -253,7 +257,7 @@ export const ProgressPage = () => {
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 12 }} />
                   <YAxis />
-                  <Tooltip />
+                  <Tooltip itemStyle={TOOLTIP_ITEM_STYLE} />
                   <Bar
                     dataKey="liters"
                     name={t('progress.hydration')}
@@ -277,7 +281,7 @@ export const ProgressPage = () => {
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 12 }} />
                   <YAxis />
-                  <Tooltip />
+                  <Tooltip itemStyle={TOOLTIP_ITEM_STYLE} />
                   <Bar
                     dataKey="sleepHours"
                     name={t('progress.sleep')}
@@ -298,7 +302,7 @@ export const ProgressPage = () => {
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 12 }} />
                   <YAxis domain={['auto', 'auto']} />
-                  <Tooltip />
+                  <Tooltip itemStyle={TOOLTIP_ITEM_STYLE} />
                   <Line
                     type="monotone"
                     dataKey="weight"
@@ -328,10 +332,10 @@ export const ProgressPage = () => {
                     outerRadius={85}
                   >
                     {macros.map((entry, i) => (
-                      <Cell key={entry.name} fill={MACRO_COLORS[i % MACRO_COLORS.length]} />
+                      <Cell key={entry.name} fill={MACRO_COLORS[i % MACRO_COLORS.length]} aria-label={entry.name} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip itemStyle={TOOLTIP_ITEM_STYLE} />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>

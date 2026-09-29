@@ -95,10 +95,10 @@ export const HydrationPage = () => {
           color="#0284c7"
           trackColor="#e0f2fe"
         >
-          <span className="num text-4xl font-extrabold text-sky-600">
+          <span className="num text-4xl font-extrabold text-sky-700">
             {totalLiters.toFixed(2)}
           </span>
-          <span className="text-xs font-medium text-slate-400">
+          <span className="text-xs font-medium text-slate-500">
             {t('common.of')} {DAILY_GOAL_LITERS} {t('common.liters')}
           </span>
           <span
@@ -150,7 +150,7 @@ export const HydrationPage = () => {
           <button
             type="submit"
             disabled={adding || !customMl}
-            className="rounded-xl bg-sky-600 px-6 py-2.5 text-sm font-semibold text-white shadow-md shadow-sky-200 transition hover:bg-sky-700 disabled:opacity-50"
+            className="rounded-xl bg-sky-700 px-6 py-2.5 text-sm font-semibold text-white shadow-md shadow-sky-200 transition hover:bg-sky-800 disabled:opacity-50"
           >
             {t('water.add')}
           </button>
@@ -165,9 +165,9 @@ export const HydrationPage = () => {
       <div className="mt-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
         <h2 className="mb-4 font-semibold text-slate-900">{t('water.logs')}</h2>
         {loading ? (
-          <p className="py-4 text-center text-sm text-slate-400">{t('common.loading')}</p>
+          <p className="py-4 text-center text-sm text-slate-500">{t('common.loading')}</p>
         ) : logs.length === 0 ? (
-          <p className="py-4 text-center text-sm text-slate-400">{t('water.noLogs')}</p>
+          <p className="py-4 text-center text-sm text-slate-500">{t('water.noLogs')}</p>
         ) : (
           <ul className="divide-y divide-slate-100">
             {logs.map((log) => (
@@ -181,20 +181,20 @@ export const HydrationPage = () => {
                       <span className="num">{(log.liters_consumed * 1000).toFixed(0)}</span> {t('common.ml')}
                     </span>
                     {log.time_of_day && (
-                      <span className="ms-2 text-xs text-slate-400">
+                      <span className="ms-2 text-xs text-slate-500">
                         {t(`water.${log.time_of_day}`)}
                       </span>
                     )}
                   </div>
                 </div>
-                <span className="num text-xs text-slate-400">{formatTime(log.created_at)}</span>
+                <span className="num text-xs text-slate-500">{formatTime(log.created_at)}</span>
               </li>
             ))}
           </ul>
         )}
       </div>
 
-      <div className="mt-4 flex items-center gap-2 rounded-2xl bg-sky-50 p-4 text-xs text-sky-600">
+      <div className="mt-4 flex items-center gap-2 rounded-2xl bg-sky-50 p-4 text-xs text-sky-700">
         <Droplets size={16} className="shrink-0" />
         {t('water.dailyGoal')}: {DAILY_GOAL_LITERS} {t('common.liters')}
       </div>

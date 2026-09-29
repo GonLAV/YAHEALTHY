@@ -119,7 +119,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition ${
       isActive
-        ? 'bg-emerald-600 text-white shadow-sm'
+        ? 'bg-emerald-700 text-white shadow-sm'
         : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
     }`;
 
@@ -127,7 +127,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
     <div className="min-h-screen bg-slate-50">
       <a
         href="#main-content"
-        className="skip-link rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-lg"
+        className="skip-link rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-lg"
       >
         {t('a11y.skipToContent')}
       </a>
@@ -135,7 +135,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 start-0 z-30 hidden w-64 flex-col border-e border-slate-200 bg-white md:flex">
         <div className="flex items-center gap-2.5 px-6 py-6">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-600">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-700">
             <Heart size={20} className="text-white" fill="white" />
           </div>
           <div>
@@ -173,7 +173,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
       {/* Mobile top bar */}
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur md:hidden">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-600">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-700">
             <Heart size={16} className="text-white" fill="white" />
           </div>
           <span className="font-bold text-slate-900">YAHealthy</span>
@@ -182,7 +182,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
       </header>
 
       {/* Main content. pb-36 on mobile: the last content scrolls clear of the bottom nav and the WhatsApp button above it. */}
-      <main id="main-content" className="pb-36 md:pb-8 md:ms-64">{children}</main>
+      <main id="main-content" tabIndex={-1} className="pb-36 outline-none md:pb-8 md:ms-64">{children}</main>
 
       {/* Mobile bottom nav: primary tabs + "More" */}
       <nav
@@ -195,7 +195,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
             to={item.to}
             className={({ isActive }) =>
               `flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1.5 text-[11px] font-medium transition ${
-                isActive ? 'text-emerald-600' : 'text-slate-500'
+                isActive ? 'text-emerald-700' : 'text-slate-500'
               }`
             }
           >
@@ -211,7 +211,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
           aria-expanded={moreOpen}
           aria-controls="mobile-more-sheet"
           className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1.5 text-[11px] font-medium transition ${
-            moreOpen || moreActive ? 'text-emerald-600' : 'text-slate-500'
+            moreOpen || moreActive ? 'text-emerald-700' : 'text-slate-500'
           }`}
         >
           <MoreHorizontal size={20} aria-hidden="true" />
@@ -287,7 +287,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
                 {t('nav.logout')}
               </button>
             </div>
-            {user?.email && <p className="mt-3 truncate text-xs text-slate-400">{user.email}</p>}
+            {user?.email && <p className="mt-3 truncate text-xs text-slate-500">{user.email}</p>}
           </div>
         </div>
       )}
