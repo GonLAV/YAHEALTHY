@@ -15,6 +15,7 @@
 const express = require('express');
 const auth = require('../utils/auth');
 const db = require('../utils/database');
+const { scaleFood } = require('../utils/food-logging');
 
 const router = express.Router();
 
@@ -119,17 +120,13 @@ router.post('/calculate', auth.authMiddleware, async (req, res) => {
         continue;
       }
 
-      const factor = grams / 100;
-      const scale = (value) => (value == null ? null : Math.round(value * factor * 10) / 10);
-
+      // Same arithmetic as logging a catalog food (routes/food-logging.js),
+      // so the preview a user sees is the number that gets logged.
       resolved.push({
         foodId: food.id,
         nameHe: food.name_he,
         grams,
-        kcal: scale(food.kcal_per_100g),
-        proteinG: scale(food.protein_g),
-        carbsG: scale(food.carbs_g),
-        fatG: scale(food.fat_g),
+        ...scaleFood(food, grams),
         source: { name: food.source, ref: food.source_ref },
       });
     }
