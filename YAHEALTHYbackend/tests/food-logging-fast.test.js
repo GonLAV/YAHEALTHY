@@ -231,6 +231,10 @@ async function endpoints() {
   // Favourites & saved meals.
   const fav = await call('POST', '/api/food-logs/template', { token: a.token, body: { name: 'Oatmeal', calories: 300, quantity: 60, unit: 'g', mealType: 'breakfast' } });
   check('favourite food: created (kind food, keeps quantity)', fav.status === 201 && fav.body?.kind === 'food' && fav.body?.quantity === 60);
+  // The legacy contract (test-system.sh): blank notes are stored as null, not "".
+  const blankNotes = await call('POST', '/api/food-logs/template', { token: a.token, body: { name: 'Yogurt', calories: 180, notes: '' } });
+  check('blank notes are stored as null', blankNotes.status === 201 && blankNotes.body?.notes === null, JSON.stringify(blankNotes.body?.notes));
+  await call('DELETE', `/api/food-logs/templates/${blankNotes.body?.id}`, { token: a.token }); // keep the list counts below unchanged
   const favCatalog = await call('POST', '/api/food-logs/template', { token: a.token, body: { foodId: tomato.id, grams: 100, name: 'Tomato' } });
   check('favourite catalog food: values from the catalog', favCatalog.status === 201 && favCatalog.body?.calories === 18 && favCatalog.body?.food_id === tomato.id);
   const meal = await call('POST', '/api/food-logs/template', {

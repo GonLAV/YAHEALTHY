@@ -97,7 +97,7 @@ async function resolveFood(data) {
       quantity: data.grams,
       unit: 'g',
       food_id: food.id,
-      notes: data.notes ?? null
+      notes: data.notes?.trim() || null
     };
   }
   return {
@@ -109,7 +109,7 @@ async function resolveFood(data) {
     quantity: data.quantity ?? null,
     unit: data.unit || null,
     food_id: null,
-    notes: data.notes ?? null
+    notes: data.notes?.trim() || null
   };
 }
 
@@ -267,7 +267,7 @@ router.post('/template', auth.authMiddleware, async (req, res) => {
         kind: 'meal',
         name: parsed.name,
         meal_type: parsed.mealType ?? null,
-        notes: parsed.notes ?? null,
+        notes: parsed.notes?.trim() || null,
         items,
         ...totalsOf(items)
       };
