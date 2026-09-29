@@ -63,7 +63,7 @@ export const SlotPicker = ({
     <>
       <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1">
         {days.map(([key, iso]) => (
-          <button key={key} type="button" onClick={() => setDay(key)} className={`${chip(day === key)} flex shrink-0 flex-col items-center`}>
+          <button key={key} type="button" onClick={() => setDay(key)} aria-pressed={day === key} className={`${chip(day === key)} flex shrink-0 flex-col items-center`}>
             <span className="text-xs">{fmt.weekday(iso)}</span>
             <Num>{fmt.dayMonth(iso)}</Num>
           </button>

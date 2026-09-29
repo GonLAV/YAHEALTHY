@@ -93,6 +93,9 @@ jobs:
       - name: Type check
         working-directory: YAHEALTHYFrontend
         run: npx tsc --noEmit -p tsconfig.json
+      - name: Unit tests (Vitest)
+        working-directory: YAHEALTHYFrontend
+        run: npm test
       - name: Build
         working-directory: YAHEALTHYFrontend
         run: npx vite build

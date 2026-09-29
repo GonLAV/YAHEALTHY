@@ -6,10 +6,21 @@ import { MealType, mealPlanApi } from '@/services/api';
 
 export const MEAL_TYPES: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 
-/** A calendar date in the browser's own day, as the API expects it. */
-export const localDate = (offsetDays = 0) => {
+/**
+ * A day of the browser's calendar, offsetDays from today. Counted in calendar
+ * days, not in 24-hour steps: across a clock change (Israel's is 25 Oct 2026)
+ * a 24-hour step can land on the day before or after, so the label built that
+ * way could name a different day from the date that is saved.
+ */
+const localDay = (offsetDays = 0) => {
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);
+  return d;
+};
+
+/** A calendar date in the browser's own day, as the API expects it. */
+export const localDate = (offsetDays = 0) => {
+  const d = localDay(offsetDays);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
@@ -25,9 +36,11 @@ export const AddToWeek = ({ recipeId, defaultMeal = 'dinner' }: { recipeId: stri
   const [meal, setMeal] = useState<MealType>(defaultMeal);
   const [state, setState] = useState<'idle' | 'busy' | 'added' | 'taken' | 'error'>('idle');
 
+  // The same day the option's value is built from, so the label and the saved
+  // date cannot disagree.
   const dayLabel = (offset: number) =>
     new Intl.DateTimeFormat(lang === 'he' ? 'he-IL' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'numeric' }).format(
-      new Date(Date.now() + offset * 86_400_000)
+      localDay(offset)
     );
 
   const add = async () => {
