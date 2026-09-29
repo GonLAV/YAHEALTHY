@@ -51,6 +51,12 @@ fake.tables.lifecycle_sends = Array.from({ length: N }, (_, i) => ({
   step: 'day0', period_key: 'day0', status: 'sent', created_at: iso(i), sent_at: iso(i)
 }));
 
+// Food-log suggestions (routes/food-logging.js) rank 90 days of one user's
+// logs; a heavy logger passes 1000 rows in that window.
+fake.tables.food_logs = Array.from({ length: N }, (_, i) => ({
+  id: id('f', i), user_id: 'u-heavy', date: '2026-09-01', name: `Food ${i}`, meal_type: 'lunch', calories: 100, created_at: iso(i)
+}));
+
 (async () => {
   console.log('\nsupabase whole-table reads page past the row cap\n');
   try {
@@ -68,6 +74,10 @@ fake.tables.lifecycle_sends = Array.from({ length: N }, (_, i) => ({
     const sends = await db.listLifecycleSends();
     check('listLifecycleSends returns every send', sends.length === N, sends.length);
     check('the newest send is visible (daily cap / dedupe input)', sends.some((s) => s.id === id('s', N - 1)));
+
+    const foodLogs = await db.getFoodLogs('u-heavy', { start: '2026-07-01', end: '2026-09-29' });
+    check('getFoodLogs (suggestion window) returns every row', foodLogs.length === N, foodLogs.length);
+    check('the newest food log is visible to suggestions', foodLogs.some((r) => r.id === id('f', N - 1)));
 
     const reminders = await db.listEnabledPushReminderSettings();
     check('listEnabledPushReminderSettings returns every row', reminders.length === N, reminders.length);

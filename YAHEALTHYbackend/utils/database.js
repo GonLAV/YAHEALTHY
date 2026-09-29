@@ -1,6 +1,8 @@
 const { createClient } = require('@supabase/supabase-js');
 const { randomUUID: uuidv4 } = require('crypto');
 const { normalizePhone } = require('./phone');
+const logger = require('./logger');
+const { rankFoodMatches, withCatalogAliases, namesForSynonym } = require('./food-logging');
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://your-supabase-url.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || 'your-supabase-anon-key';
@@ -100,8 +102,50 @@ function normalizeFoodLogRow(row) {
     protein_grams: row.protein_grams ?? null,
     carbs_grams: row.carbs_grams ?? null,
     fat_grams: row.fat_grams ?? null,
-    notes: row.notes ?? null
+    notes: row.notes ?? null,
+    quantity: row.quantity ?? null,
+    unit: row.unit ?? null,
+    food_id: row.food_id ?? null
   };
+}
+
+function normalizeFoodLogTemplateRow(row) {
+  if (!row) return row;
+  const items = Array.isArray(row.items) ? row.items : null;
+  return {
+    ...normalizeFoodLogRow(row),
+    kind: row.kind || (items ? 'meal' : 'food'),
+    items
+  };
+}
+
+// Columns added by migrations/023. Until it is applied to a database, an
+// insert that names them fails with "column not found"; logging a meal must
+// keep working meanwhile, so those inserts are retried without them.
+const MIGRATION_023_COLUMNS = ['quantity', 'unit', 'food_id'];
+let warnedMissing023 = false;
+
+function isMissingColumnError(error) {
+  return Boolean(error) && (error.code === 'PGRST204' || error.code === '42703');
+}
+
+async function insertWithOptionalColumns(table, rows) {
+  const run = (payload) => supabase.from(table).insert(payload).select('*');
+  let { data, error } = await run(rows);
+  if (isMissingColumnError(error)) {
+    if (!warnedMissing023) {
+      warnedMissing023 = true;
+      logger.warn('food logging: migration 023 not applied; saving without quantity/unit/food_id', { table });
+    }
+    const stripped = rows.map((r) => {
+      const copy = { ...r };
+      for (const c of MIGRATION_023_COLUMNS) delete copy[c];
+      return copy;
+    });
+    ({ data, error } = await run(stripped));
+  }
+  if (error) throw error;
+  return data || [];
 }
 
 /**
@@ -1683,30 +1727,53 @@ async function searchFoods(term, limit = 20) {
 
   if (USE_MEMORY_DB) {
     maybeLogMemoryMode();
-    const lower = needle.toLowerCase();
-    return memoryDb.foods
-      .filter(
-        (f) =>
-          String(f.name_he || '').includes(needle) ||
-          String(f.name_en || '').toLowerCase().includes(lower) ||
-          (Array.isArray(f.aliases_he) && f.aliases_he.some((a) => String(a).includes(needle)))
-      )
-      .slice(0, limit);
+    seedMemoryFoods();
+    return rankFoodMatches(memoryDb.foods.map(withCatalogAliases), needle, limit);
   }
 
+  // PostgREST's or() filter is a comma/paren-delimited string: those
+  // characters (and the like wildcards) in what someone typed would change
+  // the filter, not the search, so they are dropped. An exact synonym
+  // ("עגבניות" for "עגבנייה") is found through aliases_he.
+  const safe = needle.replace(/[,()%*\\"]/g, ' ').trim();
+  if (!safe) return [];
+  const alias = JSON.stringify([safe]);
+  const filters = [`name_he.ilike.*${safe}*`, `name_en.ilike.*${safe}*`, `aliases_he.cs.${alias}`];
+  const canonical = namesForSynonym(safe).map((n) => `"${n.replace(/"/g, '')}"`);
+  if (canonical.length) filters.push(`name_he.in.(${canonical.join(',')})`);
   const { data, error } = await supabase
     .from('foods')
     .select('*')
-    .or(`name_he.ilike.%${needle}%,name_en.ilike.%${needle}%`)
-    .limit(limit);
+    .or(filters.join(','))
+    .limit(Math.max(limit * 3, 60));
 
   if (error) throw error;
-  return data || [];
+  return rankFoodMatches((data || []).map(withCatalogAliases), safe, limit);
+}
+
+/**
+ * In memory mode the foods table starts empty. Dev and the e2e suite get the
+ * sourced USDA rows from data/foods-usda.json (the same file the ingest's
+ * --from-file loads into Supabase), once, and only when nothing has been
+ * loaded already — a test that seeds its own rows keeps exactly those.
+ */
+let memoryFoodsSeeded = false;
+function seedMemoryFoods() {
+  if (memoryFoodsSeeded) return;
+  memoryFoodsSeeded = true;
+  if (memoryDb.foods.length) return;
+  try {
+    const rows = require('../data/foods-usda.json').foods || [];
+    for (const row of rows) memoryDb.foods.push({ id: uuidv4(), ...withCatalogAliases(row), retrieved_at: null });
+  } catch (error) {
+    logger.warn('foods: could not seed the in-memory catalog', { err: error });
+  }
 }
 
 async function getFoodById(foodId) {
   if (USE_MEMORY_DB) {
     maybeLogMemoryMode();
+    seedMemoryFoods();
     return memoryDb.foods.find((f) => f.id === foodId) || null;
   }
 
@@ -1718,6 +1785,7 @@ async function getFoodById(foodId) {
 async function countFoods() {
   if (USE_MEMORY_DB) {
     maybeLogMemoryMode();
+    seedMemoryFoods();
     return memoryDb.foods.length;
   }
   const { count, error } = await supabase.from('foods').select('id', { count: 'exact', head: true });
@@ -2346,19 +2414,48 @@ async function createFoodLog(userId, foodLog) {
     return normalizeFoodLogRow(row);
   }
 
+  const [data] = await insertWithOptionalColumns('food_logs', [{ user_id: userId, ...foodLog }]);
+  return normalizeFoodLogRow(data);
+}
+
+/**
+ * Several logs in one insert (copy a day, log a saved meal): one round trip,
+ * and either every row lands or none does.
+ */
+async function createFoodLogs(userId, foodLogs) {
+  if (!foodLogs.length) return [];
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const out = [];
+    for (const f of foodLogs) out.push(await createFoodLog(userId, f));
+    return out;
+  }
+  const data = await insertWithOptionalColumns(
+    'food_logs',
+    foodLogs.map((f) => ({ user_id: userId, ...f }))
+  );
+  return data.map(normalizeFoodLogRow);
+}
+
+/** Deletes only rows of `userId` among `ids`; returns the rows deleted. */
+async function deleteFoodLogs(userId, ids) {
+  const wanted = Array.from(new Set((ids || []).filter(Boolean).map(String)));
+  if (!wanted.length) return [];
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const set = new Set(wanted);
+    const removed = memoryDb.foodLogs.filter((r) => r.user_id === userId && set.has(r.id));
+    memoryDb.foodLogs = memoryDb.foodLogs.filter((r) => !(r.user_id === userId && set.has(r.id)));
+    return removed.map(normalizeFoodLogRow);
+  }
   const { data, error } = await supabase
     .from('food_logs')
-    .insert([
-      {
-        user_id: userId,
-        ...foodLog
-      }
-    ])
-    .select('*')
-    .single();
-
+    .delete()
+    .eq('user_id', userId)
+    .in('id', wanted)
+    .select('*');
   if (error) throw error;
-  return normalizeFoodLogRow(data);
+  return (data || []).map(normalizeFoodLogRow);
 }
 
 /**
@@ -2374,22 +2471,68 @@ async function createFoodLogTemplate(userId, template) {
       created_at: new Date().toISOString()
     };
     memoryDb.foodLogTemplates.push(row);
-    return normalizeFoodLogRow(row);
+    return normalizeFoodLogTemplateRow(row);
   }
 
+  // A saved meal cannot be stored without migration 023 (kind/items), so only
+  // a single-food favourite falls back to the old columns.
+  if (template.kind === 'meal' || template.items) {
+    const { data, error } = await supabase
+      .from('food_log_templates')
+      .insert([{ user_id: userId, ...template }])
+      .select('*')
+      .single();
+    if (error) throw error;
+    return normalizeFoodLogTemplateRow(data);
+  }
+  const { kind, ...rest } = template;
+  let data;
+  try {
+    [data] = await insertWithOptionalColumns('food_log_templates', [{ user_id: userId, kind: kind || 'food', ...rest }]);
+  } catch (error) {
+    if (!isMissingColumnError(error)) throw error;
+    // Pre-023 database: no `kind` column either.
+    [data] = await insertWithOptionalColumns('food_log_templates', [{ user_id: userId, ...rest }]);
+  }
+  return normalizeFoodLogTemplateRow(data);
+}
+
+async function getFoodLogTemplateById(userId, templateId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return normalizeFoodLogTemplateRow(
+      memoryDb.foodLogTemplates.find((r) => r.id === templateId && r.user_id === userId) || null
+    );
+  }
   const { data, error } = await supabase
     .from('food_log_templates')
-    .insert([
-      {
-        user_id: userId,
-        ...template
-      }
-    ])
     .select('*')
-    .single();
-
+    .eq('id', templateId)
+    .eq('user_id', userId)
+    .maybeSingle();
   if (error) throw error;
-  return normalizeFoodLogRow(data);
+  return normalizeFoodLogTemplateRow(data || null);
+}
+
+async function updateFoodLogTemplate(userId, templateId, patch) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const idx = memoryDb.foodLogTemplates.findIndex((r) => r.id === templateId && r.user_id === userId);
+    if (idx === -1) return null;
+    const existing = memoryDb.foodLogTemplates[idx];
+    const updated = { ...existing, ...patch, id: existing.id, user_id: existing.user_id, created_at: existing.created_at };
+    memoryDb.foodLogTemplates[idx] = updated;
+    return normalizeFoodLogTemplateRow(updated);
+  }
+  const { data, error } = await supabase
+    .from('food_log_templates')
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('id', templateId)
+    .eq('user_id', userId)
+    .select('*')
+    .maybeSingle();
+  if (error) throw error;
+  return normalizeFoodLogTemplateRow(data || null);
 }
 
 async function getFoodLogTemplates(userId, { limit = null, offset = null } = {}) {
@@ -2410,7 +2553,7 @@ async function getFoodLogTemplates(userId, { limit = null, offset = null } = {})
       sliced = filtered.slice(offsetNum, offsetNum + limitNum);
     }
 
-    return sliced.map(normalizeFoodLogRow);
+    return sliced.map(normalizeFoodLogTemplateRow);
   }
 
   let query = supabase
@@ -2429,7 +2572,7 @@ async function getFoodLogTemplates(userId, { limit = null, offset = null } = {})
 
   const { data, error } = await query;
   if (error) throw error;
-  return (data || []).map(normalizeFoodLogRow);
+  return (data || []).map(normalizeFoodLogTemplateRow);
 }
 
 async function deleteFoodLogTemplate(userId, templateId) {
@@ -2439,7 +2582,7 @@ async function deleteFoodLogTemplate(userId, templateId) {
     if (idx === -1) return null;
     const removed = memoryDb.foodLogTemplates[idx];
     memoryDb.foodLogTemplates.splice(idx, 1);
-    return normalizeFoodLogRow(removed);
+    return normalizeFoodLogTemplateRow(removed);
   }
 
   const { data, error } = await supabase
@@ -2451,7 +2594,7 @@ async function deleteFoodLogTemplate(userId, templateId) {
     .maybeSingle();
 
   if (error) throw error;
-  return normalizeFoodLogRow(data || null);
+  return normalizeFoodLogTemplateRow(data || null);
 }
 
 async function getFoodLogs(userId, { start = null, end = null, date = null, limit = null, offset = null } = {}) {
@@ -3434,6 +3577,10 @@ module.exports = {
   createFoodLog,
   createFoodLogTemplate,
   getFoodLogTemplates,
+  getFoodLogTemplateById,
+  updateFoodLogTemplate,
+  createFoodLogs,
+  deleteFoodLogs,
   getFoodLogs,
   getFoodDays,
   getFoodLogById,

@@ -169,6 +169,9 @@ app.use('/api/payments', checkoutRouter);
 // Food values. Lookup and arithmetic over sourced numbers — never a guess,
 // and never advice about what anyone should eat.
 app.use('/api/foods', require('./routes/foods'));
+// Fast food logging: single log (catalog or quick-add), suggestions, copy, undo,
+// favourites/saved meals. Mounted before the /api/food-logs/:id handlers.
+app.use('/api/food-logs', require('./routes/food-logging'));
 app.use('/api/meal-plans', require('./routes/meal-planner')); // weekly planner + shopping list (auth per-route); before /api/meal-plans/:id
 app.use('/api/referrals', require('./routes/referrals'));
 app.use('/api/engagement', require('./routes/engagement')); // streaks, Health Score, achievements (auth per-route)
@@ -1739,43 +1742,8 @@ app.post('/api/grocery-optimize', auth.authMiddleware, (req, res) => {
 
 const FOOD_LOG_MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
 
-/**
- * POST /api/food-logs
- * Log a single food item for a given date
- */
-app.post('/api/food-logs', auth.authMiddleware, async (req, res) => {
-  try {
-    const schema = z.object({
-      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      name: z.string().min(1),
-      mealType: z.enum(FOOD_LOG_MEAL_TYPES).optional(),
-      calories: z.number().nonnegative(),
-      proteinGrams: z.number().nonnegative().optional(),
-      carbsGrams: z.number().nonnegative().optional(),
-      fatGrams: z.number().nonnegative().optional(),
-      notes: z.string().max(500).optional()
-    });
-
-    const data = schema.parse(req.body);
-    const row = await db.createFoodLog(req.user.userId, {
-      date: data.date,
-      name: data.name,
-      meal_type: data.mealType || null,
-      calories: data.calories,
-      protein_grams: data.proteinGrams ?? null,
-      carbs_grams: data.carbsGrams ?? null,
-      fat_grams: data.fatGrams ?? null,
-      notes: data.notes ?? null
-    });
-
-    return res.status(201).json(row);
-  } catch (error) {
-    if (error instanceof ZodError) {
-      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
-    }
-    return res.status(500).json({ error: 'Failed to create food log', details: safeErrorDetails(error), requestId: req.id });
-  }
-});
+// POST /api/food-logs (single log, catalog or quick-add) lives in
+// routes/food-logging.js with the other fast-logging endpoints.
 
 /**
  * POST /api/food-logs/bulk
@@ -1884,143 +1852,8 @@ app.post('/api/food-logs/import', auth.authMiddleware, async (req, res) => {
   }
 });
 
-/**
- * POST /api/food-logs/copy
- * Copy all food logs from one date to another
- */
-app.post('/api/food-logs/copy', auth.authMiddleware, async (req, res) => {
-  try {
-    const bodySchema = z
-      .object({
-        fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
-      })
-      .refine((v) => v.fromDate !== v.toDate, { message: 'fromDate must be different than toDate' });
-
-    const { fromDate, toDate } = bodySchema.parse(req.body);
-    const sourceLogs = await db.getFoodLogs(req.user.userId, { date: fromDate });
-
-    const created = [];
-    for (const l of sourceLogs || []) {
-      const row = await db.createFoodLog(req.user.userId, {
-        date: toDate,
-        name: l.name,
-        meal_type: l.meal_type ?? null,
-        calories: l.calories,
-        protein_grams: Object.prototype.hasOwnProperty.call(l, 'protein_grams') ? (l.protein_grams ?? null) : null,
-        carbs_grams: Object.prototype.hasOwnProperty.call(l, 'carbs_grams') ? (l.carbs_grams ?? null) : null,
-        fat_grams: Object.prototype.hasOwnProperty.call(l, 'fat_grams') ? (l.fat_grams ?? null) : null,
-        notes: Object.prototype.hasOwnProperty.call(l, 'notes') ? (l.notes ?? null) : null
-      });
-      created.push(row);
-    }
-
-    return res.status(201).json({ fromDate, toDate, copiedCount: created.length, logs: created });
-  } catch (error) {
-    if (error instanceof ZodError) {
-      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
-    }
-    return res.status(500).json({ error: 'Failed to copy food logs', details: safeErrorDetails(error), requestId: req.id });
-  }
-});
-
-/**
- * POST /api/food-logs/template
- * Save a reusable food log template (meal)
- */
-app.post('/api/food-logs/template', auth.authMiddleware, async (req, res) => {
-  try {
-    const emptyStringToNull = (v) => {
-      if (v == null) return null;
-      if (typeof v !== 'string') return v;
-      const t = v.trim();
-      return t === '' ? null : t;
-    };
-
-    const schema = z.object({
-      name: z.string().min(1),
-      mealType: z.preprocess(emptyStringToNull, z.enum(FOOD_LOG_MEAL_TYPES).nullable()).optional(),
-      calories: z.number().nonnegative(),
-      proteinGrams: z.number().nonnegative().optional(),
-      carbsGrams: z.number().nonnegative().optional(),
-      fatGrams: z.number().nonnegative().optional(),
-      notes: z.preprocess(emptyStringToNull, z.string().max(500).nullable()).optional()
-    });
-
-    const data = schema.parse(req.body);
-    const row = await db.createFoodLogTemplate(req.user.userId, {
-      name: data.name,
-      meal_type: Object.prototype.hasOwnProperty.call(data, 'mealType') ? (data.mealType ?? null) : null,
-      calories: data.calories,
-      protein_grams: data.proteinGrams ?? null,
-      carbs_grams: data.carbsGrams ?? null,
-      fat_grams: data.fatGrams ?? null,
-      notes: Object.prototype.hasOwnProperty.call(data, 'notes') ? (data.notes ?? null) : null
-    });
-
-    return res.status(201).json(row);
-  } catch (error) {
-    if (error instanceof ZodError) {
-      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
-    }
-    return res.status(500).json({ error: 'Failed to create food log template', details: safeErrorDetails(error), requestId: req.id });
-  }
-});
-
-/**
- * GET /api/food-logs/templates
- * List reusable food log templates
- */
-app.get('/api/food-logs/templates', auth.authMiddleware, async (req, res) => {
-  try {
-    const querySchema = z
-      .object({
-        limit: z.coerce.number().int().positive().max(200).optional(),
-        offset: z.coerce.number().int().nonnegative().max(100000).optional()
-      })
-      .refine(v => (v.offset == null ? true : v.limit != null), {
-        message: 'offset requires limit'
-      });
-
-    const { limit, offset } = querySchema.parse(req.query);
-    const templates = await db.getFoodLogTemplates(req.user.userId, {
-      limit: limit ?? null,
-      offset: offset ?? null
-    });
-    return res.json(templates || []);
-  } catch (error) {
-    if (error instanceof ZodError) {
-      return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
-    }
-    return res.status(500).json({ error: 'Failed to get food log templates', details: safeErrorDetails(error), requestId: req.id });
-  }
-});
-
-/**
- * DELETE /api/food-logs/templates/:id
- * Delete a reusable food log template
- */
-app.delete('/api/food-logs/templates/:id', auth.authMiddleware, async (req, res) => {
-  try {
-    const paramsSchema = z.object({
-      id: z.string().min(1)
-    });
-
-    const { id } = paramsSchema.parse(req.params);
-    const deleted = await db.deleteFoodLogTemplate(req.user.userId, id);
-
-    if (!deleted) {
-      return res.status(404).json({ error: 'Template not found', requestId: req.id });
-    }
-
-    return res.json({ status: 'ok', deleted });
-  } catch (error) {
-    if (error instanceof ZodError) {
-      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
-    }
-    return res.status(500).json({ error: 'Failed to delete food log template', details: safeErrorDetails(error), requestId: req.id });
-  }
-});
+// /copy, /undo, /suggestions, /template and /templates/* are in
+// routes/food-logging.js (mounted above, before the /:id handlers below).
 
 /**
  * GET /api/food-logs
