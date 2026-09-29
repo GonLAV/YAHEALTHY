@@ -18,6 +18,9 @@ const { jobs, errors } = require('../utils/health-registry');
 const tracker = require('../utils/error-tracker');
 const version = require('../utils/version');
 const { redactString } = require('../utils/logger');
+const plans = require('../utils/plans');
+const entitlements = require('../utils/entitlements');
+const { checkoutStatus } = require('../utils/checkout');
 
 const router = express.Router();
 const STARTED_AT = new Date();
@@ -68,8 +71,49 @@ function configSummary() {
   };
 }
 
+/**
+ * Is money switched on, and what is live? Flags and counts only — no user,
+ * no price. Subscriptions are grouped by catalog plan; legacy base/yoni rows
+ * are counted under their canonical plan and also reported as `legacy`.
+ */
+async function monetizationSummary() {
+  const status = checkoutStatus();
+  const priced = plans.listPlans().filter((p) => p.amount !== null).map((p) => p.id);
+  const out = {
+    checkoutEnabled: status.enabled,
+    checkoutBlockedBy: status.reason,
+    entitlementsEnforced: entitlements.isEnforced(),
+    installments: status.installments,
+    pricedPlans: priced,
+    unpricedPlans: plans.CATALOG.map((p) => p.id).filter((id) => !priced.includes(id)),
+    subscriptions: null
+  };
+  try {
+    const summary = await db.summarizeActiveSubscriptions(new Date(), 7);
+    const byPlan = {};
+    let legacy = 0;
+    for (const [id, n] of Object.entries(summary.byPlan)) {
+      const key = plans.resolvePlanId(id) || 'unknown';
+      byPlan[key] = (byPlan[key] || 0) + n;
+      if (plans.isLegacyId(id)) legacy += n;
+    }
+    out.subscriptions = {
+      active: summary.active,
+      byPlan,
+      legacy,
+      endingWithinDays: summary.soonDays,
+      endingSoon: summary.endingSoon,
+      openEnded: summary.openEnded
+    };
+  } catch (error) {
+    out.subscriptions = { error: redactString(String((error && error.message) || error)).slice(0, 200) };
+  }
+  return out;
+}
+
 router.get('/health', async (req, res) => {
   const database = await pingDb();
+  const monetization = await monetizationSummary();
   const jobList = jobs.list();
   const errorSummary = errors.summary();
   const degraded =
@@ -92,6 +136,7 @@ router.get('/health', async (req, res) => {
     db: database,
     config: configSummary(),
     errorTracking: { enabled: tracker.isEnabled() },
+    monetization,
     jobs: jobList,
     errors: errorSummary
   });

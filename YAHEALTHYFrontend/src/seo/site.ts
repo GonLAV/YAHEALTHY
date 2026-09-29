@@ -41,6 +41,7 @@ export const PRIVATE_PATHS = [
   '/progress',
   '/achievements',
   '/invite',
+  '/upgrade',
   '/onboarding',
   '/reminders',
   '/settings',

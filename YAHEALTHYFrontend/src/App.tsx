@@ -24,6 +24,7 @@ const SleepPage = lazy(() => import('@/pages/SleepPage').then((m) => ({ default:
 const WeightPage = lazy(() => import('@/pages/WeightPage').then((m) => ({ default: m.WeightPage })));
 const CoachingPage = lazy(() => import('@/pages/CoachingPage').then((m) => ({ default: m.CoachingPage })));
 const ProgressPage = lazy(() => import('@/pages/ProgressPage').then((m) => ({ default: m.ProgressPage })));
+const UpgradePage = lazy(() => import('@/pages/UpgradePage').then((m) => ({ default: m.UpgradePage })));
 const InvitePage = lazy(() => import('@/pages/InvitePage').then((m) => ({ default: m.InvitePage })));
 const OnboardingPage = lazy(() => import('@/pages/OnboardingPage').then((m) => ({ default: m.OnboardingPage })));
 const GuidesIndexPage = lazy(() => import('@/pages/GuidesPage').then((m) => ({ default: m.GuidesIndexPage })));
@@ -164,6 +165,16 @@ const AppRoutes = () => (
           <PrivateRoute>
             <AppLayout>
               <AchievementsPage />
+            </AppLayout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/upgrade"
+        element={
+          <PrivateRoute>
+            <AppLayout>
+              <UpgradePage />
             </AppLayout>
           </PrivateRoute>
         }

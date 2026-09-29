@@ -49,6 +49,7 @@ const auth = require('./utils/auth');
 const db = require('./utils/database');
 const coach = require('./utils/coach');
 const referrals = require('./utils/referrals');
+const entitlements = require('./utils/entitlements');
 const { resolveRequestDate } = require('./utils/log-date');
 const cron = require('node-cron');
 const { sendWeeklySummaryEmail, runWeeklySummaryJob } = require('./utils/weekly-summary');
@@ -169,10 +170,6 @@ app.use('/api/payments', checkoutRouter);
 // Food values. Lookup and arithmetic over sourced numbers — never a guess,
 // and never advice about what anyone should eat.
 app.use('/api/foods', require('./routes/foods'));
-// Fast food logging: single log (catalog or quick-add), suggestions, copy, undo,
-// favourites/saved meals. Mounted before the /api/food-logs/:id handlers.
-app.use('/api/food-logs', require('./routes/food-logging'));
-app.use('/api/meal-plans', require('./routes/meal-planner')); // weekly planner + shopping list (auth per-route); before /api/meal-plans/:id
 app.use('/api/referrals', require('./routes/referrals'));
 app.use('/api/engagement', require('./routes/engagement')); // streaks, Health Score, achievements (auth per-route)
 app.use('/api/marketing', require('./routes/marketing'));
@@ -181,6 +178,40 @@ app.use('/api/analytics', require('./routes/analytics')); // staff-only marketin
 app.use(require('./routes/share')); // /api/share/* (weekly card, links) + public /s/:token pages
 app.use('/api/push', require('./routes/push')); // Web Push: VAPID key, subscriptions, reminder settings (auth per-route)
 app.use('/api/admin', require('./routes/admin')); // staff-only system health (auth + requireStaff inside)
+app.use('/api/entitlements', require('./routes/entitlements')); // plan/premium state + what would be gated (auth)
+
+// ── Monetization hooks (utils/entitlements.js, utils/referrals.js) ─────────
+// Referral activation: a successful log by an invited friend within their
+// first 7 days earns both sides their premium days. After the response, and
+// fire-and-forget, so a reward problem can never fail a log.
+const ACTIVATION_LOG_PATHS = /^\/api\/(food-logs(\/bulk|\/import|\/copy)?|hydration-logs|sleep-logs|weight-logs)\/?$/;
+app.use((req, res, next) => {
+  if (req.method === 'POST' && ACTIVATION_LOG_PATHS.test(req.path)) {
+    res.on('finish', () => {
+      if (res.statusCode >= 200 && res.statusCode < 300 && req.user) referrals.noteActivity(req.user.userId);
+    });
+  }
+  next();
+});
+
+// Paid-feature gates. Pass-through (plus an X-Premium-Feature header) unless
+// ENTITLEMENTS_ENFORCED=true. NEVER add one to logging, streaks, safety,
+// export/deletion or the basic coach chat — see utils/entitlements.js.
+const premiumGate = (feature) => {
+  const check = entitlements.requireEntitlement(feature);
+  return (req, res, next) =>
+    entitlements.isEnforced() ? auth.authMiddleware(req, res, () => check(req, res, next)) : check(req, res, next);
+};
+// Generating a plan is the paid part; reading, swapping one meal, locking and
+// the shopping list of a plan already made stay open.
+app.post('/api/meal-plans/generate', premiumGate('meal_planner'));
+app.post('/api/meal-plans/week/generate', premiumGate('meal_planner'));
+// Fast food logging: single log (catalog or quick-add), suggestions, copy, undo,
+// favourites/saved meals. Mounted after the monetization hooks (so a log
+// counts toward referral activation) and before the /api/food-logs/:id handlers.
+app.use('/api/food-logs', require('./routes/food-logging'));
+// Mounted after the gates above (it has its own /week/generate handler).
+app.use('/api/meal-plans', require('./routes/meal-planner')); // weekly planner + shopping list (auth per-route); before /api/meal-plans/:id
 
 // WhatsApp inbound. The webhook is public (guarded by a path secret); the
 // listing endpoint underneath it requires auth because it returns message text.
@@ -3788,7 +3819,24 @@ app.get('/api/crm/users/:userId/insights', auth.authMiddleware, async (req, res)
     const { lang = 'en' } = req.query;
     const day = resolveRequestDate({ date: req.query.date, tz: req.query.tz });
     if (day.error) return res.status(400).json({ error: day.error });
-    const insights = await coach.generateInsights(req.user.userId, lang === 'he' ? 'he' : 'en', { today: day.date, tz: req.query.tz });
+    const l = lang === 'he' ? 'he' : 'en';
+    const insights = await coach.generateInsights(req.user.userId, l, { today: day.date, tz: req.query.tz });
+    // Insight cards are a Premium candidate (utils/entitlements.js). Locked
+    // only when ENTITLEMENTS_ENFORCED=true — and even then safety cards are
+    // always shown, and the /ask chat below stays free.
+    res.set('X-Premium-Feature', 'coach_insights');
+    if (entitlements.isEnforced()) {
+      let entitled = true;
+      try {
+        entitled = entitlements.has(await entitlements.getUserEntitlements(req.user.userId), 'coach_insights');
+      } catch (error) {
+        req.log.warn('coach insights: entitlement lookup failed; showing all cards', { err: error });
+      }
+      if (!entitled) {
+        res.set('X-Premium-Locked', 'coach_insights');
+        return res.json([...insights.filter((c) => c.kind === 'safety' || c.insight_type === 'safety'), coach.lockedInsightCard(l)]);
+      }
+    }
     res.json(insights);
   } catch (error) {
     res.status(500).json({ error: 'Failed to get insights', details: safeErrorDetails(error) });

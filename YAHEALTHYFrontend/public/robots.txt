@@ -15,6 +15,7 @@ Disallow: /coaching
 Disallow: /progress
 Disallow: /achievements
 Disallow: /invite
+Disallow: /upgrade
 Disallow: /onboarding
 Disallow: /reminders
 Disallow: /settings

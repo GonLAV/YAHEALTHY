@@ -20,6 +20,8 @@
  */
 
 const defaultLogger = require('./logger').child({ component: 'config' });
+// Pure module, no env read at load: safe to require before dotenv has run.
+const { PRICE_ENV_VARS, parsePrice } = require('./plans');
 
 const isSet = (env, name) => typeof env[name] === 'string' && env[name].trim() !== '';
 
@@ -63,13 +65,38 @@ const OPTIONAL = [
   {
     feature: 'pricing',
     off: (env) => {
-      const missing = ['PLAN_BASE_AMOUNT', 'PLAN_YONI_AMOUNT'].filter(
-        (name) => !(Number(env[name]) > 0)
-      );
+      const missing = PRICE_ENV_VARS.filter((name) => parsePrice(env[name]) === null);
       return missing.length
         ? `${missing.join(', ')} unset -> landing shows "Price on request" and checkout refuses that plan.`
         : null;
     }
+  },
+  {
+    feature: 'pricing',
+    off: (env) => {
+      const legacy = ['PLAN_BASE_AMOUNT', 'PLAN_YONI_AMOUNT'].filter((name) => isSet(env, name));
+      return legacy.length
+        ? `${legacy.join(', ')} ${legacy.length > 1 ? 'are' : 'is'} no longer read -> set PLAN_PRICE_COACHING_3M / PLAN_PRICE_COMBO_3M (utils/plans.js).`
+        : null;
+    }
+  },
+  {
+    feature: 'checkout',
+    off: (env) => {
+      if (env.CHECKOUT_ENABLED !== 'true') {
+        return 'CHECKOUT_ENABLED is not "true" -> no online payment; the UI shows "Talk to us".';
+      }
+      return isSet(env, 'CANCELLATION_POLICY_URL')
+        ? null
+        : 'CANCELLATION_POLICY_URL unset -> checkout stays off even though CHECKOUT_ENABLED=true.';
+    }
+  },
+  {
+    feature: 'entitlements',
+    off: (env) =>
+      env.ENTITLEMENTS_ENFORCED === 'true'
+        ? null
+        : 'ENTITLEMENTS_ENFORCED is not "true" -> every paid feature is open to everyone (badges only).'
   },
   {
     feature: 'payments',

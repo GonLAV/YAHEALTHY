@@ -2,7 +2,7 @@ import { useLocation } from 'react-router-dom';
 import { useLanguage } from '@/i18n/LanguageContext';
 
 /** The WhatsApp bot number, in international format (055-3174301 → 972553174301) */
-const WHATSAPP_NUMBER = '972553174301';
+export const WHATSAPP_NUMBER = '972553174301';
 
 const WhatsAppIcon = ({ size = 28 }: { size?: number }) => (
   <svg

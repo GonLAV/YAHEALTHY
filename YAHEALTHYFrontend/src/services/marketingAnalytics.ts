@@ -18,6 +18,8 @@ export type FunnelStageKey = 'leads' | 'signups' | 'activated' | 'engaged' | 'pa
 export interface FunnelResponse extends Envelope {
   stages: { key: FunnelStageKey; count: number; rateFromPrevious: number | null; rateFromSignups: number | null }[];
   pending: { activation: number; engagement: number };
+  /** Paying signups per catalog plan (legacy base/yoni folded in). */
+  payingByPlan?: Record<string, number>;
   definitions: { activationWindowDays: number; engagementWindowDays: number; engagementMinActiveDays: number };
 }
 

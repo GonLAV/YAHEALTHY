@@ -14,6 +14,8 @@
  * unsubscribe link — is added by `renderMessage`, so no template can forget it.
  */
 
+const { getPlan } = require('./plans');
+
 const BRAND = 'YAHEALTHY';
 
 const T = {
@@ -301,8 +303,51 @@ const T = {
         ]
       })
     }
+  },
+  // No price here either: the link opens /upgrade, which shows the current one.
+  renewal: {
+    before_end: {
+      he: (v) => ({
+        subject: `${planName(v, 'he')} מסתיים ב-${endDate(v, 'he')}`,
+        body: [
+          `רצינו להזכיר: ${planName(v, 'he')} שלך מסתיים ב-${endDate(v, 'he')}.`,
+          '',
+          'אנחנו לא שומרים פרטי כרטיס ולא מחייבים אוטומטית — אם תרצו להמשיך, מחדשים כאן בכמה קליקים:',
+          v.renewUrl,
+          '',
+          'לא מחדשים? הכול בסדר. היומן, הרצפים וההיסטוריה שלכם נשארים איתכם.'
+        ]
+      }),
+      en: (v) => ({
+        subject: `Your ${planName(v, 'en')} ends on ${endDate(v, 'en')}`,
+        body: [
+          `A quick reminder: your ${planName(v, 'en')} ends on ${endDate(v, 'en')}.`,
+          '',
+          'We do not keep card details and never charge automatically — if you want to continue, renewing takes a few clicks:',
+          v.renewUrl,
+          '',
+          'Not renewing? That is fine. Your log, streaks and history stay with you.'
+        ]
+      })
+    }
   }
 };
+
+function planName(v, lang) {
+  const plan = v.renewal ? getPlan(v.renewal.plan) : null;
+  if (plan) return plan.name[lang];
+  return lang === 'he' ? 'המנוי' : 'plan';
+}
+
+function endDate(v, lang) {
+  if (!v.renewal || !v.renewal.endsAt) return lang === 'he' ? 'בקרוב' : 'soon';
+  return new Intl.DateTimeFormat(lang === 'he' ? 'he-IL' : 'en-GB', {
+    timeZone: 'Asia/Jerusalem',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  }).format(new Date(v.renewal.endsAt));
+}
 
 const FRAME = {
   he: {

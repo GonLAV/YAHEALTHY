@@ -22,6 +22,7 @@ import { useLanguage } from '@/i18n/LanguageContext';
 import { PublicFooter, PublicHeader, usePublicPage, type PublicNavLink } from '@/components/public/PublicChrome';
 import { localizePath } from '@/seo/site';
 import type { LeadInput, MarketingPlan } from '@/services/api';
+import { formatPlanPrice, periodKey, planCta } from '@/utils/plans';
 import { publicMarketingApi as marketingApi, UTM_KEYS } from '@/services/publicApi';
 
 // ─── Small building blocks ────────────────────────────────────────────────────
@@ -348,6 +349,8 @@ export const LandingPage = () => {
   const emailRef = useRef<HTMLInputElement>(null);
   const [leadSource, setLeadSource] = useState('landing');
   const [plans, setPlans] = useState<Record<string, MarketingPlan> | null>(null);
+  // Off until the owner opens online payment; until then paid plans say "Leave your details".
+  const [checkoutEnabled, setCheckoutEnabled] = useState(false);
 
   // First-touch campaign attribution from the URL the visitor arrived on.
   const utm = useMemo(() => {
@@ -369,6 +372,7 @@ export const LandingPage = () => {
       .then((res) => {
         if (cancelled) return;
         setPlans(Object.fromEntries(res.data.plans.map((p) => [p.id, p])));
+        setCheckoutEnabled(Boolean(res.data.checkout?.enabled));
       })
       .catch(() => {
         if (!cancelled) setPlans({});
@@ -389,15 +393,34 @@ export const LandingPage = () => {
     if (!plans) {
       return <span className="block h-7 w-24 animate-pulse rounded-lg bg-current opacity-20" aria-hidden="true" />;
     }
-    if (!plan || plan.amount === null) {
+    const formatted = formatPlanPrice(plan, lang);
+    if (!plan || !formatted) {
       return <span className="text-base font-semibold opacity-90">{t('landing.pricing.onRequest')}</span>;
     }
-    const formatted = new Intl.NumberFormat(lang === 'he' ? 'he-IL' : 'en-IL', {
-      style: 'currency',
-      currency: plan.currency || 'ILS',
-      maximumFractionDigits: 0,
-    }).format(plan.amount);
-    return <span className="num">{formatted}</span>;
+    const pk = periodKey(plan);
+    return (
+      <>
+        <span className="num">{formatted}</span>
+        {pk && <span className="ms-1 text-sm font-medium opacity-80">{t(pk)}</span>}
+      </>
+    );
+  };
+
+  // The catalog plan behind each paid card (the old base/yoni ids were aliases of these).
+  const paidCta = (planId: string, source: string, className: string) => {
+    const plan = plans?.[planId];
+    if (plan && planCta(plan, checkoutEnabled) === 'pay') {
+      return (
+        <Link to={`/upgrade?plan=${planId}`} className={className}>
+          {t('landing.pricing.payCta')}
+        </Link>
+      );
+    }
+    return (
+      <a href="#contact" onClick={goToLeadForm(source)} className={className}>
+        {t('landing.pricing.paidCta')}
+      </a>
+    );
   };
 
   const steps = [
@@ -532,29 +555,21 @@ export const LandingPage = () => {
               />
               <PlanCard
                 name={t('landing.pricing.base.name')}
-                price={formatPrice(plans?.base)}
+                price={formatPrice(plans?.coaching_3m)}
                 features={[1, 2, 3].map((n) => t(`landing.pricing.base.f${n}`))}
-                cta={
-                  <a href="#contact" onClick={goToLeadForm('pricing-base')} className={secondaryBtn}>
-                    {t('landing.pricing.paidCta')}
-                  </a>
-                }
+                cta={paidCta('coaching_3m', 'pricing-base', secondaryBtn)}
               />
               <PlanCard
                 highlighted
                 badge={t('landing.pricing.yoni.badge')}
                 name={t('landing.pricing.yoni.name')}
-                price={formatPrice(plans?.yoni)}
+                price={formatPrice(plans?.combo_3m)}
                 features={[1, 2, 3].map((n) => t(`landing.pricing.yoni.f${n}`))}
-                cta={
-                  <a
-                    href="#contact"
-                    onClick={goToLeadForm('pricing-yoni')}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 font-semibold text-emerald-700 transition hover:bg-emerald-50"
-                  >
-                    {t('landing.pricing.paidCta')}
-                  </a>
-                }
+                cta={paidCta(
+                  'combo_3m',
+                  'pricing-yoni',
+                  'inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 font-semibold text-emerald-700 transition hover:bg-emerald-50',
+                )}
               />
             </div>
             <p className="mt-6 flex items-center justify-center gap-2 text-center text-xs text-slate-500">

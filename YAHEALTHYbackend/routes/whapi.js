@@ -19,6 +19,7 @@ const foodLog = require('../utils/whatsapp-food-log');
 const linkStore = require('../utils/whatsapp-link-store');
 const { extractLinkCode } = require('../utils/whatsapp-logging');
 const logger = require('../utils/logger').child({ module: 'whapi' });
+const entitlements = require('../utils/entitlements');
 
 const router = express.Router();
 
@@ -190,6 +191,17 @@ async function handleIncomingMessage(message) {
     }
 
     if (!rawText && !imageBase64) return; // nothing usable to respond to
+
+    // Yoni is a paid feature (chef_whatsapp) — but only when
+    // ENTITLEMENTS_ENFORCED=true, after a free trial, and never for a message
+    // that touches a stop flag. See utils/entitlements.js.
+    if (conversation.active_bot === 'yoni') {
+      const gate = await entitlements.checkChefWhatsapp(phone, rawText);
+      if (!gate.allowed) {
+        await sendWithTyping(phone, gate.message);
+        return;
+      }
+    }
 
     await whapi.sendTyping(phone);
 
