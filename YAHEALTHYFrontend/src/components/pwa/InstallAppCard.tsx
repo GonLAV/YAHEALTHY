@@ -45,7 +45,7 @@ export const InstallAppCard = () => {
   return (
     <section
       aria-labelledby="install-app-title"
-      className="relative mb-6 rounded-3xl bg-gradient-to-br from-emerald-600 to-teal-600 p-5 text-white shadow-md shadow-emerald-200"
+      className="relative mb-6 rounded-3xl bg-gradient-to-br from-emerald-700 to-teal-700 p-5 text-white shadow-md shadow-emerald-200"
     >
       <button
         type="button"

@@ -94,7 +94,9 @@ export default async function globalSetup() {
       APP_URL: webUrl,
       SHARE_BASE_URL: webUrl,
       // Every test signs up (and each page load hits /api/auth/me) from one IP.
-      AUTH_RATE_LIMIT_MAX: '1000'
+      AUTH_RATE_LIMIT_MAX: '1000',
+      // …and the a11y audit visits every page in 2 languages × 2 viewports.
+      API_RATE_LIMIT_MAX: '5000'
     }
   });
 

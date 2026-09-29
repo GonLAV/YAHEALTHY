@@ -131,7 +131,7 @@ export const FoodLogPage = () => {
           className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-md transition ${
             showForm
               ? 'bg-slate-500 hover:bg-slate-600'
-              : 'bg-emerald-600 shadow-emerald-200 hover:bg-emerald-700'
+              : 'bg-emerald-700 shadow-emerald-200 hover:bg-emerald-800'
           }`}
         >
           {showForm ? <X size={18} /> : <Plus size={18} />}
@@ -152,7 +152,7 @@ export const FoodLogPage = () => {
                   onClick={() => setFormData({ ...formData, mealType: type })}
                   className={`rounded-full px-4 py-2 text-sm font-medium transition ${
                     formData.mealType === type
-                      ? 'bg-emerald-600 text-white shadow-sm'
+                      ? 'bg-emerald-700 text-white shadow-sm'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
@@ -265,7 +265,7 @@ export const FoodLogPage = () => {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full rounded-xl bg-emerald-600 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700 disabled:opacity-60"
+              className="w-full rounded-xl bg-emerald-700 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800 disabled:opacity-60"
             >
               {submitting ? t('common.loading') : t('food.logFood')}
             </button>
@@ -294,7 +294,7 @@ export const FoodLogPage = () => {
               <div className="border-b border-slate-100 bg-slate-50 px-5 py-3">
                 <h3 className="font-semibold text-slate-700">
                   {MEAL_EMOJI[type]} {t(`meal.${type}`)}
-                  <span className="num ms-2 text-sm font-normal text-slate-400">
+                  <span className="num ms-2 text-sm font-normal text-slate-500">
                     ({groupedByMeal[type].length})
                   </span>
                 </h3>
@@ -304,7 +304,7 @@ export const FoodLogPage = () => {
                   <li key={log.id} className="flex items-center justify-between px-5 py-4">
                     <div className="min-w-0 flex-1">
                       <h4 className="truncate font-medium text-slate-800">{log.name}</h4>
-                      <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-400">
+                      <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-500">
                         {log.quantity != null && (
                           <span className="num">
                             {log.quantity} {log.unit || 'g'}
@@ -319,7 +319,7 @@ export const FoodLogPage = () => {
                       <span className="num font-semibold text-slate-700">{log.calories} kcal</span>
                       <button
                         onClick={() => handleDelete(log.id)}
-                        className="rounded-lg p-2 text-slate-300 transition hover:bg-rose-50 hover:text-rose-500"
+                        className="rounded-lg p-2 text-slate-500 transition hover:bg-rose-50 hover:text-rose-500"
                         aria-label={t('common.delete')}
                       >
                         <Trash2 size={17} />
