@@ -93,7 +93,10 @@ checkoutRouter.post('/checkout', async (req, res) => {
     const name = req.body?.name ? String(req.body.name).trim() : null;
     const phone = normalizePhone(req.body?.phone);
 
-    if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    // The length first: no real address is longer than 254 characters, and
+    // the pattern backtracks quadratically on a long near-miss — ~90 KB held
+    // the event loop for seconds, on a public route.
+    if (!email || email.length > 254 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
       return res.status(400).json({ error: 'A valid email is required', requestId: req.id });
     }
 

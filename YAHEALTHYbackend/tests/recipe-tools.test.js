@@ -56,6 +56,22 @@ check(
   !('calories' in full) && byName.recipes.every((r) => !('calories' in r)),
   'Yoni teaches cooking; the calorie number is not his to give'
 );
+// The number also lives one level down, in recipe.nutrition (22 recipes carry
+// calories there, some protein/carbs/fat too). Checked on every recipe, at
+// any depth, because that is where the stripped key came back from.
+const numberKeys = /^(calories|protein_g|carbs_g|fat_g)$/;
+const hasNumberKey = (value) =>
+  Array.isArray(value)
+    ? value.some(hasNumberKey)
+    : value && typeof value === 'object'
+      ? Object.entries(value).some(([k, v]) => numberKeys.test(k) || hasNumberKey(v))
+      : false;
+const leaking = recipes.filter((r) => hasNumberKey(getRecipe({ id: r.id }))).map((r) => r.id);
+check(
+  'no recipe hands Yoni a calorie or macro number, at any depth',
+  leaking.length === 0,
+  `${leaking.length} recipes still carry one, e.g. ${leaking[0]}: ${JSON.stringify(getRecipe({ id: leaking[0] || 'recipe_1' }).nutrition)}`
+);
 let threw = false;
 try { getRecipe({ id: 'recipe_made_up' }); } catch { threw = true; }
 check('an id that does not exist is an error, so the model has to look it up', threw);

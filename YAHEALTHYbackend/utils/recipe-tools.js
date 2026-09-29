@@ -72,7 +72,10 @@ function findRecipes(input = {}) {
 function getRecipe(input = {}) {
   const recipe = recipes.find((r) => r.id === input.id);
   if (!recipe) throw new Error(`No recipe with id "${input.id}". Call find_recipes to get a real id.`);
-  const { calories: _calories, ...cooking } = recipe;
+  // `nutrition` too: it carries the same calorie number (and, for some
+  // recipes, protein/carbs/fat), so dropping only the top-level key left the
+  // number one level down, where the model reads it just as easily.
+  const { calories: _calories, nutrition: _nutrition, ...cooking } = recipe;
   return cooking;
 }
 
