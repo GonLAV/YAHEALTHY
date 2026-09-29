@@ -85,6 +85,10 @@ router.post('/', bookingLimiter, async (req, res) => {
     return res.status(400).json({ error: 'Say which supermarket or area', requestId: req.id });
   }
   if (notes && notes.length > 1000) return res.status(400).json({ error: 'Notes are too long', requestId: req.id });
+  // Checked here, not left to the slot lookup: an unreadable start threw
+  // there and came back as "Could not read the calendar".
+  const startMs = Date.parse(start);
+  if (!Number.isFinite(startMs)) return res.status(400).json({ error: 'A start time is required', requestId: req.id });
 
   if (appointments.calendarRequiredButMissing()) {
     return res.status(503).json({ error: 'Booking is not connected to a calendar yet', requestId: req.id });
@@ -100,7 +104,7 @@ router.post('/', bookingLimiter, async (req, res) => {
   try {
     // Checked again here, not trusted from the page: the list the customer
     // chose from may be minutes old, and she may have filled that hour since.
-    slot = (await appointments.slotsFor(type)).find((s) => s.start === new Date(start).toISOString());
+    slot = (await appointments.slotsFor(type)).find((s) => s.start === new Date(startMs).toISOString());
   } catch (error) {
     console.error('[booking] could not read availability:', error.message);
     return res.status(502).json({ error: 'Could not read the calendar', requestId: req.id });

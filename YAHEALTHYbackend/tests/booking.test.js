@@ -181,6 +181,14 @@ async function run() {
   // No real address is longer than 254 characters (RFC 5321), and the email
   // pattern backtracks quadratically on a long near-miss: ~90 KB of "b." took
   // about two seconds of the event loop, per request, on a public endpoint.
+  // A start that is not a time is the caller's mistake. It used to throw
+  // inside the availability lookup and come back as 502 "Could not read the
+  // calendar", logged as a Google failure that never happened.
+  const noStart = await call('POST', '/api/booking', { ...person, type: 'online' });
+  check('a booking with no start time is refused as a bad request', noStart.status === 400, `got ${noStart.status} ${JSON.stringify(noStart.body)}`);
+  const badStart = await call('POST', '/api/booking', { ...person, type: 'online', start: 'next tuesday' });
+  check('and so is a start that is not a time, not blamed on the calendar', badStart.status === 400, `got ${badStart.status} ${JSON.stringify(badStart.body)}`);
+
   const longEmail = `${'a'.repeat(250)}@test.com`;
   check(
     'an email longer than any real address is refused',
