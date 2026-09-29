@@ -5,6 +5,8 @@ import { useLanguage } from '@/i18n/LanguageContext';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
 import { todayISO } from '@/utils/date';
+import { isWhatsAppEntry } from '@/utils/whatsappLink';
+import { WhatsAppBadge } from '@/components/food/WhatsAppBadge';
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 const MEAL_EMOJI: Record<string, string> = {
@@ -303,7 +305,10 @@ export const FoodLogPage = () => {
                 {groupedByMeal[type].map((log) => (
                   <li key={log.id} className="flex items-center justify-between px-5 py-4">
                     <div className="min-w-0 flex-1">
-                      <h4 className="truncate font-medium text-slate-800">{log.name}</h4>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <h4 className="truncate font-medium text-slate-800">{log.name}</h4>
+                        {isWhatsAppEntry(log) && <WhatsAppBadge />}
+                      </div>
                       <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-400">
                         {log.quantity != null && (
                           <span className="num">

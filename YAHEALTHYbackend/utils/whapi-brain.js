@@ -91,7 +91,7 @@ const PROMPT_VERSIONS = {
 };
 
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5';
-const client = new Anthropic({
+let client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
   // Required when ANTHROPIC_API_KEY is an org-level key not scoped to one
   // workspace -- Anthropic rejects requests from such a key with a 400
@@ -250,8 +250,14 @@ const MAX_TOOL_ROUNDS = 5;
  * @param {string} userText
  * @param {string|null} imageBase64
  * @param {string|null} imageMediaType
+ * @param {(call: {name: string, input: object, result: object}) => void} [onToolResult]
+ *   called once per tool call that SUCCEEDED, with the calculator's own
+ *   output. This is how routes/whapi.js learns what was actually computed
+ *   (utils/whatsapp-food-log.js turns a meal calculation into a pending diary
+ *   entry) without ever parsing the model's free text. Errors thrown by the
+ *   callback are swallowed: it must never cost the customer a reply.
  */
-async function generateReplyWithTools({ activeBot, history, userText, imageBase64, imageMediaType }) {
+async function generateReplyWithTools({ activeBot, history, userText, imageBase64, imageMediaType, onToolResult }) {
   const blocked = blockedReply(activeBot);
   if (blocked) return blocked;
 
@@ -299,6 +305,13 @@ async function generateReplyWithTools({ activeBot, history, userText, imageBase6
       if (block.type !== 'tool_use') continue;
       try {
         const result = executeTool(block.name, block.input);
+        if (typeof onToolResult === 'function') {
+          try {
+            onToolResult({ name: block.name, input: block.input, result });
+          } catch {
+            /* observer only -- never breaks the reply */
+          }
+        }
         toolResults.push({
           type: 'tool_result',
           tool_use_id: block.id,
@@ -326,9 +339,21 @@ async function generateReplyWithTools({ activeBot, history, userText, imageBase6
     .trim();
 }
 
+/**
+ * Tests only: swap the Anthropic client for a fake with the same
+ * `messages.create` shape, so the real tool loop (and the real calculators)
+ * run without a network call. Returns the previous client.
+ */
+function _setClientForTests(fake) {
+  const previous = client;
+  client = fake;
+  return previous;
+}
+
 module.exports = {
   PROMPT_VERSIONS,
   APPROVALS,
   generateReply,
-  generateReplyWithTools
+  generateReplyWithTools,
+  _setClientForTests
 };

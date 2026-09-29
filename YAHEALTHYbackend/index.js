@@ -185,6 +185,8 @@ const whatsappRouter = require('./routes/whatsapp');
 // route returns other people's inbound messages, including the health-flagged
 // ones, and signup is open — so being signed in is nowhere near enough.
 app.use('/api/whatsapp/pending', auth.authMiddleware, require('./middleware/requireStaff'));
+// Connect WhatsApp to the account (one-time code) — auth per route, own user only.
+app.use('/api/whatsapp/link', require('./routes/whatsapp-link'));
 app.use('/api/whatsapp', whatsappRouter);
 app.use('/api/auth', authLimiter);
 

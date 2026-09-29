@@ -1,9 +1,10 @@
 import { FormEvent, ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { isAxiosError } from 'axios';
-import { Bell, Globe, KeyRound, LogOut, Mail, Settings, Target } from 'lucide-react';
+import { Bell, Globe, KeyRound, LogOut, Mail, MessageCircle, Settings, Target } from 'lucide-react';
 import PageHeader from '@/components/ui/PageHeader';
 import { RemindersSettings } from '@/components/settings/RemindersSettings';
+import { WhatsAppSettings } from '@/components/settings/WhatsAppSettings';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { translations, type Lang } from '@/i18n/translations';
@@ -22,6 +23,7 @@ const MIN_PASSWORD_LENGTH = 10;
 
 const SECTIONS = [
   { id: 'messages', key: 'settings.messages.title' },
+  { id: 'whatsapp', key: 'settings.whatsapp.title' },
   { id: 'reminders', key: 'settings.reminders.title' },
   { id: 'profile', key: 'settings.profile.title' },
   { id: 'language', key: 'settings.language.title' },
@@ -521,6 +523,10 @@ export const SettingsPage = () => {
       <div className="space-y-6">
         <SettingsSection id="messages" title={t('settings.messages.title')} hint={t('settings.messages.hint')} icon={<Mail size={20} />}>
           <MessagesSection />
+        </SettingsSection>
+
+        <SettingsSection id="whatsapp" title={t('settings.whatsapp.title')} hint={t('settings.whatsapp.hint')} icon={<MessageCircle size={20} />}>
+          <WhatsAppSettings />
         </SettingsSection>
 
         <SettingsSection id="reminders" title={t('settings.reminders.title')} hint={t('reminders.subtitle')} icon={<Bell size={20} />}>

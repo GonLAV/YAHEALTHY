@@ -36,6 +36,8 @@ export interface FoodLog {
   date: string;
   quantity?: number;
   unit?: string;
+  /** 'whatsapp' when the entry came from the WhatsApp bot (confirmed in chat). */
+  source?: string | null;
 }
 
 const api = axios.create({
@@ -523,6 +525,30 @@ export interface MessagingPreferences {
 export type MessagingPreferencesInput = Partial<
   Pick<MessagingPreferences, 'email_lifecycle' | 'marketing_email' | 'whatsapp'> & { lang: 'he' | 'en'; timezone: string }
 >;
+
+// Connect WhatsApp (Settings → WhatsApp). The phone is linked only when the
+// one-time code is sent to the bot from that phone — never by number alone.
+export interface WhatsAppLinkStatus {
+  linked: boolean;
+  /** Masked, e.g. 050-***-4567. */
+  phone: string | null;
+  linkedAt: string | null;
+  botNumber: string | null;
+}
+
+export interface WhatsAppLinkCode {
+  code: string;
+  expiresAt: string;
+  message: string;
+  waLink: string | null;
+  botNumber: string | null;
+}
+
+export const whatsappLinkApi = {
+  status: () => api.get<WhatsAppLinkStatus>('/api/whatsapp/link'),
+  createCode: (lang: 'he' | 'en') => api.post<WhatsAppLinkCode>(`/api/whatsapp/link/code?lang=${lang}`),
+  unlink: () => api.delete<{ linked: false }>('/api/whatsapp/link'),
+};
 
 export const messagingPrefsApi = {
   get: () => api.get<{ preferences: MessagingPreferences }>('/api/marketing/preferences'),
