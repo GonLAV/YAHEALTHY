@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, UtensilsCrossed, Droplets, Moon, Scale,
   MessageCircleHeart, LogOut, Languages, Heart, BarChart3, Gift, Trophy, Megaphone,
-  MoreHorizontal, X, Settings,
+  MoreHorizontal, X, Settings, CalendarDays,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/i18n/LanguageContext';
@@ -25,6 +25,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/progress', key: 'nav.progress', icon: <BarChart3 size={20} />, mobile: 'tab' },
   { to: '/achievements', key: 'nav.achievements', icon: <Trophy size={20} />, mobile: 'more' },
   { to: '/food-log', key: 'nav.foodLog', icon: <UtensilsCrossed size={20} />, mobile: 'tab' },
+  { to: '/meal-plan', key: 'nav.mealPlan', icon: <CalendarDays size={20} />, mobile: 'more' },
   { to: '/hydration', key: 'nav.hydration', icon: <Droplets size={20} />, mobile: 'more' },
   { to: '/sleep', key: 'nav.sleep', icon: <Moon size={20} />, mobile: 'more' },
   { to: '/weight', key: 'nav.weight', icon: <Scale size={20} />, mobile: 'more' },
