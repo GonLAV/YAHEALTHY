@@ -10,6 +10,7 @@
 
 const db = require('./database');
 const mailer = require('./mailer');
+const logger = require('./logger');
 const { calculateStreak } = require('./health-calculations');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -144,7 +145,8 @@ async function runWeeklySummaryJob() {
       sent += 1;
     } catch (err) {
       failed += 1;
-      console.error(`📧 Weekly summary failed for ${user.email}: ${err.message}`);
+      // Log the user id, never the address (the logger redacts, but don't hand it PII to begin with).
+      logger.error('weekly summary failed', { userId: user.id, error: err.message });
     }
   }
 
