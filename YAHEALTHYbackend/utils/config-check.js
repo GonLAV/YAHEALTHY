@@ -144,6 +144,14 @@ const OPTIONAL = [
     prodOnly: true
   },
   {
+    feature: 'whatsapp-link',
+    off: (env) =>
+      isSet(env, 'WHATSAPP_BOT_NUMBER')
+        ? null
+        : 'WHATSAPP_BOT_NUMBER unset -> Settings > WhatsApp shows the link code without a wa.me button.',
+    prodOnly: true
+  },
+  {
     feature: 'whatsapp-inbox',
     off: (env) =>
       isSet(env, 'WHATSAPP_WEBHOOK_SECRET')

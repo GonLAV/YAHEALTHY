@@ -19,6 +19,8 @@ import { LogAgainChips, SavedMeals } from '@/components/food/QuickLogPanels';
 import { UndoSnackbar, type UndoState } from '@/components/food/UndoSnackbar';
 import { addDaysISO, todayISO } from '@/utils/date';
 import { currentMeal, dayTotals, groupByMeal, MEAL_TYPES, sameFood } from '@/utils/foodLogging';
+import { isWhatsAppEntry } from '@/utils/whatsappLink';
+import { WhatsAppBadge } from '@/components/food/WhatsAppBadge';
 
 const MEAL_EMOJI: Record<MealType, string> = {
   breakfast: '🌅',
@@ -387,7 +389,10 @@ export const FoodLogPage = () => {
                         <li key={log.id} className="flex items-center justify-between gap-2 px-5 py-4">
                           <div className="min-w-0 flex-1">
                             {/* Names are user text in either language: isolate their direction, and wrap rather than truncate. */}
-                            <h4 className="break-words font-medium text-slate-800"><bdi>{log.name}</bdi></h4>
+                            <div className="flex min-w-0 flex-wrap items-center gap-2">
+                              <h4 className="break-words font-medium text-slate-800"><bdi>{log.name}</bdi></h4>
+                              {isWhatsAppEntry(log) && <WhatsAppBadge />}
+                            </div>
                             <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-500">
                               {log.quantity != null && (
                                 <span className="num">
