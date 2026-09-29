@@ -124,14 +124,14 @@ export const FoodLogPage = () => {
 
   return (
     <div className="mx-auto max-w-4xl p-4 md:p-8">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3">
         <PageHeader title={t('food.title')} icon={<UtensilsCrossed size={24} />} />
         <button
           onClick={() => setShowForm(!showForm)}
-          className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-md transition ${
+          className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-md transition sm:px-5 ${
             showForm
               ? 'bg-slate-500 hover:bg-slate-600'
-              : 'bg-emerald-600 shadow-emerald-200 hover:bg-emerald-700'
+              : 'bg-emerald-700 shadow-emerald-200 hover:bg-emerald-800'
           }`}
         >
           {showForm ? <X size={18} /> : <Plus size={18} />}
@@ -152,7 +152,7 @@ export const FoodLogPage = () => {
                   onClick={() => setFormData({ ...formData, mealType: type })}
                   className={`rounded-full px-4 py-2 text-sm font-medium transition ${
                     formData.mealType === type
-                      ? 'bg-emerald-600 text-white shadow-sm'
+                      ? 'bg-emerald-700 text-white shadow-sm'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
@@ -265,7 +265,7 @@ export const FoodLogPage = () => {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full rounded-xl bg-emerald-600 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700 disabled:opacity-60"
+              className="w-full rounded-xl bg-emerald-700 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800 disabled:opacity-60"
             >
               {submitting ? t('common.loading') : t('food.logFood')}
             </button>
@@ -274,13 +274,13 @@ export const FoodLogPage = () => {
       )}
 
       {/* Today's totals */}
-      <div className="mb-6 flex items-center justify-between rounded-2xl bg-emerald-50 px-5 py-4 ring-1 ring-emerald-100">
-        <span className="text-sm font-semibold text-emerald-800">{t('food.totalToday')}</span>
-        <div className="num flex gap-4 text-sm font-medium text-emerald-700">
-          <span>{todayTotals.calories} kcal</span>
-          <span>P {todayTotals.protein.toFixed(0)}{t('common.grams')}</span>
-          <span>C {todayTotals.carbs.toFixed(0)}{t('common.grams')}</span>
-          <span>F {todayTotals.fat.toFixed(0)}{t('common.grams')}</span>
+      <div className="mb-6 flex items-center justify-between gap-3 rounded-2xl bg-emerald-50 px-5 py-4 ring-1 ring-emerald-100">
+        <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-emerald-800">{t('food.totalToday')}</span>
+        <div className="flex flex-wrap justify-end gap-x-4 gap-y-1 text-sm font-medium text-emerald-700">
+          <span className="whitespace-nowrap"><span className="num">{todayTotals.calories}</span> {t('common.kcal')}</span>
+          <span className="whitespace-nowrap">{t('common.proteinShort')} <span className="num">{todayTotals.protein.toFixed(0)}</span>{'\u00a0'}{t('common.grams')}</span>
+          <span className="whitespace-nowrap">{t('common.carbsShort')} <span className="num">{todayTotals.carbs.toFixed(0)}</span>{'\u00a0'}{t('common.grams')}</span>
+          <span className="whitespace-nowrap">{t('common.fatShort')} <span className="num">{todayTotals.fat.toFixed(0)}</span>{'\u00a0'}{t('common.grams')}</span>
         </div>
       </div>
 
@@ -294,32 +294,33 @@ export const FoodLogPage = () => {
               <div className="border-b border-slate-100 bg-slate-50 px-5 py-3">
                 <h3 className="font-semibold text-slate-700">
                   {MEAL_EMOJI[type]} {t(`meal.${type}`)}
-                  <span className="num ms-2 text-sm font-normal text-slate-400">
+                  <span className="ms-2 text-sm font-normal text-slate-500">
                     ({groupedByMeal[type].length})
                   </span>
                 </h3>
               </div>
               <ul className="divide-y divide-slate-100">
                 {groupedByMeal[type].map((log) => (
-                  <li key={log.id} className="flex items-center justify-between px-5 py-4">
+                  <li key={log.id} className="flex items-center justify-between gap-3 px-5 py-4">
                     <div className="min-w-0 flex-1">
-                      <h4 className="truncate font-medium text-slate-800">{log.name}</h4>
-                      <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-400">
+                      {/* Names are user text in either language: isolate their direction, and wrap rather than truncate. */}
+                      <h4 className="break-words font-medium text-slate-800"><bdi>{log.name}</bdi></h4>
+                      <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-500">
                         {log.quantity != null && (
                           <span className="num">
                             {log.quantity} {log.unit || 'g'}
                           </span>
                         )}
-                        <span className="num">P {(log.protein_grams || 0).toFixed(1)}{t('common.grams')}</span>
-                        <span className="num">C {(log.carbs_grams || 0).toFixed(1)}{t('common.grams')}</span>
-                        <span className="num">F {(log.fat_grams || 0).toFixed(1)}{t('common.grams')}</span>
+                        <span>{t('common.proteinShort')} <span className="num">{(log.protein_grams || 0).toFixed(1)}</span>{'\u00a0'}{t('common.grams')}</span>
+                        <span>{t('common.carbsShort')} <span className="num">{(log.carbs_grams || 0).toFixed(1)}</span>{'\u00a0'}{t('common.grams')}</span>
+                        <span>{t('common.fatShort')} <span className="num">{(log.fat_grams || 0).toFixed(1)}</span>{'\u00a0'}{t('common.grams')}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="num font-semibold text-slate-700">{log.calories} kcal</span>
+                    <div className="flex shrink-0 items-center gap-3">
+                      <span className="whitespace-nowrap font-semibold text-slate-700"><span className="num">{log.calories}</span> {t('common.kcal')}</span>
                       <button
                         onClick={() => handleDelete(log.id)}
-                        className="rounded-lg p-2 text-slate-300 transition hover:bg-rose-50 hover:text-rose-500"
+                        className="rounded-lg p-2 text-slate-500 transition hover:bg-rose-50 hover:text-rose-500"
                         aria-label={t('common.delete')}
                       >
                         <Trash2 size={17} />

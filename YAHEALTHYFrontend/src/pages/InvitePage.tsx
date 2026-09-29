@@ -95,7 +95,7 @@ export const InvitePage = () => {
         <div className="space-y-6">
           <section
             aria-labelledby="invite-share-heading"
-            className="rounded-3xl bg-gradient-to-br from-emerald-600 to-teal-600 p-6 text-white shadow-md md:p-8"
+            className="rounded-3xl bg-gradient-to-br from-emerald-700 to-teal-700 p-6 text-white shadow-md md:p-8"
           >
             <h2 id="invite-share-heading" className="text-sm font-medium text-emerald-50">
               {t('referral.yourCode')}
@@ -140,7 +140,7 @@ export const InvitePage = () => {
                 href={whatsappHref}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-95"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 text-sm font-semibold text-slate-900 shadow-sm transition hover:brightness-95"
               >
                 <MessageCircle size={16} aria-hidden="true" />
                 {t('referral.shareWhatsApp')}

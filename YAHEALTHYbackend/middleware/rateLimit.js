@@ -5,9 +5,11 @@ function getClientKey(req) {
   return req.ip;
 }
 
+// All of /api per IP per 15 min. Env-tunable for the same reason as the auth
+// limiter below: the E2E suite (incl. the page-by-page a11y audit) is one IP.
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 500,
+  max: Number(process.env.API_RATE_LIMIT_MAX) || 500,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: getClientKey

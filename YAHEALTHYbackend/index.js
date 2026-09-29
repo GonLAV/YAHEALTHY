@@ -170,6 +170,7 @@ app.use('/api/payments', checkoutRouter);
 // Food values. Lookup and arithmetic over sourced numbers — never a guess,
 // and never advice about what anyone should eat.
 app.use('/api/foods', require('./routes/foods'));
+app.use('/api/meal-plans', require('./routes/meal-planner')); // weekly planner + shopping list (auth per-route); before /api/meal-plans/:id
 app.use('/api/referrals', require('./routes/referrals'));
 app.use('/api/engagement', require('./routes/engagement')); // streaks, Health Score, achievements (auth per-route)
 app.use('/api/marketing', require('./routes/marketing'));
