@@ -50,7 +50,10 @@ stub('utils/whapi', {
   verifyWebhookSecret: () => true
 });
 
+// Anthropic can fail (rate limit, timeout, 5xx); set to make the next reply throw.
+let brainDown = false;
 const fakeGenerate = async ({ activeBot }) => {
+  if (brainDown) throw new Error('Anthropic 529 overloaded');
   generated.push(activeBot);
   return `reply from ${activeBot}`;
 };
@@ -167,6 +170,26 @@ async function run() {
   check(
     'an ordinary message is not',
     !(await db.getWhatsappMessages({ status: 'escalated' })).some((m) => m.chat_id === PAYER)
+  );
+
+  // The escalation is the professional's copy of the message. It must not
+  // depend on the bot managing to answer: with Anthropic down the customer
+  // gets the fallback line, and a person still has to see what they wrote.
+  const DIABETIC = WA('0504444444');
+  await db.upsertWhapiConversation(DIABETIC, 'adi');
+  brainDown = true;
+  let threw = false;
+  try {
+    await say(DIABETIC, 'יש לי סוכרת סוג 1, מה מותר לי לאכול בבוקר?');
+  } catch {
+    threw = true;
+  }
+  brainDown = false;
+  check('when the reply fails, the customer still hears something', threw && sent.some((m) => m.body.includes('משהו השתבש')));
+  check(
+    'and the health-flagged message still reaches the staff queue',
+    (await db.getWhatsappMessages({ status: 'escalated' })).some((m) => m.chat_id === DIABETIC && m.body.includes('סוכרת')),
+    'the escalation was written only after a successful reply, so an Anthropic outage dropped it'
   );
 }
 

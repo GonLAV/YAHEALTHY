@@ -144,6 +144,30 @@ async function handleIncomingMessage(message) {
       return;
     }
 
+    // Both prompts answer a health flag with "I'll pass this on to a
+    // professional". The message goes into the same escalation queue the
+    // staff screen reads, so a person actually sees it. Written here, before
+    // anything below can fail: it used to be written after the reply, so when
+    // Anthropic or WHAPI failed (the three failure modes above) the customer
+    // got the fallback line and the professional never saw the message. Best
+    // effort — a failed write must not cost the customer their reply.
+    if (isFlagged(rawText)) {
+      await db
+        .saveWhatsappMessage({
+          id: message.id || `whapi_${Date.now()}`,
+          chat_id: phone,
+          from_number: message.from || phone,
+          from_name: message.from_name ?? null,
+          from_me: false,
+          type: message.type,
+          body: rawText,
+          sent_at: message.timestamp ? new Date(message.timestamp * 1000).toISOString() : null,
+          status: 'escalated',
+          raw: { source: 'whapi-bot', active_bot: conversation.active_bot }
+        })
+        .catch((err) => console.error('[whapi] could not escalate a health-flagged message:', err.message));
+    }
+
     if (isNewConversation) {
       await sendWithTyping(phone, WELCOME);
     }
@@ -195,27 +219,6 @@ async function handleIncomingMessage(message) {
 
     await db.logWhapiMessage(phone, 'user', rawText || '[תמונה]');
 
-    // Both prompts answer a health flag with "I'll pass this on to a
-    // professional". Until now nothing passed anything on: the promise lived
-    // only in the reply. The message goes into the same escalation queue the
-    // staff screen reads, so a person actually sees it. Best effort — a failed
-    // write must not cost the customer their reply.
-    if (isFlagged(rawText)) {
-      await db
-        .saveWhatsappMessage({
-          id: message.id || `whapi_${Date.now()}`,
-          chat_id: phone,
-          from_number: message.from || phone,
-          from_name: message.from_name ?? null,
-          from_me: false,
-          type: message.type,
-          body: rawText,
-          sent_at: message.timestamp ? new Date(message.timestamp * 1000).toISOString() : null,
-          status: 'escalated',
-          raw: { source: 'whapi-bot', active_bot: activeBot }
-        })
-        .catch((err) => console.error('[whapi] could not escalate a health-flagged message:', err.message));
-    }
     // The reply carries the prompt version that produced it. Reading a
     // conversation back months later against whatever the prompt says today
     // proves nothing; reading it against the version in force at the time is
