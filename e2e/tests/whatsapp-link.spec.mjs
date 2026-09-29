@@ -12,7 +12,7 @@ test('settings: connect WhatsApp with a one-time code, then disconnect', async (
   await prime(page, { lang: 'en', token: user.token });
   await page.goto('/settings#whatsapp');
 
-  const section = page.getByRole('region', { name: 'WhatsApp' });
+  const section = page.getByRole('region', { name: 'WhatsApp', exact: true });
   await expect(section).toBeVisible();
   await expect(section.getByText('WhatsApp is not connected.')).toBeVisible();
 
@@ -51,7 +51,7 @@ test('settings: connect WhatsApp with a one-time code, then disconnect', async (
 
   // Survives a reload (server state, not page state).
   await page.reload();
-  const again = page.getByRole('region', { name: 'WhatsApp' });
+  const again = page.getByRole('region', { name: 'WhatsApp', exact: true });
   await expect(again.getByTestId('whatsapp-linked')).toBeVisible();
 
   await again.getByRole('button', { name: 'Disconnect' }).click();
@@ -66,6 +66,6 @@ test('settings (he): the WhatsApp section is RTL and in Hebrew', async ({ page, 
   await prime(page, { lang: 'he', token: user.token });
   await page.goto('/settings#whatsapp');
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
-  const section = page.getByRole('region', { name: 'וואטסאפ' });
+  const section = page.getByRole('region', { name: 'וואטסאפ', exact: true });
   await expect(section.getByRole('button', { name: 'חיבור וואטסאפ' })).toBeVisible();
 });

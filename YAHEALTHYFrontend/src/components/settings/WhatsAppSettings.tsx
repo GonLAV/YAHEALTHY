@@ -12,7 +12,7 @@ const Card = ({ children }: { children: ReactNode }) => (
 );
 
 const primaryBtn =
-  'inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60';
+  'inline-flex items-center gap-1.5 rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-60';
 const secondaryBtn =
   'inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50 disabled:opacity-60';
 
@@ -194,7 +194,7 @@ export const WhatsAppSettings = () => {
                   ? t('settings.whatsapp.codeHelpNumber', { number: code.botNumber })
                   : t('settings.whatsapp.codeHelp')}
               </p>
-              <p className="mt-1 text-xs text-slate-500" aria-live="off">
+              <p className="mt-1 text-xs text-slate-600" aria-live="off">
                 {t('settings.whatsapp.expiresIn', { time: formatCountdown(left) })}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
