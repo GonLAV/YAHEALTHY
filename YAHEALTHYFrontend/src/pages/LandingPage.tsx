@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowLeft, ArrowRight, CalendarCheck, ChefHat, LineChart, MessageCircle, ShieldCheck, ShoppingCart, Sparkles,
+  ArrowLeft, ArrowRight, CalendarCheck, ChefHat, ClipboardList, MessageCircle, ShieldCheck, ShoppingCart, Sparkles,
 } from 'lucide-react';
 import { PublicLayout } from '@/components/layout/PublicLayout';
 import { Num } from '@/components/ui/Num';
@@ -72,16 +72,19 @@ const ChatExample = () => {
   );
 };
 
+// The order a customer usually meets them: a free diagnosis, Yael's menu,
+// then Adi day to day (and Yael again, at the supermarket).
 const STEPS = [
   { icon: <CalendarCheck size={22} />, key: 'landing.how.1' },
-  { icon: <LineChart size={22} />, key: 'landing.how.2' },
-  { icon: <ShoppingCart size={22} />, key: 'landing.how.3' },
+  { icon: <ClipboardList size={22} />, key: 'landing.how.2' },
+  { icon: <MessageCircle size={22} />, key: 'landing.how.3' },
 ];
 
+// What is sold, and who delivers it: Adi and Yoni on WhatsApp, Yael in person.
 const FEATURES = [
   { icon: <MessageCircle size={22} />, key: 'landing.features.adi', tone: 'bg-emerald-50 text-emerald-700' },
+  { icon: <ClipboardList size={22} />, key: 'landing.features.menu', tone: 'bg-violet-50 text-violet-700' },
   { icon: <ChefHat size={22} />, key: 'landing.features.yoni', tone: 'bg-amber-50 text-amber-700' },
-  { icon: <LineChart size={22} />, key: 'landing.features.app', tone: 'bg-sky-50 text-sky-700' },
   { icon: <ShoppingCart size={22} />, key: 'landing.features.supermarket', tone: 'bg-rose-50 text-rose-700' },
 ];
 
@@ -211,6 +214,7 @@ export const LandingPage = () => {
             </article>
           ))}
         </div>
+        <p className="mx-auto mt-8 max-w-2xl text-center text-sm text-slate-600">{t('landing.features.appLine')}</p>
       </Section>
 
       {/* ── the health boundary ──────────────────────────────────────────── */}

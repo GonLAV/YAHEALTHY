@@ -274,11 +274,18 @@ export const BookingConfirmedPage = () => {
 
 export const WelcomePage = () => {
   const { t } = useLanguage();
+  const [params] = useSearchParams();
+  // The checkout says what was bought (routes/payments.js, successUrl), so the
+  // next step named here is the right one for it.
+  const product = params.get('product');
+  const plan = params.get('plan');
+  const next =
+    product === 'menu' ? t('welcome.next.menu') : plan === 'yoni' ? t('welcome.next.yoni') : plan === 'base' ? t('welcome.next.base') : t('welcome.whatsapp');
   return (
     <PublicLayout>
       <Card icon={<CheckCircle2 size={28} />} title={t('welcome.title')}>
         <p>{t('welcome.email')}</p>
-        <p className="text-sm">{t('welcome.whatsapp')}</p>
+        <p className="text-sm">{next}</p>
         <Link to="/login" className={primary}>{t('welcome.toLogin')}</Link>
       </Card>
     </PublicLayout>

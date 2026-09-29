@@ -35,6 +35,10 @@ const defaults = {
   PLAN_BASE_AMOUNT: '150',
   PLAN_YONI_AMOUNT: '250',
   SESSION_SUPERMARKET_AMOUNT: '800',
+  PRODUCT_MENU_AMOUNT: '400',
+  // A stand-in payment page instead of PayPlus (utils/payplus.js, isDemo):
+  // purchases can be clicked through, and nothing is charged.
+  DEMO_PAYMENTS: 'true',
   BOOKING_CLINIC_ADDRESS: 'כתובת לדוגמה (הדגמה)'
 };
 for (const [k, v] of Object.entries(defaults)) if (!process.env[k]) process.env[k] = v;
@@ -124,7 +128,8 @@ async function seed() {
       `    App:       ${process.env.APP_URL}   (run the frontend: npm run dev in YAHEALTHYFrontend)\n` +
       `    Sign in:   ${DEMO.email}\n` +
       `    Password:  ${DEMO.password}\n` +
-      `    The demo account is staff and has the Yoni plan.\n`
+      `    The demo account is staff and has the Yoni plan.\n` +
+      `    Payments go to a demo payment page — nothing is charged.\n`
   );
 }
 

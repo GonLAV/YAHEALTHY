@@ -35,6 +35,8 @@ const ProgressPage = lazy(() => import('@/pages/ProgressPage').then((m) => ({ de
 // after paying) — the page did not exist, so a buyer could never sign in.
 const ResetPasswordPage = lazy(() => import('@/pages/PasswordPages').then((m) => ({ default: m.ResetPasswordPage })));
 const ForgotPasswordPage = lazy(() => import('@/pages/PasswordPages').then((m) => ({ default: m.ForgotPasswordPage })));
+// The demo's stand-in for PayPlus. The server refuses its calls in production.
+const DemoPayPage = lazy(() => import('@/pages/DemoPayPage').then((m) => ({ default: m.DemoPayPage })));
 const LandingPage = lazy(() => import('@/pages/LandingPage').then((m) => ({ default: m.LandingPage })));
 
 const PageLoader = () => (
@@ -59,6 +61,7 @@ const AppRoutes = () => (
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/demo-pay" element={<DemoPayPage />} />
       <Route path="/pricing" element={<PricingPage />} />
       <Route path="/book" element={<BookingPage />} />
       <Route path="/book/confirmed" element={<BookingConfirmedPage />} />

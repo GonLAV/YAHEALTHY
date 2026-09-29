@@ -12,6 +12,8 @@
  *   POST /api/staff/escalations/:id/handled    a person has dealt with one
  *   GET  /api/staff/payments                   payments that need a person (migrations/015)
  *   POST /api/staff/payments/:uid/resolve      a person has settled one
+ *   GET  /api/staff/orders?scope=open|all      one-time purchases to fulfil (Yael's menu)
+ *   POST /api/staff/orders/:id/status          move one along: in_progress, delivered, cancelled
  */
 const express = require('express');
 const db = require('../utils/database');
@@ -109,6 +111,28 @@ router.post('/payments/:uid/resolve', async (req, res) => {
     if (!row) return res.status(404).json({ error: 'Not found', requestId: req.id });
     return res.json({ ok: true });
   } catch (error) {
+    return res.status(500).json({ error: 'Could not update', requestId: req.id });
+  }
+});
+
+// Someone paid for a personal menu; Yael has to contact them and build it.
+router.get('/orders', async (req, res) => {
+  const scope = req.query.scope === 'all' ? 'all' : 'open';
+  try {
+    const orders = await db.listOrdersForStaff(scope);
+    return res.json({ scope, orders });
+  } catch (error) {
+    return res.status(500).json({ error: 'Could not list orders', requestId: req.id });
+  }
+});
+
+router.post('/orders/:id/status', async (req, res) => {
+  try {
+    const order = await db.updateOrderStatus(req.params.id, String(req.body?.status || ''));
+    if (!order) return res.status(404).json({ error: 'Not found', requestId: req.id });
+    return res.json({ order });
+  } catch (error) {
+    if (error.code === 'BAD_STATUS') return res.status(400).json({ error: 'Unknown status', requestId: req.id });
     return res.status(500).json({ error: 'Could not update', requestId: req.id });
   }
 });

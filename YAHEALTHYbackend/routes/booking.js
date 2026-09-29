@@ -84,13 +84,14 @@ router.post('/', bookingLimiter, async (req, res) => {
   if (notes && notes.length > 1000) return res.status(400).json({ error: 'Notes are too long', requestId: req.id });
 
   if (appointments.calendarRequiredButMissing()) {
-    return res.status(503).json({ error: 'Booking is not connected to a calendar yet', requestId: req.id });
+    return res.status(503).json({ error: 'Booking is not connected to a calendar yet', code: 'calendar_unavailable', requestId: req.id });
   }
   if (paid && !(cfg.price[type] > 0)) {
-    return res.status(503).json({ error: 'That session has no price set', requestId: req.id });
+    return res.status(503).json({ error: 'That session has no price set', code: 'no_price', requestId: req.id });
   }
-  if (paid && !payplus.isConfigured()) {
-    return res.status(503).json({ error: 'Payments are not configured on this server', requestId: req.id });
+  // isAvailable: PayPlus, or the demo stand-in (never in production).
+  if (paid && !payplus.isAvailable()) {
+    return res.status(503).json({ error: 'Payments are not configured on this server', code: 'payments_unavailable', requestId: req.id });
   }
 
   let slot;

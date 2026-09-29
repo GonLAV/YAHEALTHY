@@ -98,7 +98,8 @@ const memoryDb = {
   foods: [],
   whapiConversations: new Map(),
   whapiMessages: [],
-  appointments: []
+  appointments: [],
+  orders: []
 };
 
 function sortByCreatedAtDesc(items) {
@@ -746,6 +747,67 @@ async function resolvePaymentEvent(pageRequestUid) {
     .select()
     .maybeSingle();
   if (error) throw error;
+  return data || null;
+}
+
+/**
+ * Orders — one-time products someone has to fulfil (migrations/016): Yael's
+ * personal menu. Idempotent on page_request_uid, the same way payment events
+ * are, so a callback delivered twice opens one order.
+ */
+const ORDER_STATUSES = ['paid', 'in_progress', 'delivered', 'cancelled'];
+const OPEN_ORDER = ['paid', 'in_progress'];
+
+async function createOrder(order) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const existing = memoryDb.orders.find((o) => o.page_request_uid === order.page_request_uid);
+    if (existing) return { order: existing, created: false };
+    const now = new Date().toISOString();
+    const row = { id: uuidv4(), status: 'paid', created_at: now, updated_at: now, ...order };
+    memoryDb.orders.push(row);
+    return { order: row, created: true };
+  }
+  const { data, error } = await supabaseServiceRole.from('orders').insert([order]).select().single();
+  if (error) {
+    if (error.code === '23505') return { order: null, created: false };
+    throw error;
+  }
+  return { order: data, created: true };
+}
+
+/** 'open' is what still needs work, oldest first; 'all' is the last 200. */
+async function listOrdersForStaff(scope = 'open') {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const rows = scope === 'open' ? memoryDb.orders.filter((o) => OPEN_ORDER.includes(o.status)) : [...memoryDb.orders];
+    return rows.sort((a, b) => (scope === 'open' ? (a.created_at < b.created_at ? -1 : 1) : a.created_at < b.created_at ? 1 : -1)).slice(0, 200);
+  }
+  let query = supabaseServiceRole.from('orders').select('*');
+  query = scope === 'open'
+    ? query.in('status', OPEN_ORDER).order('created_at', { ascending: true })
+    : query.order('created_at', { ascending: false });
+  const { data, error } = await query.limit(200);
+  if (error) throw error;
+  return data || [];
+}
+
+async function updateOrderStatus(id, status) {
+  if (!ORDER_STATUSES.includes(status)) {
+    const err = new Error(`Unknown order status: ${status}`);
+    err.code = 'BAD_STATUS';
+    throw err;
+  }
+  const patch = { status, updated_at: new Date().toISOString() };
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const row = memoryDb.orders.find((o) => o.id === id);
+    if (!row) return null;
+    Object.assign(row, patch);
+    return row;
+  }
+  const { data, error } = await supabaseServiceRole.from('orders').update(patch).eq('id', id).select().maybeSingle();
+  if (error && error.code !== '22P02') throw error;
   return data || null;
 }
 
@@ -2295,5 +2357,8 @@ module.exports = {
   listAppointmentsNeedingReminder,
   flagPaymentEvent,
   listFlaggedPaymentEvents,
-  resolvePaymentEvent
+  resolvePaymentEvent,
+  createOrder,
+  listOrdersForStaff,
+  updateOrderStatus
 };

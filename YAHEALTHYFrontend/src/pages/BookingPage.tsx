@@ -101,7 +101,9 @@ export const BookingPage = () => {
       } else if (status === 400) {
         setError(t('pricing.invalid'));
       } else if (status === 503) {
-        setError(t('booking.unavailable'));
+        // Say what is actually unavailable: "booking unavailable" for a
+        // payment problem sent people away from a calendar that was fine.
+        setError(err.response?.data?.code === 'payments_unavailable' ? t('pricing.unavailable') : t('booking.unavailable'));
       } else {
         setError(t('common.error'));
       }

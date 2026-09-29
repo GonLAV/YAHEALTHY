@@ -402,6 +402,14 @@ export interface Plan {
   billing: 'monthly';
 }
 
+/** Sold once, straight from checkout, with nothing recurring: Yael's menu. */
+export interface Product {
+  id: 'menu';
+  label: string;
+  amount: number;
+  billing: 'once';
+}
+
 export interface Session {
   id: 'supermarket';
   amount: number;
@@ -445,10 +453,21 @@ export interface BookingInput {
 }
 
 export const purchaseApi = {
-  plans: () => api.get<{ plans: Plan[]; sessions: Session[] }>('/api/payments/plans'),
+  plans: () => api.get<{ plans: Plan[]; products: Product[]; sessions: Session[] }>('/api/payments/plans'),
 
   checkout: (data: { plan: string; name: string; email: string; phone: string }) =>
     api.post<{ paymentPageLink: string }>('/api/payments/checkout', data),
+};
+
+/**
+ * The demo stand-in for PayPlus (see isDemo in YAHEALTHYbackend/utils/payplus.js).
+ * These answer 404 anywhere demo payments are off, which includes production.
+ */
+export const demoPayApi = {
+  get: (ref: string) =>
+    api.get<{ amount: number; currency: string; item: string; label: string; email: string }>(`/api/payments/demo/${encodeURIComponent(ref)}`),
+  finish: (ref: string, outcome: 'pay' | 'cancel') =>
+    api.post<{ redirect: string }>(`/api/payments/demo/${encodeURIComponent(ref)}/${outcome}`),
 };
 
 export const bookingApi = {
@@ -501,6 +520,16 @@ export interface Escalation {
 
 export type StaffScope = 'upcoming' | 'attention' | 'recent';
 
+export interface Order {
+  id: string;
+  product: 'menu';
+  email: string | null;
+  phone: string | null;
+  amount: number | null;
+  status: 'paid' | 'in_progress' | 'delivered' | 'cancelled';
+  created_at: string;
+}
+
 export interface FlaggedPayment {
   uid: string;
   email: string | null;
@@ -520,6 +549,8 @@ export const staffApi = {
   escalations: () => api.get<{ messages: Escalation[] }>('/api/staff/escalations'),
   handled: (id: string) => api.post(`/api/staff/escalations/${encodeURIComponent(id)}/handled`),
   payments: () => api.get<{ payments: FlaggedPayment[] }>('/api/staff/payments'),
+  orders: (scope: 'open' | 'all' = 'open') => api.get<{ orders: Order[] }>('/api/staff/orders', { params: { scope } }),
+  setOrderStatus: (id: string, status: Order['status']) => api.post(`/api/staff/orders/${id}/status`, { status }),
   resolvePayment: (uid: string) => api.post(`/api/staff/payments/${encodeURIComponent(uid)}/resolve`),
 };
 

@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertCircle, CalendarCheck, ChefHat, Check, ShoppingCart, Sparkles } from 'lucide-react';
+import { AlertCircle, CalendarCheck, ChefHat, ClipboardList, MessageCircle, ShoppingCart, Sparkles } from 'lucide-react';
 import { PublicLayout } from '@/components/layout/PublicLayout';
 import { Num } from '@/components/ui/Num';
 import { useLanguage } from '@/i18n/LanguageContext';
-import { purchaseApi, Plan, Session } from '@/services/api';
+import { purchaseApi, Plan, Product, Session } from '@/services/api';
 
 // The same test the server applies (utils/phone.js), loosely: it only saves a
 // round trip for an obvious typo. The server's answer is the one that counts.
@@ -13,6 +13,13 @@ export const looksLikeIsraeliMobile = (value: string) =>
 
 export const inputClass =
   'w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100';
+
+/** Something the checkout can sell directly: a monthly plan or a one-time product. */
+interface Buyable {
+  id: string;
+  amount: number;
+  nameKey: string;
+}
 
 const Price = ({ amount, suffix }: { amount: number; suffix: string }) => (
   <div className="flex items-baseline gap-1.5">
@@ -23,7 +30,7 @@ const Price = ({ amount, suffix }: { amount: number; suffix: string }) => (
   </div>
 );
 
-const CheckoutForm = ({ plan, onCancel }: { plan: Plan; onCancel: () => void }) => {
+const CheckoutForm = ({ item, onCancel }: { item: Buyable; onCancel: () => void }) => {
   const { t } = useLanguage();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -40,8 +47,9 @@ const CheckoutForm = ({ plan, onCancel }: { plan: Plan; onCancel: () => void }) 
     }
     setBusy(true);
     try {
-      const { data } = await purchaseApi.checkout({ plan: plan.id, name, email, phone });
-      // PayPlus's own page. Nothing about the card passes through this app.
+      const { data } = await purchaseApi.checkout({ plan: item.id, name, email, phone });
+      // PayPlus's own page (or, in the demo, the stand-in). Nothing about the
+      // card passes through this app.
       window.location.href = data.paymentPageLink;
     } catch (err: any) {
       setBusy(false);
@@ -52,9 +60,7 @@ const CheckoutForm = ({ plan, onCancel }: { plan: Plan; onCancel: () => void }) 
 
   return (
     <form onSubmit={submit} className="space-y-4 rounded-3xl bg-white p-6 shadow-xl ring-1 ring-slate-100 md:p-8">
-      <h2 className="text-lg font-bold text-slate-900">
-        {t('pricing.checkoutTitle', { plan: t(`pricing.plan.${plan.id}.name`) })}
-      </h2>
+      <h2 className="text-lg font-bold text-slate-900">{t('pricing.checkoutTitle', { plan: t(item.nameKey) })}</h2>
       <div>
         <label htmlFor="co-name" className="mb-1.5 block text-sm font-medium text-slate-700">{t('form.name')}</label>
         <input id="co-name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} className={inputClass} required />
@@ -65,13 +71,13 @@ const CheckoutForm = ({ plan, onCancel }: { plan: Plan; onCancel: () => void }) 
       </div>
       <div>
         <label htmlFor="co-phone" className="mb-1.5 block text-sm font-medium text-slate-700">{t('form.phone')}</label>
-        <input id="co-phone" type="tel" autoComplete="tel" dir="ltr" placeholder="050-1234567" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} required />
-        <p className="mt-1.5 text-xs text-slate-500">{t('pricing.phoneHint')}</p>
+        <input id="co-phone" type="tel" inputMode="tel" autoComplete="tel" dir="ltr" placeholder="050-1234567" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} required aria-describedby="co-phone-hint" />
+        <p id="co-phone-hint" className="mt-1.5 text-xs text-slate-500">{t('pricing.phoneHint')}</p>
       </div>
 
       {error && (
         <div role="alert" className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          <AlertCircle size={16} className="shrink-0" />
+          <AlertCircle size={16} className="shrink-0" aria-hidden="true" />
           {error}
         </div>
       )}
@@ -81,35 +87,94 @@ const CheckoutForm = ({ plan, onCancel }: { plan: Plan; onCancel: () => void }) 
           {t('common.cancel')}
         </button>
         <button type="submit" disabled={busy} className="rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700 disabled:opacity-60">
-          {busy ? t('pricing.redirecting') : t('pricing.toPayment')}
+          {busy ? t('pricing.redirecting') : <>{t('pricing.toPayment')} · <Num>₪{item.amount}</Num></>}
         </button>
       </div>
-      <p className="text-center text-xs text-slate-400">{t('pricing.securePayment')}</p>
+      <p className="text-center text-xs text-slate-500">{t('pricing.securePayment')}</p>
     </form>
+  );
+};
+
+/** One product card. `who` says which person or bot you get — the product *is* them. */
+const Card = ({
+  icon,
+  tone,
+  who,
+  name,
+  desc,
+  price,
+  cta,
+  featured = false,
+}: {
+  icon: ReactNode;
+  tone: string;
+  who: string;
+  name: string;
+  desc: string;
+  price: ReactNode;
+  cta: ReactNode;
+  featured?: boolean;
+}) => {
+  const { t } = useLanguage();
+  return (
+    <article
+      className={`relative flex flex-col rounded-3xl bg-white p-6 shadow-sm ring-1 ${
+        featured ? 'ring-2 ring-emerald-500 shadow-lg shadow-emerald-100' : 'ring-slate-100'
+      }`}
+    >
+      {featured && (
+        <span className="absolute -top-3 start-6 inline-flex items-center gap-1 rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white">
+          <Sparkles size={12} aria-hidden="true" /> {t('pricing.recommended')}
+        </span>
+      )}
+      <div className="flex items-center gap-3">
+        <span className={`flex h-11 w-11 items-center justify-center rounded-2xl ${tone}`}>{icon}</span>
+        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{who}</span>
+      </div>
+      <h2 className="mt-4 text-lg font-bold text-slate-900">{name}</h2>
+      <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-600">{desc}</p>
+      <div className="mt-5">{price}</div>
+      <div className="mt-5">{cta}</div>
+    </article>
   );
 };
 
 export const PricingPage = () => {
   const { t } = useLanguage();
   const [plans, setPlans] = useState<Plan[] | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [failed, setFailed] = useState(false);
-  const [chosen, setChosen] = useState<Plan | null>(null);
+  const [chosen, setChosen] = useState<Buyable | null>(null);
 
   useEffect(() => {
     purchaseApi
       .plans()
       .then(({ data }) => {
         setPlans(data.plans);
+        setProducts(data.products || []);
         setSessions(data.sessions);
       })
       .catch(() => setFailed(true));
   }, []);
 
   // Prices come from the server — the same numbers the checkout charges — so
-  // this page cannot advertise a price the payment would not take.
+  // this page cannot advertise a price the payment would not take. Anything
+  // the server does not price is simply not shown.
+  const menu = products.find((p) => p.id === 'menu');
   const ordered = [...(plans || [])].sort((a, b) => a.amount - b.amount);
   const supermarket = sessions.find((s) => s.id === 'supermarket');
+
+  const buyButton = (item: Buyable, featured: boolean) => (
+    <button
+      onClick={() => setChosen(item)}
+      className={`w-full rounded-xl py-3 font-semibold transition ${
+        featured ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200 hover:bg-emerald-700' : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+      }`}
+    >
+      {t('pricing.choose')}
+    </button>
+  );
 
   return (
     <PublicLayout>
@@ -120,81 +185,74 @@ export const PricingPage = () => {
 
       {chosen ? (
         <div className="mx-auto max-w-md">
-          <CheckoutForm plan={chosen} onCancel={() => setChosen(null)} />
+          <CheckoutForm item={chosen} onCancel={() => setChosen(null)} />
         </div>
       ) : (
         <>
           {failed && <p className="text-center text-slate-500">{t('pricing.noPlans')}</p>}
-          {!plans && !failed && <p className="text-center text-slate-500">{t('common.loading')}</p>}
+          {!plans && !failed && <p role="status" className="text-center text-slate-500">{t('common.loading')}</p>}
 
-          <div className="grid gap-5 md:grid-cols-3">
+          <div className="grid gap-5 sm:grid-cols-2">
+            {menu && (
+              <Card
+                icon={<ClipboardList size={22} aria-hidden="true" />}
+                tone="bg-violet-50 text-violet-700"
+                who={t('pricing.who.yael')}
+                name={t('pricing.product.menu.name')}
+                desc={t('pricing.product.menu.desc')}
+                price={<Price amount={menu.amount} suffix={t('pricing.once')} />}
+                cta={buyButton({ id: 'menu', amount: menu.amount, nameKey: 'pricing.product.menu.name' }, false)}
+              />
+            )}
+
             {ordered.map((plan) => {
-              const featured = plan.includes.includes('yoni');
+              const withYoni = plan.includes.includes('yoni');
               return (
-                <div
+                <Card
                   key={plan.id}
-                  className={`relative flex flex-col rounded-3xl bg-white p-6 shadow-sm ring-1 ${
-                    featured ? 'ring-2 ring-emerald-500 shadow-lg shadow-emerald-100' : 'ring-slate-100'
-                  }`}
-                >
-                  {featured && (
-                    <span className="absolute -top-3 start-6 inline-flex items-center gap-1 rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white">
-                      <Sparkles size={12} /> {t('pricing.recommended')}
-                    </span>
-                  )}
-                  <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
-                    {featured ? <ChefHat size={22} /> : <Check size={22} />}
-                  </div>
-                  <h2 className="text-lg font-bold text-slate-900">{t(`pricing.plan.${plan.id}.name`)}</h2>
-                  <p className="mt-2 flex-1 text-sm text-slate-600">{t(`pricing.plan.${plan.id}.desc`)}</p>
-                  <div className="mt-5">
-                    <Price amount={plan.amount} suffix={t('pricing.perMonth')} />
-                  </div>
-                  <button
-                    onClick={() => setChosen(plan)}
-                    className={`mt-5 rounded-xl py-3 font-semibold transition ${
-                      featured
-                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200 hover:bg-emerald-700'
-                        : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                    }`}
-                  >
-                    {t('pricing.choose')}
-                  </button>
-                </div>
+                  icon={withYoni ? <ChefHat size={22} aria-hidden="true" /> : <MessageCircle size={22} aria-hidden="true" />}
+                  tone={withYoni ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}
+                  who={withYoni ? t('pricing.who.adiYoni') : t('pricing.who.adi')}
+                  name={t(`pricing.plan.${plan.id}.name`)}
+                  desc={t(`pricing.plan.${plan.id}.desc`)}
+                  price={<Price amount={plan.amount} suffix={t('pricing.perMonth')} />}
+                  cta={buyButton({ id: plan.id, amount: plan.amount, nameKey: `pricing.plan.${plan.id}.name` }, withYoni)}
+                  featured={withYoni}
+                />
               );
             })}
 
             {supermarket && (
-              <div className="flex flex-col rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100">
-                <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-50 text-amber-700">
-                  <ShoppingCart size={22} />
-                </div>
-                <h2 className="text-lg font-bold text-slate-900">{t('pricing.session.supermarket.name')}</h2>
-                <p className="mt-2 flex-1 text-sm text-slate-600">{t('pricing.session.supermarket.desc')}</p>
-                <div className="mt-5">
-                  <Price amount={supermarket.amount} suffix={t('pricing.once')} />
-                </div>
-                {/* A session needs a time before it can be paid for, so it
-                    goes through booking rather than straight to checkout. */}
-                <Link
-                  to="/book?type=supermarket"
-                  className="mt-5 rounded-xl bg-amber-50 py-3 text-center font-semibold text-amber-800 transition hover:bg-amber-100"
-                >
-                  {t('pricing.bookSession')}
-                </Link>
-              </div>
+              <Card
+                icon={<ShoppingCart size={22} aria-hidden="true" />}
+                tone="bg-rose-50 text-rose-700"
+                who={t('pricing.who.yael')}
+                name={t('pricing.session.supermarket.name')}
+                desc={t('pricing.session.supermarket.desc')}
+                price={<Price amount={supermarket.amount} suffix={t('pricing.once')} />}
+                cta={
+                  // A session needs a time before it can be paid for, so it
+                  // goes through booking rather than straight to checkout.
+                  <Link
+                    to="/book?type=supermarket"
+                    className="block w-full rounded-xl bg-rose-50 py-3 text-center font-semibold text-rose-800 transition hover:bg-rose-100"
+                  >
+                    {t('pricing.bookSession')}
+                  </Link>
+                }
+              />
             )}
           </div>
 
           <div className="mt-10 flex flex-col items-center gap-4 rounded-3xl bg-white/70 p-6 text-center ring-1 ring-slate-100 md:flex-row md:text-start">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-50 text-sky-700">
-              <CalendarCheck size={24} />
+              <CalendarCheck size={24} aria-hidden="true" />
             </div>
             <div className="flex-1">
               <h2 className="font-bold text-slate-900">{t('pricing.freeDiagnosis.title')}</h2>
               <p className="mt-1 text-sm text-slate-600">{t('pricing.freeDiagnosis.desc')}</p>
             </div>
-            <Link to="/book" className="rounded-xl bg-sky-600 px-5 py-3 font-semibold text-white transition hover:bg-sky-700">
+            <Link to="/book" className="rounded-xl bg-sky-700 px-5 py-3 font-semibold text-white transition hover:bg-sky-800">
               {t('pricing.freeDiagnosis.cta')}
             </Link>
           </div>

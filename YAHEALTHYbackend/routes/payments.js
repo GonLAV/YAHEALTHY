@@ -1,5 +1,5 @@
 /**
- * Payments — a hosted PayPlus page in, a subscription out.
+ * Payments — a hosted PayPlus page in, a subscription or an order out.
  *
  * The person buying does not have an account yet. That is the whole shape of
  * this flow: they pay first, the callback creates the account, and a
@@ -26,12 +26,13 @@ const { normalizePhone, maskPhone } = require('../utils/phone');
 const callbackRouter = express.Router();
 const checkoutRouter = express.Router();
 
-// What may be sold. An unknown plan is refused rather than granted, so a typo
-// or a tampered field cannot mint access to something that does not exist.
-// Two tiers, set by the business owner: 150 for coaching, 250 for coaching
-// with Yoni. The amounts still come from the environment rather than from
-// here — a price changes on a business's schedule, not on a deploy's — and a
-// plan with no price refuses to sell rather than taking nothing for something.
+// What may be sold as a subscription. An unknown plan is refused rather than
+// granted, so a typo or a tampered field cannot mint access to something that
+// does not exist. Set by the business owner: 150 a month for coaching with
+// Adi, 250 for coaching with Yoni as well. The amounts still come from the
+// environment rather than from here — a price changes on a business's
+// schedule, not on a deploy's — and a plan with no price refuses to sell
+// rather than taking nothing for something.
 //
 // `includes` is what the gate reads. Keeping it on the plan means the answer
 // to "does this person get Yoni?" lives next to what they bought, instead of
@@ -39,7 +40,7 @@ const checkoutRouter = express.Router();
 const PLANS = {
   base: {
     amount: Number(process.env.PLAN_BASE_AMOUNT || 0),
-    label: 'ליווי',
+    label: 'ליווי עם עדי',
     includes: []
   },
   yoni: {
@@ -48,6 +49,18 @@ const PLANS = {
     includes: ['yoni']
   }
 };
+
+// What may be sold once, with nothing recurring: Yael's personal menu. Paying
+// grants no access; it opens an order that Yael fulfils by hand, and the staff
+// screen is where she sees it. Same pricing rule as PLANS.
+const PRODUCTS = {
+  menu: {
+    amount: Number(process.env.PRODUCT_MENU_AMOUNT || 0),
+    label: 'תפריט אישי מיעל'
+  }
+};
+
+const has = (table, key) => Object.prototype.hasOwnProperty.call(table, key);
 
 // PayPlus reports the outcome as a code. '000' is approved on every PayPlus
 // account we have documentation for, but it is configurable rather than
@@ -70,7 +83,8 @@ async function flagPayment(uid, reason) {
  * POST /api/payments/checkout
  *
  * Public: the buyer has no account yet. Returns a link to PayPlus's page —
- * this server never sees a card number.
+ * this server never sees a card number. `plan` is a subscription (PLANS) or a
+ * one-time product (PRODUCTS).
  */
 checkoutRouter.post('/checkout', async (req, res) => {
   try {
@@ -93,25 +107,29 @@ checkoutRouter.post('/checkout', async (req, res) => {
         requestId: req.id
       });
     }
-    if (!Object.prototype.hasOwnProperty.call(PLANS, plan)) {
+    const item = has(PLANS, plan) ? PLANS[plan] : has(PRODUCTS, plan) ? PRODUCTS[plan] : null;
+    if (!item) {
       return res.status(400).json({ error: 'Unknown plan', requestId: req.id });
     }
-    if (!payplus.isConfigured()) {
+    if (!payplus.isAvailable()) {
       return res.status(503).json({
         error: 'Payments are not configured on this server',
+        code: 'payments_unavailable',
         requestId: req.id
       });
     }
 
-    const amount = PLANS[plan].amount;
+    const amount = item.amount;
     if (!amount || amount <= 0) {
       // Better a refusal than a payment page for nothing, which would take
       // zero shekels and grant a paid plan.
-      return res.status(503).json({ error: 'That plan has no price set', requestId: req.id });
+      return res.status(503).json({ error: 'That plan has no price set', code: 'no_price', requestId: req.id });
     }
 
     const appUrl = mailer.APP_URL;
     const apiUrl = process.env.API_PUBLIC_URL || '';
+    // The welcome page says the right thing for what was bought.
+    const bought = has(PRODUCTS, plan) ? `product=${plan}` : `plan=${plan}`;
 
     const link = await payplus.createPaymentLink({
       amount,
@@ -120,7 +138,7 @@ checkoutRouter.post('/checkout', async (req, res) => {
       phone,
       plan,
       callbackUrl: `${apiUrl}/api/payments/callback`,
-      successUrl: `${appUrl}/welcome`,
+      successUrl: `${appUrl}/welcome?${bought}`,
       failureUrl: `${appUrl}/payment-failed`
     });
 
@@ -132,32 +150,19 @@ checkoutRouter.post('/checkout', async (req, res) => {
 });
 
 /**
- * POST /api/payments/callback
+ * What a transaction means, once we believe it is real: record it, then grant
+ * the plan, open the order, or confirm the appointment it paid for.
  *
- * PayPlus calls this, not a signed-in user, so there is no JWT to check. The
- * `hash` header is the authentication: it proves the sender holds the account
- * secret. Without that check this route is a public "mark me as paid" button.
+ * Shared by the signed PayPlus callback and the demo payment page, so the demo
+ * exercises exactly the code a real payment runs. Returns the HTTP answer
+ * rather than sending it.
  */
-callbackRouter.post('/callback', async (req, res) => {
-  const verdict = payplus.verifyCallback({
-    rawBody: req.rawBody,
-    parsedBody: req.body,
-    hashHeader: req.get('hash'),
-    userAgent: req.get('user-agent')
-  });
-
-  if (!verdict.ok) {
-    console.warn('[payments] rejected an unverified callback:', verdict.reason);
-    // Nothing about why. An attacker probing this endpoint learns only that
-    // it refused them.
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
-  const transaction = req.body?.transaction || {};
+async function handleTransaction(body) {
+  const transaction = body?.transaction || {};
   const uid = transaction.payment_request_uid || transaction.uid;
 
   if (!uid) {
-    return res.status(400).json({ error: 'Callback carries no transaction id' });
+    return { status: 400, json: { error: 'Callback carries no transaction id' } };
   }
 
   const plan = transaction.more_info || null;
@@ -175,17 +180,17 @@ callbackRouter.post('/callback', async (req, res) => {
       status: approved ? 'approved' : 'declined',
       amount: transaction.amount ?? null,
       currency: transaction.currency ?? null,
-      raw: req.body
+      raw: body
     });
 
     if (!created) {
       // Already handled. Acknowledge, so PayPlus stops retrying.
-      return res.json({ received: true, duplicate: true });
+      return { status: 200, json: { received: true, duplicate: true } };
     }
 
     if (!approved) {
       console.info('[payments] declined transaction recorded');
-      return res.json({ received: true });
+      return { status: 200, json: { received: true } };
     }
 
     // A paid session is not a subscription: it confirms one appointment and
@@ -193,15 +198,15 @@ callbackRouter.post('/callback', async (req, res) => {
     if (plan === 'supermarket') {
       const outcome = await appointments.confirmPaid(transaction.more_info_4 || null, transaction.amount ?? null);
       if (outcome.noBooking) await flagPayment(uid, 'no_booking');
-      return res.json({ received: true, ...outcome });
+      return { status: 200, json: { received: true, ...outcome } };
     }
 
-    if (!email || !Object.prototype.hasOwnProperty.call(PLANS, plan)) {
+    if (!email || !(has(PLANS, plan) || has(PRODUCTS, plan))) {
       // Money changed hands but we cannot tell what for. Recorded above, so it
       // is recoverable by hand, and loud here so someone looks.
       console.error('[payments] approved payment with no usable email or plan:', uid);
       await flagPayment(uid, 'unusable');
-      return res.json({ received: true, needsAttention: true });
+      return { status: 200, json: { received: true, needsAttention: true } };
     }
 
     let user = await db.getUserByEmail(email);
@@ -234,7 +239,19 @@ callbackRouter.post('/callback', async (req, res) => {
       }
     }
 
-    await db.createSubscription(user.id, plan);
+    if (has(PRODUCTS, plan)) {
+      // Nothing to grant: a person has work to do. The order is what tells her.
+      await db.createOrder({
+        page_request_uid: uid,
+        user_id: user.id,
+        product: plan,
+        email,
+        phone: phone || null,
+        amount: transaction.amount ?? null
+      });
+    } else {
+      await db.createSubscription(user.id, plan);
+    }
 
     // The same single-use, session-cutting mechanism as a password reset. A
     // password is never sent by email, only a link to choose one.
@@ -245,26 +262,52 @@ callbackRouter.post('/callback', async (req, res) => {
       // the ordinary reset link in case it was never set.
       await (isNewAccount ? mailer.sendWelcomeEmail : mailer.sendPasswordResetEmail)(user.email, setupToken);
     } catch (mailError) {
-      // The subscription is already real. A failed email is a delivery problem
-      // to chase, not a reason to tell PayPlus the payment failed.
+      // The purchase is already real. A failed email is a delivery problem to
+      // chase, not a reason to tell PayPlus the payment failed.
       console.error('[payments] could not send the welcome mail:', mailError && mailError.message);
     }
 
-    console.info(`[payments] subscription activated (new account: ${isNewAccount})`);
-    return res.json({ received: true });
+    console.info(`[payments] ${has(PRODUCTS, plan) ? 'order opened' : 'subscription activated'} (new account: ${isNewAccount})`);
+    return { status: 200, json: { received: true } };
   } catch (error) {
     console.error('[payments] callback processing failed:', error && error.message);
     // A 500 makes PayPlus retry, which is what we want: the event was not
     // recorded, so the retry will be treated as new rather than as a duplicate.
-    return res.status(500).json({ error: 'Could not process the callback' });
+    return { status: 500, json: { error: 'Could not process the callback' } };
   }
+}
+
+/**
+ * POST /api/payments/callback
+ *
+ * PayPlus calls this, not a signed-in user, so there is no JWT to check. The
+ * `hash` header is the authentication: it proves the sender holds the account
+ * secret. Without that check this route is a public "mark me as paid" button.
+ */
+callbackRouter.post('/callback', async (req, res) => {
+  const verdict = payplus.verifyCallback({
+    rawBody: req.rawBody,
+    parsedBody: req.body,
+    hashHeader: req.get('hash'),
+    userAgent: req.get('user-agent')
+  });
+
+  if (!verdict.ok) {
+    console.warn('[payments] rejected an unverified callback:', verdict.reason);
+    // Nothing about why. An attacker probing this endpoint learns only that
+    // it refused them.
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const out = await handleTransaction(req.body);
+  return res.status(out.status).json(out.json);
 });
 
 /**
  * GET /api/payments/plans — what is for sale, for the pricing page.
  *
- * Public, and read from the same PLANS the checkout charges from, so the page
- * cannot show a price the checkout would not take. A plan with no price is
+ * Public, and read from the same tables the checkout charges from, so the page
+ * cannot show a price the checkout would not take. Anything with no price is
  * left out rather than shown as free.
  */
 checkoutRouter.get('/plans', (req, res) => {
@@ -272,10 +315,61 @@ checkoutRouter.get('/plans', (req, res) => {
   const plans = Object.entries(PLANS)
     .filter(([, p]) => p.amount > 0)
     .map(([id, p]) => ({ id, label: p.label, amount: p.amount, includes: p.includes, billing: 'monthly' }));
+  const products = Object.entries(PRODUCTS)
+    .filter(([, p]) => p.amount > 0)
+    .map(([id, p]) => ({ id, label: p.label, amount: p.amount, billing: 'once' }));
   const supermarket = config().price.supermarket;
   const sessions = supermarket > 0 ? [{ id: 'supermarket', amount: supermarket, billing: 'once' }] : [];
-  return res.json({ plans, sessions });
+  return res.json({ plans, products, sessions });
 });
+
+/**
+ * The demo payment page's two calls (see isDemo in utils/payplus.js). Both
+ * answer 404 unless demo payments are on — in production they always are off,
+ * whatever the environment says.
+ *
+ *   GET  /api/payments/demo/:uid          what is being paid for
+ *   POST /api/payments/demo/:uid/pay      approve it, through handleTransaction
+ *   POST /api/payments/demo/:uid/cancel   decline it
+ */
+const DEMO_LABELS = { ...Object.fromEntries(Object.entries(PLANS).map(([k, v]) => [k, v.label])), ...Object.fromEntries(Object.entries(PRODUCTS).map(([k, v]) => [k, v.label])), supermarket: 'פגישה בסופר' };
+
+checkoutRouter.get('/demo/:uid', (req, res) => {
+  const payment = payplus.getDemoPayment(req.params.uid);
+  if (!payment) return res.status(404).json({ error: 'Not found', requestId: req.id });
+  return res.json({
+    amount: payment.amount,
+    currency: payment.currency,
+    item: payment.plan,
+    label: DEMO_LABELS[payment.plan] || payment.plan,
+    email: payment.email
+  });
+});
+
+// Two routes rather than `:outcome(pay|cancel)`: Express 5 no longer accepts
+// a pattern inside a route parameter.
+const finishDemo = (pay) => async (req, res) => {
+  const payment = payplus.getDemoPayment(req.params.uid, { take: true });
+  if (!payment) return res.status(404).json({ error: 'Not found', requestId: req.id });
+  const out = await handleTransaction({
+    transaction: {
+      uid: payment.uid,
+      payment_request_uid: payment.uid,
+      status_code: pay ? APPROVED_STATUS_CODE : 'demo-declined',
+      amount: payment.amount,
+      currency: payment.currency || 'ILS',
+      more_info: payment.plan,
+      more_info_2: payment.email,
+      more_info_3: payment.phone || '',
+      more_info_4: payment.reference || ''
+    },
+    demo: true
+  });
+  if (out.status !== 200) return res.status(out.status).json(out.json);
+  return res.json({ redirect: pay ? payment.successUrl : payment.failureUrl });
+};
+checkoutRouter.post('/demo/:uid/pay', finishDemo(true));
+checkoutRouter.post('/demo/:uid/cancel', finishDemo(false));
 
 /**
  * GET /api/payments/my-plans — what the signed-in person is entitled to.
@@ -296,4 +390,4 @@ checkoutRouter.get('/my-plans', auth.authMiddleware, async (req, res) => {
   }
 });
 
-module.exports = { callbackRouter, checkoutRouter, PLANS };
+module.exports = { callbackRouter, checkoutRouter, PLANS, PRODUCTS };

@@ -29,6 +29,42 @@ function isConfigured() {
 }
 
 /**
+ * Demo payments: a stand-in for PayPlus so the demo (scripts/dev-demo.js) can
+ * be clicked through a purchase end to end.
+ *
+ * Three locks, all required: never in production, only when DEMO_PAYMENTS is
+ * explicitly 'true', and only when real PayPlus is not configured — so a real
+ * key always wins, and no setting can make production take a fake payment.
+ * The pending payments live in this process's memory and vanish with it.
+ */
+function isDemo() {
+  return process.env.NODE_ENV !== 'production' && process.env.DEMO_PAYMENTS === 'true' && !isConfigured();
+}
+
+/** Whether anything can take a payment at all — PayPlus, or the demo stand-in. */
+function isAvailable() {
+  return isConfigured() || isDemo();
+}
+
+const demoPayments = new Map();
+
+function createDemoLink(details) {
+  const uid = `demo_${crypto.randomUUID()}`;
+  demoPayments.set(uid, { ...details, uid });
+  // Served by the frontend (/demo-pay), on the same origin the buyer returns to.
+  const origin = new URL(details.successUrl).origin;
+  return { pageRequestUid: uid, paymentPageLink: `${origin}/demo-pay?ref=${encodeURIComponent(uid)}` };
+}
+
+/** A pending demo payment, or null. `take` removes it: each can be paid once. */
+function getDemoPayment(uid, { take = false } = {}) {
+  if (!isDemo()) return null;
+  const payment = demoPayments.get(uid) || null;
+  if (payment && take) demoPayments.delete(uid);
+  return payment;
+}
+
+/**
  * Is this callback really from PayPlus?
  *
  * PayPlus sends a `hash` header: HMAC-SHA256 of the request body, keyed with
@@ -84,6 +120,9 @@ function verifyCallback({ rawBody, parsedBody, hashHeader, userAgent }) {
  * so the callback does not have to guess what was bought.
  */
 async function createPaymentLink({ amount, currency = 'ILS', customerName, email, phone, plan, reference, callbackUrl, successUrl, failureUrl }) {
+  if (!isConfigured() && isDemo()) {
+    return createDemoLink({ amount, currency, customerName, email, phone, plan, reference, successUrl, failureUrl });
+  }
   if (!isConfigured()) {
     throw new Error(
       'PayPlus is not configured. Set PAYPLUS_API_KEY, PAYPLUS_SECRET_KEY and PAYPLUS_PAYMENT_PAGE_UID.'
@@ -144,6 +183,9 @@ async function createPaymentLink({ amount, currency = 'ILS', customerName, email
 
 module.exports = {
   isConfigured,
+  isDemo,
+  isAvailable,
+  getDemoPayment,
   verifyCallback,
   createPaymentLink,
   BASE_URL,

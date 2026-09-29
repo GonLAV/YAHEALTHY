@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, Inbox, Mail, MapPin, MessageCircle, Phone, Video } from 'lucide-react';
+import { AlertTriangle, ClipboardList, Inbox, Mail, MapPin, MessageCircle, Phone, Video } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Num } from '@/components/ui/Num';
 import { useLanguage } from '@/i18n/LanguageContext';
-import { Escalation, FlaggedPayment, StaffAppointment, StaffScope, staffApi } from '@/services/api';
+import { Escalation, FlaggedPayment, Order, StaffAppointment, StaffScope, staffApi } from '@/services/api';
 
-type Tab = StaffScope | 'escalations' | 'payments';
-const TABS: Tab[] = ['upcoming', 'attention', 'payments', 'escalations', 'recent'];
+type Tab = StaffScope | 'escalations' | 'payments' | 'orders';
+// Orders first after the calendar: a paid menu is work someone is waiting on.
+const TABS: Tab[] = ['upcoming', 'orders', 'attention', 'payments', 'escalations', 'recent'];
 const TZ = 'Asia/Jerusalem';
 
 // Stored canonical as 972501234567; shown the way people read a number here.
@@ -204,17 +205,73 @@ const PaymentCard = ({ p, onChanged }: { p: FlaggedPayment; onChanged: () => voi
   );
 };
 
+/** A paid personal menu: who, when, and moving it from paid to delivered. */
+const OrderCard = ({ o, onChanged }: { o: Order; onChanged: () => void }) => {
+  const { t, lang } = useLanguage();
+  const [busy, setBusy] = useState(false);
+  const when = new Intl.DateTimeFormat(lang === 'he' ? 'he-IL' : 'en-GB', { timeZone: TZ, dateStyle: 'short', timeStyle: 'short' }).format(new Date(o.created_at));
+  const move = async (status: Order['status']) => {
+    setBusy(true);
+    try {
+      await staffApi.setOrderStatus(o.id, status);
+      onChanged();
+    } catch {
+      window.alert(t('common.error'));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const statusColor = o.status === 'paid' ? 'bg-amber-50 text-amber-800' : o.status === 'in_progress' ? 'bg-sky-50 text-sky-800' : 'bg-slate-100 text-slate-600';
+
+  return (
+    <article className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-700"><ClipboardList size={18} aria-hidden="true" /></span>
+          <div>
+            <p className="font-bold text-slate-900">{t(`pricing.product.${o.product}.name`)}</p>
+            <p className="text-xs text-slate-500"><Num>{when}</Num>{o.amount ? <> · <Num>₪{o.amount}</Num></> : null}</p>
+          </div>
+        </div>
+        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusColor}`}>{t(`staff.order.${o.status}`)}</span>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-slate-700">
+        {o.phone && (
+          <>
+            <a href={`tel:+${o.phone}`} className="inline-flex items-center gap-1.5 hover:text-emerald-700"><Phone size={14} aria-hidden="true" /> <Num>{displayPhone(o.phone)}</Num></a>
+            <a href={waLink(o.phone)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 hover:text-emerald-700"><MessageCircle size={14} aria-hidden="true" /> {t('staff.openWhatsapp')}</a>
+          </>
+        )}
+        {o.email && <a href={`mailto:${o.email}`} className="inline-flex items-center gap-1.5 hover:text-emerald-700"><Mail size={14} aria-hidden="true" /> <span dir="ltr">{o.email}</span></a>}
+      </div>
+      {(o.status === 'paid' || o.status === 'in_progress') && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {o.status === 'paid' && (
+            <button disabled={busy} onClick={() => move('in_progress')} className="rounded-xl bg-sky-700 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-800 disabled:opacity-60">{t('staff.order.start')}</button>
+          )}
+          <button disabled={busy} onClick={() => move('delivered')} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">{t('staff.order.deliver')}</button>
+          <button disabled={busy} onClick={() => window.confirm(t('staff.order.confirmCancel')) && move('cancelled')} className="rounded-xl px-4 py-2 text-sm font-semibold text-rose-700 ring-1 ring-rose-200 hover:bg-rose-50 disabled:opacity-60">{t('staff.order.cancel')}</button>
+        </div>
+      )}
+    </article>
+  );
+};
+
 export const StaffPage = () => {
   const { t } = useLanguage();
   const [tab, setTab] = useState<Tab>('upcoming');
   const [appointments, setAppointments] = useState<StaffAppointment[] | null>(null);
   const [escalations, setEscalations] = useState<Escalation[] | null>(null);
   const [payments, setPayments] = useState<FlaggedPayment[] | null>(null);
+  const [orders, setOrders] = useState<Order[] | null>(null);
   const [failed, setFailed] = useState(false);
 
   const load = useCallback(() => {
     setFailed(false);
-    if (tab === 'payments') {
+    if (tab === 'orders') {
+      setOrders(null);
+      staffApi.orders('open').then(({ data }) => setOrders(data.orders)).catch(() => setFailed(true));
+    } else if (tab === 'payments') {
       setPayments(null);
       staffApi.payments().then(({ data }) => setPayments(data.payments)).catch(() => setFailed(true));
     } else if (tab === 'escalations') {
@@ -228,7 +285,7 @@ export const StaffPage = () => {
 
   useEffect(load, [load]);
 
-  const list = tab === 'escalations' ? escalations : tab === 'payments' ? payments : appointments;
+  const list = tab === 'escalations' ? escalations : tab === 'payments' ? payments : tab === 'orders' ? orders : appointments;
 
   return (
     <div className="mx-auto max-w-4xl p-4 md:p-8">
@@ -260,7 +317,9 @@ export const StaffPage = () => {
           ? escalations?.map((m) => <EscalationCard key={m.id} m={m} onChanged={load} />)
           : tab === 'payments'
             ? payments?.map((p) => <PaymentCard key={p.uid} p={p} onChanged={load} />)
-            : appointments?.map((a) => <AppointmentCard key={a.id} a={a} onChanged={load} />)}
+            : tab === 'orders'
+              ? orders?.map((o) => <OrderCard key={o.id} o={o} onChanged={load} />)
+              : appointments?.map((a) => <AppointmentCard key={a.id} a={a} onChanged={load} />)}
       </div>
     </div>
   );
