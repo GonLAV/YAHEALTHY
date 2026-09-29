@@ -8,6 +8,7 @@
  * alike) and hands them to the pure utils/engagement.js.
  */
 
+const { forRequest: reqLog } = require('../utils/logger');
 const express = require('express');
 const auth = require('../utils/auth');
 const db = require('../utils/database');
@@ -55,7 +56,7 @@ router.get('/summary', auth.authMiddleware, async (req, res) => {
     const summary = buildEngagementSummary({ ...inputs, tz, lang, now: new Date() });
     return res.json(summary);
   } catch (error) {
-    console.error('engagement summary failed:', error && error.message);
+    reqLog(req).error('engagement summary failed', { err: error });
     return res.status(500).json({ error: 'Failed to build engagement summary', requestId: req.id });
   }
 });

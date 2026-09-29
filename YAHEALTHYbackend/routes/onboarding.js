@@ -12,6 +12,7 @@
  * rest of the backend uses, safety floors included.
  */
 
+const { forRequest: reqLog } = require('../utils/logger');
 const express = require('express');
 const { z, ZodError } = require('zod');
 const auth = require('../utils/auth');
@@ -27,7 +28,7 @@ router.get('/', async (req, res) => {
     if (!status) return res.status(404).json({ error: 'User not found', requestId: req.id });
     return res.json(status);
   } catch (error) {
-    console.error('Onboarding status error:', error);
+    reqLog(req).error('Onboarding status error', { err: error });
     return res.status(500).json({ error: 'Could not load onboarding status', requestId: req.id });
   }
 });
@@ -51,7 +52,7 @@ router.post('/', async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
     }
-    console.error('Onboarding complete error:', error);
+    reqLog(req).error('Onboarding complete error', { err: error });
     return res.status(500).json({ error: 'Could not save onboarding status', requestId: req.id });
   }
 });
@@ -91,7 +92,7 @@ router.post('/targets-preview', async (req, res) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
     }
-    console.error('Onboarding preview error:', error);
+    reqLog(req).error('Onboarding preview error', { err: error });
     return res.status(500).json({ error: 'Could not calculate targets', requestId: req.id });
   }
 });

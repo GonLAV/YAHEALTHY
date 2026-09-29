@@ -17,6 +17,7 @@
  * fills in.
  */
 
+const { forRequest: reqLog } = require('../utils/logger');
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { z } = require('zod');
@@ -121,7 +122,7 @@ router.post('/leads', leadLimiter, validateBody(leadSchema), async (req, res) =>
     });
     return res.status(201).json(accepted);
   } catch (error) {
-    console.error('[marketing] could not store a lead:', error && error.message);
+    reqLog(req).error('[marketing] could not store a lead', { err: error });
     return res.status(500).json({ error: 'Could not save your details', requestId: req.id });
   }
 });
@@ -186,7 +187,7 @@ router.get('/leads', auth.authMiddleware, requireStaff, async (req, res) => {
     res.set('Cache-Control', 'no-store');
     return res.json({ count: leads.length, leads });
   } catch (error) {
-    console.error('[marketing] could not list leads:', error && error.message);
+    reqLog(req).error('[marketing] could not list leads', { err: error });
     return res.status(500).json({ error: 'Could not read leads', requestId: req.id });
   }
 });
@@ -317,7 +318,7 @@ router.get('/unsubscribe', publicLinkLimiter, async (req, res) => {
       showForget: result.kind === 'lead' && result.exists
     }));
   } catch (error) {
-    console.error('[marketing] unsubscribe failed:', error && error.message);
+    reqLog(req).error('[marketing] unsubscribe failed', { err: error });
     return res.status(500).json({ error: 'Could not unsubscribe', requestId: req.id });
   }
 });
@@ -330,7 +331,7 @@ router.post('/unsubscribe', publicLinkLimiter, formBody, async (req, res) => {
     if (!result.ok) return res.status(400).json({ error: 'Invalid token', requestId: req.id });
     return res.json({ ok: true });
   } catch (error) {
-    console.error('[marketing] unsubscribe failed:', error && error.message);
+    reqLog(req).error('[marketing] unsubscribe failed', { err: error });
     return res.status(500).json({ error: 'Could not unsubscribe', requestId: req.id });
   }
 });
@@ -366,7 +367,7 @@ router.post('/leads/forget', publicLinkLimiter, formBody, async (req, res) => {
     }
     return res.json({ ok: true, deleted: true });
   } catch (error) {
-    console.error('[marketing] forget failed:', error && error.message);
+    reqLog(req).error('[marketing] forget failed', { err: error });
     return res.status(500).json({ error: 'Could not delete your details', requestId: req.id });
   }
 });
@@ -395,7 +396,7 @@ router.get('/preferences', auth.authMiddleware, async (req, res) => {
     const prefs = await db.getNotificationPrefs(req.user.userId);
     return res.json({ preferences: publicPrefs(prefs) });
   } catch (error) {
-    console.error('[marketing] read preferences failed:', error && error.message);
+    reqLog(req).error('[marketing] read preferences failed', { err: error });
     return res.status(500).json({ error: 'Could not read preferences', requestId: req.id });
   }
 });
@@ -415,7 +416,7 @@ router.put('/preferences', auth.authMiddleware, validateBody(prefsSchema), async
     const prefs = await db.upsertNotificationPrefs(req.user.userId, patch);
     return res.json({ preferences: publicPrefs(prefs) });
   } catch (error) {
-    console.error('[marketing] update preferences failed:', error && error.message);
+    reqLog(req).error('[marketing] update preferences failed', { err: error });
     return res.status(500).json({ error: 'Could not update preferences', requestId: req.id });
   }
 });
@@ -434,7 +435,7 @@ router.get('/campaigns/stats', auth.authMiddleware, requireStaff, async (req, re
       }
     });
   } catch (error) {
-    console.error('[marketing] campaign stats failed:', error && error.message);
+    reqLog(req).error('[marketing] campaign stats failed', { err: error });
     return res.status(500).json({ error: 'Could not read campaign stats', requestId: req.id });
   }
 });
@@ -459,7 +460,7 @@ router.post('/campaigns/:id/preview', auth.authMiddleware, requireStaff, validat
     if (error.status === 404 || error.status === 400) {
       return res.status(error.status).json({ error: error.message, requestId: req.id });
     }
-    console.error('[marketing] campaign preview failed:', error && error.message);
+    reqLog(req).error('[marketing] campaign preview failed', { err: error });
     return res.status(500).json({ error: 'Could not render preview', requestId: req.id });
   }
 });
@@ -472,7 +473,7 @@ router.post('/campaigns/run', auth.authMiddleware, requireStaff, async (req, res
     res.set('Cache-Control', 'no-store');
     return res.json(result);
   } catch (error) {
-    console.error('[marketing] campaign run failed:', error && error.message);
+    reqLog(req).error('[marketing] campaign run failed', { err: error });
     return res.status(500).json({ error: 'Campaign run failed', requestId: req.id });
   }
 });

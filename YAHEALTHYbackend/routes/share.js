@@ -38,6 +38,7 @@
  * SHARE_BASE_URL can point straight at this backend.
  */
 
+const { forRequest: reqLog } = require('../utils/logger');
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const auth = require('../utils/auth');
@@ -130,7 +131,7 @@ router.get('/api/share/weekly-card', auth.authMiddleware, async (req, res) => {
       height: card.CARD_HEIGHT
     });
   } catch (error) {
-    console.error('share card build failed:', error && error.message);
+    reqLog(req).error('share card build failed', { err: error });
     return res.status(500).json({ error: 'Failed to build weekly card', requestId: req.id });
   }
 });
@@ -159,7 +160,7 @@ router.post('/api/share/weekly-card/link', auth.authMiddleware, async (req, res)
       snapshot
     });
   } catch (error) {
-    console.error('share link create failed:', error && error.message);
+    reqLog(req).error('share link create failed', { err: error });
     return res.status(500).json({ error: 'Failed to create share link', requestId: req.id });
   }
 });
@@ -179,7 +180,7 @@ router.put(
       if (!result.ok) return res.status(404).json({ error: 'Not found', requestId: req.id });
       return res.status(204).end();
     } catch (error) {
-      console.error('share image upload failed:', error && error.message);
+      reqLog(req).error('share image upload failed', { err: error });
       return res.status(500).json({ error: 'Failed to store image', requestId: req.id });
     }
   }
@@ -193,7 +194,7 @@ router.delete('/api/share/c/:token', auth.authMiddleware, async (req, res) => {
     if (!result.ok) return res.status(404).json({ error: 'Not found', requestId: req.id });
     return res.status(204).end();
   } catch (error) {
-    console.error('share revoke failed:', error && error.message);
+    reqLog(req).error('share revoke failed', { err: error });
     return res.status(500).json({ error: 'Failed to revoke link', requestId: req.id });
   }
 });
@@ -220,7 +221,7 @@ router.get('/api/share/c/:token', publicLimiter, async (req, res) => {
       ctaUrl: card.buildCtaUrl(appUrl(), row.ref_code)
     });
   } catch (error) {
-    console.error('share read failed:', error && error.message);
+    reqLog(req).error('share read failed', { err: error });
     return res.status(500).json({ error: 'Failed to load card', requestId: req.id });
   }
 });
@@ -262,7 +263,7 @@ router.get('/s/:token', publicLimiter, async (req, res) => {
       ctaUrl: card.buildCtaUrl(appUrl(), row.ref_code)
     }));
   } catch (error) {
-    console.error('share page failed:', error && error.message);
+    reqLog(req).error('share page failed', { err: error });
     return res.status(500).type('text').send('Something went wrong');
   }
 });
@@ -284,7 +285,7 @@ router.get('/s/:token/card.svg', publicLimiter, async (req, res) => {
     imageHeaders(res, 'image/svg+xml; charset=utf-8');
     return res.send(card.renderCardSvg(row.snapshot));
   } catch (error) {
-    console.error('share svg failed:', error && error.message);
+    reqLog(req).error('share svg failed', { err: error });
     return res.status(500).type('text').send('Something went wrong');
   }
 });
@@ -296,7 +297,7 @@ router.get('/s/:token/card.png', publicLimiter, async (req, res) => {
     imageHeaders(res, 'image/png');
     return res.send(Buffer.from(row.image_png, 'base64'));
   } catch (error) {
-    console.error('share png failed:', error && error.message);
+    reqLog(req).error('share png failed', { err: error });
     return res.status(500).type('text').send('Something went wrong');
   }
 });

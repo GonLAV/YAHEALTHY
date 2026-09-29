@@ -13,6 +13,7 @@
  * not still carry staff rights, and tokens here live for seven days.
  */
 
+const { forRequest: reqLog } = require('../utils/logger');
 const db = require('../utils/database');
 const { notFoundHandler } = require('../utils/error-handler');
 
@@ -38,7 +39,7 @@ async function requireStaff(req, res, next) {
     // Fail closed. Staff access that cannot be confirmed is not granted — the
     // data behind these routes is exactly the kind where "probably fine" is
     // the wrong default.
-    console.error('[staff] could not verify staff access:', error && error.message);
+    reqLog(req).error('[staff] could not verify staff access', { err: error });
     return res.status(503).json({ error: 'Service unavailable' });
   }
 }

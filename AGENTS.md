@@ -30,6 +30,7 @@
 - `index.js` — core API (auth, logs, coach) + mounts routers; `utils/config-check.js` runs right after dotenv
 - `routes/` — `referrals` (013), `marketing` (plans + consented leads, 014), `engagement` (streaks/Health Score/achievements), `onboarding` (015), `share` (`/api/share/*` + public `/s/:token` pages, 016), `analytics` (staff dashboard, 019), `payments` (PayPlus), `foods`, `whatsapp`, `whapi`
 - `middleware/requireStaff.js` — after `authMiddleware`; non-staff get **404** (not 403) by design
+- **Observability**: log through `utils/logger.js` (`req.log` carries the request id; JSON lines in prod, pretty in dev; `LOG_LEVEL`/`LOG_FORMAT`; redacts emails/phones/tokens/secret-named keys) — no new `console.*` in non-legacy modules. `middleware/accessLog.js` logs route PATTERNS only (never raw URLs: `/s/:token`). Central `utils/error-handler.js` + `utils/process-handlers.js`; optional Sentry via `utils/error-tracker.js` (plain fetch to the envelope API, only when `SENTRY_DSN` is set). Jobs/5xx counts live in `utils/health-registry.js` (in memory, per process) → staff `GET /api/admin/health` (`routes/admin.js`, shown under "System health" on `/admin/marketing`). Browser crashes: `AppErrorBoundary` + `utils/errorReporting.ts` → `POST /api/client-errors` (8 KB cap, rate-limited, scrubbed). Tests: `tests/observability.test.js`.
 
 ## Migrations
 - `YAHEALTHYbackend/migrations/NNN_name.sql`, applied by hand in the Supabase SQL editor, in filename order. Each new file is idempotent (`if not exists`) and documents its rollback in a `-- נתיב חזרה:` header.

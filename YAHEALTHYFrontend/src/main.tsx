@@ -4,8 +4,12 @@ import App from './App'
 import './index.css'
 import { captureAttribution } from './utils/attribution'
 import { captureInstallPrompt, registerServiceWorker } from './pwa/pwa'
+import { installGlobalErrorReporting } from './utils/errorReporting'
 import { readStoredLang } from './i18n/LanguageContext'
 import { alternatesFor, matchPublicRoute, normalizePath } from './seo/site'
+
+// Uncaught errors and unhandled rejections → POST /api/client-errors (sampled, scrubbed).
+installGlobalErrorReporting()
 
 // First-touch ?ref= / utm_* capture, before the router can redirect away from them.
 captureAttribution()

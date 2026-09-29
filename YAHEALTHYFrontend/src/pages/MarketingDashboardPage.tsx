@@ -3,6 +3,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { ArrowDown, ArrowUp, ArrowUpDown, Download, Inbox, Megaphone, UserCheck, UserPlus, Wallet, Zap } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatCard } from '@/components/ui/StatCard';
+import { SystemHealthSection } from '@/components/staff/SystemHealthSection';
 import { useLanguage } from '@/i18n/LanguageContext';
 import '@/i18n/strings/staff'; // this page's analytics.* strings (kept off the public pages)
 import {
@@ -770,6 +771,9 @@ export const MarketingDashboardPage = () => {
           )}
         </SectionStatus>
       </Card>
+
+      {/* System health: uptime, DB, jobs, recent server errors (GET /api/admin/health) */}
+      <SystemHealthSection />
     </div>
   );
 };

@@ -19,6 +19,8 @@
  * .env.example; tests/config-check.test.js keeps the contract honest.
  */
 
+const defaultLogger = require('./logger').child({ component: 'config' });
+
 const isSet = (env, name) => typeof env[name] === 'string' && env[name].trim() !== '';
 
 // Placeholders shipped in .env.example / utils/database.js. A deploy that
@@ -150,6 +152,14 @@ const OPTIONAL = [
     prodOnly: true
   },
   {
+    feature: 'error-tracking',
+    off: (env) =>
+      isSet(env, 'SENTRY_DSN')
+        ? null
+        : 'SENTRY_DSN unset -> server errors are only in the logs (no Sentry reports).',
+    prodOnly: true
+  },
+  {
     feature: 'scheduler',
     off: (env) =>
       isSet(env, 'VERCEL')
@@ -180,7 +190,7 @@ function checkConfig(env = process.env) {
  * utils/auth.js generates a throwaway JWT secret and ALLOW_MEMORY_DB decides
  * the database, exactly as before.
  */
-function runStartupConfigCheck(env = process.env, logger = console) {
+function runStartupConfigCheck(env = process.env, logger = defaultLogger) {
   const report = checkConfig(env);
 
   if (report.production && report.errors.length) {
