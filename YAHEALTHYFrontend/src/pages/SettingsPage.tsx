@@ -32,7 +32,7 @@ const SECTIONS = [
 
 const inputClass =
   'mt-1 block w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200';
-const checkboxClass = 'mt-0.5 h-5 w-5 shrink-0 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 disabled:opacity-60';
+const checkboxClass = 'mt-0.5 h-5 w-5 shrink-0 rounded border-slate-300 text-emerald-700 focus:ring-emerald-500 disabled:opacity-60';
 
 /** A labelled region: `aria-labelledby` points at its own h2. Focusable so a #hash link can move focus here. */
 const SettingsSection = ({
@@ -55,14 +55,14 @@ const SettingsSection = ({
     className="scroll-mt-20 rounded-3xl bg-slate-100/60 p-4 outline-none ring-emerald-300 focus-visible:ring-2 sm:p-5"
   >
     <div className="mb-4 flex items-center gap-3">
-      <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700" aria-hidden="true">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700" aria-hidden="true">
         {icon}
       </span>
       <div>
         <h2 id={`${id}-title`} className="text-lg font-bold text-slate-900">
           {title}
         </h2>
-        {hint && <p className="text-sm text-slate-500">{hint}</p>}
+        {hint && <p className="text-sm text-slate-600">{hint}</p>}
       </div>
     </div>
     {children}
@@ -264,7 +264,7 @@ const ProfileSection = () => {
                     {Math.round(targets[item.key] as number)} {item.unit}
                   </span>
                 ) : (
-                  <span className="font-normal text-slate-400">{t('settings.profile.notSet')}</span>
+                  <span className="font-normal text-slate-500">{t('settings.profile.notSet')}</span>
                 )}
               </dd>
             </div>
@@ -275,7 +275,7 @@ const ProfileSection = () => {
         <Link
           to="/onboarding"
           aria-describedby="settings-onboarding-hint"
-          className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+          className="inline-flex items-center gap-1.5 rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800"
         >
           <Target size={16} aria-hidden="true" />
           {t('settings.profile.rerun')}
@@ -330,7 +330,7 @@ const LanguageSection = () => {
                 value={l.value}
                 checked={lang === l.value}
                 onChange={() => choose(l.value)}
-                className="h-4 w-4 border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                className="h-4 w-4 border-slate-300 text-emerald-700 focus:ring-emerald-500"
               />
               <span lang={l.value}>{l.label}</span>
             </label>
@@ -455,7 +455,7 @@ const AccountSection = () => {
           <button
             type="submit"
             disabled={busy}
-            className="mt-2 rounded-2xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+            className="mt-2 rounded-2xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-60"
           >
             {busy ? t('settings.password.saving') : t('settings.password.submit')}
           </button>

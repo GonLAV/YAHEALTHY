@@ -1,3 +1,4 @@
+import { useLocation } from 'react-router-dom';
 import { useLanguage } from '@/i18n/LanguageContext';
 
 /** The WhatsApp bot number, in international format (055-3174301 → 972553174301) */
@@ -18,7 +19,11 @@ const WhatsAppIcon = ({ size = 28 }: { size?: number }) => (
 
 export const WhatsAppWidget = () => {
   const { t } = useLanguage();
+  const { pathname } = useLocation();
   const label = t('whatsapp.chat');
+
+  // The setup wizard is a focused flow; the floating button would cover its answers.
+  if (pathname === '/onboarding') return null;
 
   return (
     <a
@@ -27,7 +32,7 @@ export const WhatsAppWidget = () => {
       rel="noopener noreferrer"
       aria-label={t('whatsapp.aria')}
       title={label}
-      className="fixed bottom-20 end-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg transition hover:scale-105 hover:bg-[#1eb355] md:bottom-6 md:h-auto md:w-auto md:gap-2 md:rounded-full md:px-5 md:py-3"
+      className="fixed bottom-20 end-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-slate-900 shadow-lg transition hover:scale-105 hover:bg-[#1eb355] md:bottom-6 md:h-auto md:w-auto md:gap-2 md:rounded-full md:px-5 md:py-3"
     >
       <WhatsAppIcon />
       <span className="hidden text-sm font-semibold md:inline">{label}</span>

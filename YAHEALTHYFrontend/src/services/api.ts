@@ -631,4 +631,91 @@ export const preferencesApi = {
     api.put<{ preferences: Record<string, unknown> }>('/api/users/me/preferences', { preferences }),
 };
 
+// ─── Weekly meal planner (/api/meal-plans/week*, utils/meal-planner.js) ─────
+
+export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+export interface Bilingual { he: string; en: string }
+export interface Nutrition { kcal: number; protein: number; carbs: number; fat: number }
+
+export interface PlannedIngredient extends Bilingual {
+  id: string;
+  grams: number;
+  state: 'cooked' | 'raw' | 'dry' | 'drained' | null;
+  units?: number;
+  unit?: 'unit' | 'slice';
+  /** Absent for minors (no numbers). */
+  nutrition?: Nutrition;
+}
+
+export interface PlannedMeal {
+  slot: MealSlot;
+  templateId: string | null;
+  recipeId?: string | null;
+  locked: boolean;
+  name: Bilingual | null;
+  items: PlannedIngredient[];
+  totals: Nutrition | null;
+}
+
+export interface PlannedDay {
+  date: string;
+  meals: PlannedMeal[];
+  totals: Nutrition | null;
+  withinTolerance: { kcal: boolean; protein: boolean } | null;
+}
+
+export interface PlanTargets {
+  mode: 'target' | 'no-target' | 'minor';
+  calories: number | null;
+  protein: number | null;
+  carbs: number | null;
+  fat: number | null;
+  source?: string | null;
+}
+
+export interface ShoppingItem extends Bilingual {
+  key: string;
+  amount: number;
+  unit: 'g' | 'ml' | 'unit' | 'slice';
+  state: PlannedIngredient['state'];
+  checked: boolean;
+}
+
+export interface ShoppingSection { id: string; items: ShoppingItem[] }
+export interface ShoppingList { sections: ShoppingSection[]; totalItems: number }
+
+export interface WeekPlan {
+  weekStart: string;
+  seed: number;
+  targets: PlanTargets;
+  tolerance: { kcal: number; protein: number };
+  warnings: string[];
+  days: PlannedDay[];
+  shoppingList: ShoppingList;
+}
+
+export interface WeekPlanResponse {
+  weekStart: string;
+  plan: WeekPlan | null;
+  checked: string[];
+  targets?: PlanTargets;
+}
+
+export const mealPlanApi = {
+  getWeek: (start: string) =>
+    api.get<WeekPlanResponse>('/api/meal-plans/week', { params: { start } }),
+
+  generate: (start: string) =>
+    api.post<WeekPlanResponse>('/api/meal-plans/week/generate', { start }),
+
+  swap: (weekStart: string, day: number, slot: MealSlot) =>
+    api.post<WeekPlanResponse>(`/api/meal-plans/week/${weekStart}/swap`, { day, slot }),
+
+  lock: (weekStart: string, day: number, slot: MealSlot, locked: boolean) =>
+    api.put<WeekPlanResponse>(`/api/meal-plans/week/${weekStart}/lock`, { day, slot, locked }),
+
+  setChecked: (weekStart: string, checked: string[]) =>
+    api.put<{ weekStart: string; checked: string[] }>(`/api/meal-plans/week/${weekStart}/shopping-list`, { checked }),
+};
+
 export default api;

@@ -38,7 +38,7 @@ const PublicShell = ({ nav, children }: { nav: PublicNavLink[]; children: ReactN
   const { t } = useLanguage();
   return (
     <div className="min-h-screen bg-white text-slate-900">
-      <a href="#main-content" className="skip-link rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-lg">
+      <a href="#main-content" className="skip-link rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-lg">
         {t('a11y.skipToContent')}
       </a>
       <PublicHeader nav={nav} />
@@ -97,7 +97,7 @@ export const GuidesIndexPage = () => {
               <li key={guide.id}>
                 <article className="flex h-full flex-col rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100 transition hover:shadow-md">
                   <h2 className="text-lg font-bold text-slate-900">
-                    <Link to={guidePath(lang, guide)} className="hover:text-emerald-700">
+                    <Link to={guidePath(lang, guide)} className="hover:text-emerald-800">
                       {loc.title}
                     </Link>
                   </h2>
@@ -174,13 +174,13 @@ export const GuidePage = () => {
           <nav aria-label={t('guides.breadcrumb')} className="text-sm text-slate-500">
             <ol className="flex flex-wrap items-center gap-2">
               <li>
-                <Link to={localizePath(lang, '/')} className="hover:text-emerald-700">
+                <Link to={localizePath(lang, '/')} className="hover:text-emerald-800">
                   {t('guides.home')}
                 </Link>
               </li>
               <li aria-hidden="true">/</li>
               <li>
-                <Link to={localizePath(lang, '/guides')} className="hover:text-emerald-700">
+                <Link to={localizePath(lang, '/guides')} className="hover:text-emerald-800">
                   {t('guides.nav')}
                 </Link>
               </li>
@@ -214,7 +214,7 @@ export const GuidePage = () => {
             <p className="mt-2 text-sm leading-relaxed text-slate-600">{t('guides.cta.body')}</p>
             <Link
               to={guideSignupHref(guide, lang)}
-              className="mt-5 inline-flex items-center justify-center rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700"
+              className="mt-5 inline-flex items-center justify-center rounded-xl bg-emerald-700 px-5 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800"
             >
               {t('guides.cta.button')}
             </Link>

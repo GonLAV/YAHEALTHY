@@ -10,7 +10,7 @@ export const LoginPage = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
-  const { t, toggleLang } = useLanguage();
+  const { t, lang, toggleLang } = useLanguage();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -32,11 +32,14 @@ export const LoginPage = () => {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-emerald-50 via-teal-50 to-sky-50 px-4">
-      <div className="w-full max-w-md">
+      <a href="#main-content" className="skip-link rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-lg">
+        {t('a11y.skipToContent')}
+      </a>
+      <main id="main-content" tabIndex={-1} className="w-full max-w-md outline-none">
         {/* Brand */}
         <div className="mb-8 flex flex-col items-center gap-3">
-          <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-600 shadow-lg shadow-emerald-200">
-            <Heart size={30} className="text-white" fill="white" />
+          <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-700 shadow-lg shadow-emerald-200">
+            <Heart size={30} className="text-white" fill="white" aria-hidden="true" />
           </div>
           <div className="text-center">
             <h1 className="text-3xl font-extrabold text-slate-900">YAHealthy</h1>
@@ -51,7 +54,9 @@ export const LoginPage = () => {
               <p className="mt-1 text-sm text-slate-500">{t('auth.signInSubtitle')}</p>
             </div>
             <button
+              type="button"
               onClick={toggleLang}
+              lang={lang === 'he' ? 'en' : 'he'}
               className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
             >
               {t('nav.dashboard') === 'Dashboard' ? 'עברית' : 'English'}
@@ -64,7 +69,7 @@ export const LoginPage = () => {
                 {t('auth.email')}
               </label>
               <div className="relative">
-                <Mail size={17} className="pointer-events-none absolute top-1/2 -translate-y-1/2 start-3.5 text-slate-400" aria-hidden="true" />
+                <Mail size={17} className="pointer-events-none absolute top-1/2 -translate-y-1/2 start-3.5 text-slate-500" aria-hidden="true" />
                 <input
                   id="login-email"
                   autoComplete="email"
@@ -83,7 +88,7 @@ export const LoginPage = () => {
                 {t('auth.password')}
               </label>
               <div className="relative">
-                <Lock size={17} className="pointer-events-none absolute top-1/2 -translate-y-1/2 start-3.5 text-slate-400" aria-hidden="true" />
+                <Lock size={17} className="pointer-events-none absolute top-1/2 -translate-y-1/2 start-3.5 text-slate-500" aria-hidden="true" />
                 <input
                   id="login-password"
                   autoComplete="current-password"
@@ -106,7 +111,7 @@ export const LoginPage = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-xl bg-emerald-600 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700 disabled:opacity-60"
+              className="w-full rounded-xl bg-emerald-700 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800 disabled:opacity-60"
             >
               {loading ? t('auth.signingIn') : t('auth.signIn')}
             </button>
@@ -114,12 +119,12 @@ export const LoginPage = () => {
 
           <p className="mt-6 text-center text-sm text-slate-500">
             {t('auth.noAccount')}{' '}
-            <Link to="/signup" className="font-semibold text-emerald-600 hover:text-emerald-700">
+            <Link to="/signup" className="font-semibold text-emerald-700 hover:text-emerald-800">
               {t('auth.signUp')}
             </Link>
           </p>
         </div>
-      </div>
+      </main>
     </div>
   );
 };

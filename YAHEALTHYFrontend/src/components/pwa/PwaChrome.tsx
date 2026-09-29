@@ -59,7 +59,7 @@ export const PwaChrome = () => {
             <button
               type="button"
               onClick={applyUpdate}
-              className="rounded-full bg-emerald-500 px-3 py-1.5 font-semibold text-white transition hover:bg-emerald-400"
+              className="rounded-full bg-emerald-400 px-3 py-1.5 font-semibold text-slate-900 transition hover:bg-emerald-300"
             >
               {t('pwa.update.reload')}
             </button>

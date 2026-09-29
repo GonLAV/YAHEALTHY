@@ -69,7 +69,7 @@ const HeroPreview = () => {
           ))}
         </div>
         <div className="mt-4 flex items-start gap-3 rounded-2xl bg-emerald-50 p-3">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-white">
             <Sparkles size={16} />
           </span>
           <div>
@@ -105,7 +105,7 @@ const FaqItem = ({ question, answer }: { question: string; answer: string }) => 
           <ChevronDown
             size={20}
             aria-hidden="true"
-            className={`shrink-0 text-emerald-600 transition-transform ${open ? 'rotate-180' : ''}`}
+            className={`shrink-0 text-emerald-700 transition-transform ${open ? 'rotate-180' : ''}`}
           />
         </button>
       </h3>
@@ -136,7 +136,7 @@ interface PlanCardProps {
 const PlanCard = ({ name, price, features, cta, badge, highlighted }: PlanCardProps) => (
   <article
     className={`relative flex flex-col rounded-3xl p-6 ${
-      highlighted ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-200' : 'bg-white text-slate-900 ring-1 ring-slate-200'
+      highlighted ? 'bg-emerald-700 text-white shadow-xl shadow-emerald-200' : 'bg-white text-slate-900 ring-1 ring-slate-200'
     }`}
   >
     {badge && (
@@ -156,7 +156,7 @@ const PlanCard = ({ name, price, features, cta, badge, highlighted }: PlanCardPr
           <Check
             size={18}
             aria-hidden="true"
-            className={`mt-0.5 shrink-0 ${highlighted ? 'text-emerald-100' : 'text-emerald-600'}`}
+            className={`mt-0.5 shrink-0 ${highlighted ? 'text-emerald-100' : 'text-emerald-700'}`}
           />
           <span className={highlighted ? 'text-emerald-50' : 'text-slate-600'}>{feature}</span>
         </li>
@@ -328,7 +328,7 @@ const LeadForm = ({ source, utm, emailRef }: LeadFormProps) => {
       <button
         type="submit"
         disabled={status === 'submitting'}
-        className="w-full rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700 disabled:opacity-60 sm:w-auto sm:self-start"
+        className="w-full rounded-xl bg-emerald-700 px-6 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800 disabled:opacity-60 sm:w-auto sm:self-start"
       >
         {status === 'submitting' ? t('landing.lead.submitting') : t('landing.lead.submit')}
       </button>
@@ -431,11 +431,11 @@ export const LandingPage = () => {
   const secondaryBtn =
     'inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 font-semibold text-emerald-700 ring-1 ring-emerald-200 transition hover:bg-emerald-50';
   const primaryBtn =
-    'inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700';
+    'inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800';
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
-      <a href="#main-content" className="skip-link rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-lg">
+      <a href="#main-content" className="skip-link rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-lg">
         {t('a11y.skipToContent')}
       </a>
 
@@ -452,7 +452,7 @@ export const LandingPage = () => {
               </p>
               <h1 id="hero-title" className="mt-5 text-3xl font-extrabold leading-tight tracking-tight text-slate-900 sm:text-5xl">
                 {t('landing.hero.title')}{' '}
-                <span className="bg-gradient-to-l from-emerald-600 to-teal-500 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-l from-emerald-700 to-teal-600 bg-clip-text text-transparent">
                   {t('landing.hero.titleAccent')}
                 </span>
               </h1>
@@ -482,7 +482,7 @@ export const LandingPage = () => {
               {steps.map((step, i) => (
                 <li key={step.title} className="relative rounded-3xl bg-slate-50 p-6 ring-1 ring-slate-100">
                   <div className="flex items-center gap-3">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-600 text-white" aria-hidden="true">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-700 text-white" aria-hidden="true">
                       {step.icon}
                     </span>
                     <span className="num text-sm font-bold text-emerald-700" aria-hidden="true">

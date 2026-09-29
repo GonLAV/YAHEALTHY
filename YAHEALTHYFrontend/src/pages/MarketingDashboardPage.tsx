@@ -82,7 +82,7 @@ const orderedSteps = (campaign: string, byStep: Record<string, CampaignStepStats
 
 // ─── small building blocks ──────────────────────────────────────────────────
 const Card = ({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) => (
-  <section aria-label={title} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+  <section aria-label={title} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
     <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
       <h2 className="text-base font-semibold text-slate-900">{title}</h2>
       {action}
@@ -496,7 +496,7 @@ export const MarketingDashboardPage = () => {
                   <figcaption className="sr-only">{leadsChartSummary}</figcaption>
                 </figure>
                 {leads.perSource.length > 0 ? (
-                  <div className="mt-4 overflow-x-auto">
+                  <div className="relative mt-4 overflow-x-auto">
                     <table className="w-full text-sm">
                       <caption className="mb-2 text-start text-sm font-medium text-slate-700">
                         {t('analytics.leads.perSource')}
@@ -536,7 +536,7 @@ export const MarketingDashboardPage = () => {
           {sortedRows.length === 0 ? (
             <p className="text-sm text-slate-500">{t('analytics.empty')}</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="relative overflow-x-auto">
               <table className="w-full min-w-[720px] text-sm">
                 <caption className="mb-2 text-start text-xs text-slate-500">{t('analytics.acq.caption')}</caption>
                 <thead className="bg-slate-50 text-xs text-slate-600">
@@ -594,7 +594,7 @@ export const MarketingDashboardPage = () => {
                 <p className="text-sm text-slate-500">{t('analytics.ref.empty')}</p>
               ) : (
                 <>
-                  <div className="overflow-x-auto">
+                  <div className="relative overflow-x-auto">
                     <table className="w-full min-w-[560px] text-sm">
                       <caption className="mb-2 text-start text-xs text-slate-500">{t('analytics.ref.caption')}</caption>
                       <thead className="bg-slate-50 text-xs text-slate-600">
@@ -646,7 +646,8 @@ export const MarketingDashboardPage = () => {
               (sections.retention.data.cohorts.length === 0 ? (
                 <p className="text-sm text-slate-500">{t('analytics.empty')}</p>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="relative overflow-x-auto">
+                  {/* relative: the sr-only cell labels are absolutely positioned and would otherwise escape the scroller and widen the page. */}
                   <table className="w-full min-w-[560px] border-separate border-spacing-0.5 text-xs">
                     <caption className="mb-2 text-start text-xs text-slate-500">{t('analytics.ret.caption')}</caption>
                     <thead className="text-slate-600">
@@ -711,7 +712,7 @@ export const MarketingDashboardPage = () => {
         <SectionStatus state={campaigns}>
           {campaigns.status === 'ready' && (
             <>
-              <div className="overflow-x-auto">
+              <div className="relative overflow-x-auto">
                 <table className="w-full min-w-[640px] text-sm">
                   <caption className="mb-2 text-start text-xs text-slate-500">{t('analytics.camp.caption')}</caption>
                   <thead className="bg-slate-50 text-xs text-slate-600">

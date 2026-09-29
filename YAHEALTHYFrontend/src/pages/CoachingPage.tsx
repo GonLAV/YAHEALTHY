@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { crmApi } from '@/services/api';
 import { useLanguage } from '@/i18n/LanguageContext';
 import PageHeader from '@/components/ui/PageHeader';
+import { parseCoachLink } from '@/utils/mealPlan';
 
 type InsightPriority = 'high' | 'medium' | 'low';
 
@@ -191,7 +192,7 @@ export const CoachingPage = () => {
 
         <div className="flex max-h-96 min-h-32 flex-col gap-3 overflow-y-auto p-6">
           {messages.length === 0 && !asking && (
-            <p className="flex flex-1 items-center justify-center text-center text-sm text-slate-300">
+            <p className="flex flex-1 items-center justify-center text-center text-sm text-slate-500">
               {t('coach.placeholder')}
             </p>
           )}
@@ -201,18 +202,34 @@ export const CoachingPage = () => {
               className={`flex items-end gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               {msg.role === 'coach' && (
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
                   <Bot size={16} />
                 </span>
               )}
               <div
                 className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                   msg.role === 'user'
-                    ? 'bg-emerald-600 text-white'
+                    ? 'bg-emerald-700 text-white'
                     : 'bg-slate-100 text-slate-800'
                 }`}
               >
-                {msg.text}
+                {msg.role === 'coach'
+                  ? msg.text.split('\n').map((line, li, all) => {
+                      // A trailing " → /path" line is an in-app link (e.g. the meal planner).
+                      const link = parseCoachLink(line);
+                      const br = li < all.length - 1 ? '\n' : '';
+                      return link ? (
+                        <span key={li}>
+                          <Link to={link.href} className="font-semibold text-emerald-700 underline">
+                            {link.label}
+                          </Link>
+                          {br}
+                        </span>
+                      ) : (
+                        <span key={li}>{line}{br}</span>
+                      );
+                    })
+                  : msg.text}
               </div>
               {msg.role === 'user' && (
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500">
@@ -223,7 +240,7 @@ export const CoachingPage = () => {
           ))}
           {asking && (
             <div className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
                 <Bot size={16} />
               </span>
               <span className="flex gap-1 rounded-2xl bg-slate-100 px-4 py-3">
@@ -249,7 +266,7 @@ export const CoachingPage = () => {
           <button
             onClick={handleAsk}
             disabled={!canAsk}
-            className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700 disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800 disabled:opacity-50"
           >
             <Send size={16} />
             {t('coach.askBtn')}

@@ -62,6 +62,7 @@ const memoryDb = {
   foodLogs: [],
   foodLogTemplates: [],
   mealPlans: [],
+  mealPlannerWeeks: [],
   subscriptions: [],
   paymentEvents: [],
   leads: [],
@@ -1000,6 +1001,110 @@ async function deleteMealPlan(planId, userId) {
     .single();
 
   if (error && error.code !== 'PGRST116') throw error;
+  return data || null;
+}
+
+/**
+ * Weekly meal planner (migrations/022) — one row per user per week_start.
+ * The row holds grams per ingredient, never nutrition: utils/meal-planner.js
+ * recomputes numbers on every read. Service-role client: RLS is on with no
+ * policies, the backend is the gatekeeper.
+ */
+async function getMealPlannerWeek(userId, weekStart) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.mealPlannerWeeks.find((r) => r.user_id === userId && r.week_start === weekStart) || null;
+  }
+
+  const { data, error } = await supabaseServiceRole
+    .from('meal_planner_weeks')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('week_start', weekStart)
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
+/** Every stored week for a user, newest first (paged past the row cap). */
+async function listMealPlannerWeeks(userId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.mealPlannerWeeks
+      .filter((r) => r.user_id === userId)
+      .sort((a, b) => (a.week_start < b.week_start ? 1 : -1));
+  }
+
+  return selectAllPages(() =>
+    supabaseServiceRole
+      .from('meal_planner_weeks')
+      .select('id, week_start, seed, created_at, updated_at')
+      .eq('user_id', userId)
+      .order('week_start', { ascending: false })
+      .order('id', { ascending: true })
+  );
+}
+
+/** Insert or replace the week (unique user_id + week_start). */
+async function saveMealPlannerWeek(userId, weekStart, { seed, plan, checkedItems }) {
+  const now = new Date().toISOString();
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const existing = memoryDb.mealPlannerWeeks.find((r) => r.user_id === userId && r.week_start === weekStart);
+    if (existing) {
+      Object.assign(existing, {
+        seed,
+        plan,
+        ...(checkedItems ? { checked_items: checkedItems } : {}),
+        updated_at: now
+      });
+      return existing;
+    }
+    const row = {
+      id: uuidv4(),
+      user_id: userId,
+      week_start: weekStart,
+      seed,
+      plan,
+      checked_items: checkedItems || [],
+      created_at: now,
+      updated_at: now
+    };
+    memoryDb.mealPlannerWeeks.push(row);
+    return row;
+  }
+
+  const row = { user_id: userId, week_start: weekStart, seed, plan, updated_at: now };
+  if (checkedItems) row.checked_items = checkedItems;
+  const { data, error } = await supabaseServiceRole
+    .from('meal_planner_weeks')
+    .upsert([row], { onConflict: 'user_id,week_start' })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+/** Replace the shopping list's checked keys (the client sends the full list). */
+async function setMealPlannerChecked(userId, weekStart, checkedItems) {
+  const now = new Date().toISOString();
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const existing = memoryDb.mealPlannerWeeks.find((r) => r.user_id === userId && r.week_start === weekStart);
+    if (!existing) return null;
+    existing.checked_items = checkedItems;
+    existing.updated_at = now;
+    return existing;
+  }
+
+  const { data, error } = await supabaseServiceRole
+    .from('meal_planner_weeks')
+    .update({ checked_items: checkedItems, updated_at: now })
+    .eq('user_id', userId)
+    .eq('week_start', weekStart)
+    .select()
+    .maybeSingle();
+  if (error) throw error;
   return data || null;
 }
 
@@ -3260,6 +3365,10 @@ module.exports = {
   deleteMealPlansInRange,
   updateMealPlan,
   deleteMealPlan,
+  getMealPlannerWeek,
+  listMealPlannerWeeks,
+  saveMealPlannerWeek,
+  setMealPlannerChecked,
   getActiveSubscriptions,
   hasEntitlement,
   createSubscription,
