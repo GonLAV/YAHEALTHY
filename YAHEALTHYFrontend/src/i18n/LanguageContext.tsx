@@ -1,5 +1,6 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useState, ReactNode } from 'react';
 import { translations, Lang } from './translations';
+import { langFromPublicPath } from '@/seo/site';
 
 interface LanguageContextType {
   lang: Lang;
@@ -10,24 +11,49 @@ interface LanguageContextType {
   toggleLang: () => void;
 }
 
+// useLayoutEffect warns under the build-time prerender; there is no document there anyway.
+const useIsoLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
+
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-const getInitialLang = (): Lang => {
-  const stored = localStorage.getItem('yahealthy-lang');
-  if (stored === 'he' || stored === 'en') return stored;
-  return 'he';
+export const LANG_STORAGE_KEY = 'yahealthy-lang';
+
+export const readStoredLang = (): Lang | null => {
+  try {
+    const stored = localStorage.getItem(LANG_STORAGE_KEY);
+    return stored === 'he' || stored === 'en' ? stored : null;
+  } catch {
+    return null;
+  }
 };
 
-export const LanguageProvider = ({ children }: { children: ReactNode }) => {
-  const [lang, setLangState] = useState<Lang>(getInitialLang);
+/**
+ * A public, indexable URL decides its own language ("/" is Hebrew, "/en" is
+ * English) so the first client render matches the prerendered HTML. Anywhere
+ * else the saved preference applies.
+ */
+const getInitialLang = (): Lang => {
+  if (typeof window === 'undefined') return 'he';
+  return langFromPublicPath(window.location.pathname) ?? readStoredLang() ?? 'he';
+};
+
+export const LanguageProvider = ({ children, initialLang }: { children: ReactNode; initialLang?: Lang }) => {
+  const [lang, setLangState] = useState<Lang>(() => initialLang ?? getInitialLang());
 
   const dir: 'rtl' | 'ltr' = lang === 'he' ? 'rtl' : 'ltr';
 
-  useEffect(() => {
+  // A layout effect so it runs before any page's own (passive) effects: a page
+  // that sets its own title or meta description, like the landing page, then
+  // wins instead of being overwritten by this default.
+  useIsoLayoutEffect(() => {
     document.documentElement.lang = lang;
     document.documentElement.dir = dir;
     document.title = lang === 'he' ? 'YAHealthy — מעקב תזונה ובריאות' : 'YAHealthy — Nutrition & Health Tracker';
-    localStorage.setItem('yahealthy-lang', lang);
+    try {
+      localStorage.setItem(LANG_STORAGE_KEY, lang);
+    } catch {
+      /* storage unavailable — the choice lasts for this page view */
+    }
   }, [lang, dir]);
 
   const setLang = (next: Lang) => setLangState(next);

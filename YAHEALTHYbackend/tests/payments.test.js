@@ -180,10 +180,47 @@ async function run() {
 
   const plans = await call('GET', '/api/payments/my-plans', { token });
   check(
-    'exactly one yoni subscription, not two',
-    plans.body?.plans?.length === 1 && plans.body.plans[0].plan === 'yoni',
+    'exactly one subscription, not two — the legacy "yoni" id lands as combo_3m',
+    plans.body?.plans?.length === 1 && plans.body.plans[0].plan === 'combo_3m',
     JSON.stringify(plans.body)
   );
+  const firstEnd = plans.body?.plans?.[0]?.endsAt;
+  const months = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / (30.44 * 24 * 3600 * 1000));
+  check(
+    'the callback sets ends_at from the plan period (3 months for combo_3m)',
+    !!firstEnd && months(new Date().toISOString(), firstEnd) === 3,
+    String(firstEnd)
+  );
+
+  // ── a renewal paid while the period runs extends it from its end ──────────
+  await sendCallback(transaction({ uid: `${uid}_renew`, email, plan: 'combo_3m' }));
+  const renewed = await call('GET', '/api/payments/my-plans', { token });
+  check(
+    'paying again extends the running period instead of opening a second one',
+    renewed.body?.plans?.length === 1 && months(firstEnd, renewed.body.plans[0].endsAt) === 3,
+    JSON.stringify(renewed.body)
+  );
+
+  // ── other periods ─────────────────────────────────────────────────────────
+  await sendCallback(transaction({ uid: `${uid}_app`, email, plan: 'app_m' }));
+  await sendCallback(transaction({ uid: `${uid}_once`, email, plan: 'plan_once' }));
+  await sendCallback(transaction({ uid: `${uid}_legacy`, email, plan: 'base' }));
+  const all = (await call('GET', '/api/payments/my-plans', { token })).body?.plans || [];
+  const byId = Object.fromEntries(all.map((p) => [p.plan, p]));
+  check('a monthly plan ends a month out', !!byId.app_m && months(new Date().toISOString(), byId.app_m.endsAt) === 1, JSON.stringify(byId.app_m));
+  check('a one-time plan has no end date', !!byId.plan_once && byId.plan_once.endsAt === null, JSON.stringify(byId.plan_once));
+  check('the legacy "base" id maps to coaching_3m', !!byId.coaching_3m, JSON.stringify(all.map((p) => p.plan)));
+
+  const ent = await call('GET', '/api/entitlements/me', { token });
+  check(
+    'what was bought shows up as entitlements',
+    ['premium', 'coach_insights', 'meal_planner', 'chef_whatsapp', 'human_coaching'].every((k) => ent.body?.entitlements?.includes(k)),
+    JSON.stringify(ent.body)
+  );
+  check('entitlements are not enforced by default', ent.body?.enforced === false);
+
+  const unknown = await sendCallback(transaction({ uid: `${uid}_unknown`, email, plan: 'platinum' }));
+  check('an approved payment for an unknown plan grants nothing and asks for attention', unknown.body?.needsAttention === true);
 
   // ── a declined payment buys nothing ───────────────────────────────────────
   const declinedEmail = `declined-${Date.now()}@example.com`;
@@ -201,9 +238,21 @@ async function run() {
     body: { email: 'someone@example.com', plan: 'yoni', phone: '0501234567' }
   });
   check(
-    'checkout refuses while PayPlus is unconfigured',
-    checkout.status === 503,
-    'better a refusal than a payment page that cannot be honoured'
+    'checkout refuses while it is switched off (the default)',
+    checkout.status === 503 && checkout.body?.code === 'checkout_disabled' && checkout.body?.reason === 'disabled',
+    JSON.stringify(checkout.body)
+  );
+  check(
+    'the refusal carries a bilingual "talk to us" message',
+    typeof checkout.body?.message?.he === 'string' && typeof checkout.body?.message?.en === 'string'
+  );
+
+  const status = await call('GET', '/api/payments/status');
+  check(
+    'status says checkout is off, and why, without naming variables',
+    status.status === 200 && status.body?.checkoutEnabled === false && status.body?.reason === 'disabled' &&
+      !JSON.stringify(status.body).includes('CHECKOUT_ENABLED'),
+    JSON.stringify(status.body)
   );
   check(
     'checkout rejects an unknown plan',
@@ -255,7 +304,11 @@ async function run() {
       // API key and page uid deliberately unset: checkout must refuse rather
       // than half-work.
       PAYPLUS_API_KEY: '',
-      PAYPLUS_PAYMENT_PAGE_UID: ''
+      PAYPLUS_PAYMENT_PAGE_UID: '',
+      // The defaults under test: charging off, nothing gated.
+      CHECKOUT_ENABLED: '',
+      CANCELLATION_POLICY_URL: '',
+      ENTITLEMENTS_ENFORCED: ''
     },
     stdio: ['ignore', 'pipe', 'pipe']
   });

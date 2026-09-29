@@ -1,8 +1,10 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Heart, Mail, Lock, AlertCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { Heart, Mail, Lock, AlertCircle, Gift } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/i18n/LanguageContext';
+import { referralApi, ReferralValidation } from '@/services/api';
+import { clearAttribution, getReferralCode, getSignupAttribution } from '@/utils/attribution';
 
 export const SignupPage = () => {
   const [email, setEmail] = useState('');
@@ -10,9 +12,33 @@ export const SignupPage = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [invite, setInvite] = useState<ReferralValidation | null>(null);
+  // Marketing email needs affirmative consent: unticked until the person ticks it.
+  const [marketingConsent, setMarketingConsent] = useState(false);
   const { signup } = useAuth();
-  const { t, toggleLang } = useLanguage();
+  const { t, lang, toggleLang } = useLanguage();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Stored first-touch code first; the URL is the fallback for browsers where
+  // storage is unavailable and capture could not persist it.
+  const referralCode = getReferralCode() || searchParams.get('ref')?.trim() || undefined;
+
+  useEffect(() => {
+    if (!referralCode) return;
+    let cancelled = false;
+    referralApi
+      .validate(referralCode)
+      .then((res) => {
+        if (!cancelled && res.data.valid) setInvite(res.data);
+      })
+      .catch(() => {
+        /* the banner is a nicety; signup works without it */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [referralCode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,8 +51,23 @@ export const SignupPage = () => {
 
     setLoading(true);
     try {
-      await signup(email, password);
-      navigate('/dashboard');
+      const growth = getSignupAttribution();
+      let timezone: string | undefined;
+      try {
+        timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+      } catch {
+        timezone = undefined;
+      }
+      await signup(email, password, {
+        ...growth,
+        referralCode: growth.referralCode || referralCode,
+        lang,
+        timezone,
+        marketingConsent,
+      });
+      clearAttribution();
+      // New accounts go through the setup wizard first.
+      navigate('/onboarding');
     } catch (err: any) {
       setError(err.response?.data?.error || err.response?.data?.message || t('auth.signupFailed'));
     } finally {
@@ -39,10 +80,13 @@ export const SignupPage = () => {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-emerald-50 via-teal-50 to-sky-50 px-4">
-      <div className="w-full max-w-md">
+      <a href="#main-content" className="skip-link rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-lg">
+        {t('a11y.skipToContent')}
+      </a>
+      <main id="main-content" tabIndex={-1} className="w-full max-w-md outline-none">
         <div className="mb-8 flex flex-col items-center gap-3">
-          <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-600 shadow-lg shadow-emerald-200">
-            <Heart size={30} className="text-white" fill="white" />
+          <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-700 shadow-lg shadow-emerald-200">
+            <Heart size={30} className="text-white" fill="white" aria-hidden="true" />
           </div>
           <div className="text-center">
             <h1 className="text-3xl font-extrabold text-slate-900">YAHealthy</h1>
@@ -57,11 +101,29 @@ export const SignupPage = () => {
               <p className="mt-1 text-sm text-slate-500">{t('auth.signUpSubtitle')}</p>
             </div>
             <button
+              type="button"
               onClick={toggleLang}
+              lang={lang === 'he' ? 'en' : 'he'}
               className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
             >
               {t('nav.dashboard') === 'Dashboard' ? 'עברית' : 'English'}
             </button>
+          </div>
+
+          <div role="status" aria-live="polite">
+            {invite?.valid && (
+              <div className="mb-5 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                <Gift size={18} className="mt-0.5 shrink-0 text-emerald-700" aria-hidden="true" />
+                <div>
+                  <p className="font-semibold">
+                    {invite.referrerFirstName
+                      ? t('referral.invitedBy', { name: invite.referrerFirstName })
+                      : t('referral.invitedByFriend')}
+                  </p>
+                  <p className="mt-0.5 text-emerald-700">{t('referral.invitedBonus')}</p>
+                </div>
+              </div>
+            )}
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -70,7 +132,7 @@ export const SignupPage = () => {
                 {t('auth.email')}
               </label>
               <div className="relative">
-                <Mail size={17} className="pointer-events-none absolute top-1/2 -translate-y-1/2 start-3.5 text-slate-400" aria-hidden="true" />
+                <Mail size={17} className="pointer-events-none absolute top-1/2 -translate-y-1/2 start-3.5 text-slate-500" aria-hidden="true" />
                 <input
                   id="signup-email"
                   autoComplete="email"
@@ -89,7 +151,7 @@ export const SignupPage = () => {
                 {t('auth.password')}
               </label>
               <div className="relative">
-                <Lock size={17} className="pointer-events-none absolute top-1/2 -translate-y-1/2 start-3.5 text-slate-400" aria-hidden="true" />
+                <Lock size={17} className="pointer-events-none absolute top-1/2 -translate-y-1/2 start-3.5 text-slate-500" aria-hidden="true" />
                 <input
                   id="signup-password"
                   autoComplete="new-password"
@@ -98,9 +160,13 @@ export const SignupPage = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   className={inputClass}
                   required
-                  minLength={6}
+                  minLength={10}
+                  aria-describedby="signup-password-hint"
                 />
               </div>
+              <p id="signup-password-hint" className="mt-1 text-xs text-slate-500">
+                {t('auth.passwordHint')}
+              </p>
             </div>
 
             <div>
@@ -108,7 +174,7 @@ export const SignupPage = () => {
                 {t('auth.confirmPassword')}
               </label>
               <div className="relative">
-                <Lock size={17} className="pointer-events-none absolute top-1/2 -translate-y-1/2 start-3.5 text-slate-400" aria-hidden="true" />
+                <Lock size={17} className="pointer-events-none absolute top-1/2 -translate-y-1/2 start-3.5 text-slate-500" aria-hidden="true" />
                 <input
                   id="signup-confirm"
                   autoComplete="new-password"
@@ -121,6 +187,19 @@ export const SignupPage = () => {
               </div>
             </div>
 
+            <div className="flex items-start gap-2.5">
+              <input
+                id="signup-marketing"
+                type="checkbox"
+                checked={marketingConsent}
+                onChange={(e) => setMarketingConsent(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-500"
+              />
+              <label htmlFor="signup-marketing" className="text-start text-xs leading-relaxed text-slate-600">
+                {t('auth.marketingConsent')}
+              </label>
+            </div>
+
             {error && (
               <div role="alert" className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                 <AlertCircle size={16} className="shrink-0" />
@@ -131,7 +210,7 @@ export const SignupPage = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-xl bg-emerald-600 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700 disabled:opacity-60"
+              className="w-full rounded-xl bg-emerald-700 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800 disabled:opacity-60"
             >
               {loading ? t('auth.creatingAccount') : t('auth.signUp')}
             </button>
@@ -139,12 +218,12 @@ export const SignupPage = () => {
 
           <p className="mt-6 text-center text-sm text-slate-500">
             {t('auth.haveAccount')}{' '}
-            <Link to="/login" className="font-semibold text-emerald-600 hover:text-emerald-700">
+            <Link to="/login" className="font-semibold text-emerald-700 hover:text-emerald-800">
               {t('auth.signIn')}
             </Link>
           </p>
         </div>
-      </div>
+      </main>
     </div>
   );
 };

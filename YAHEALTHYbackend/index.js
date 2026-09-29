@@ -2,12 +2,15 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const mailer = require('./utils/mailer');
 const dotenv = require('dotenv');
-// Must run before any module that reads process.env at load time — utils/database.js
-// and utils/auth.js both do. This used to sit below those requires, so .env never
-// reached them; the silent memory fallback hid it.
+// Must run before any module that reads process.env at load time — utils/database.js,
+// utils/auth.js and utils/mailer.js all do. This used to sit below those requires, so
+// .env never reached them; the silent memory fallback hid it.
 dotenv.config();
+// One clear report of missing configuration (names only, never values); in
+// production it stops the boot when something required is absent.
+require('./utils/config-check').runStartupConfigCheck();
+const mailer = require('./utils/mailer');
 const path = require('path');
 const fs = require('fs');
 const swaggerUi = require('swagger-ui-express');
@@ -45,11 +48,20 @@ const {
 const auth = require('./utils/auth');
 const db = require('./utils/database');
 const coach = require('./utils/coach');
+const referrals = require('./utils/referrals');
+const entitlements = require('./utils/entitlements');
+const { resolveRequestDate } = require('./utils/log-date');
 const cron = require('node-cron');
 const { sendWeeklySummaryEmail, runWeeklySummaryJob } = require('./utils/weekly-summary');
+const { scheduleLifecycle } = require('./utils/lifecycle-runner');
+const { isValidTimeZone } = require('./utils/engagement');
 
 const { apiLimiter, authLimiter } = require('./middleware/rateLimit');
 const { requestContext } = require('./middleware/requestContext');
+const { accessLog } = require('./middleware/accessLog');
+const logger = require('./utils/logger');
+const { jobs } = require('./utils/health-registry');
+const { installProcessHandlers } = require('./utils/process-handlers');
 const { notFoundHandler, errorHandler } = require('./utils/error-handler');
 const { buildOpenApiSpec } = require('./openapi');
 
@@ -123,6 +135,12 @@ app.use(
 // its own change with its own testing — not a flag flipped in passing.
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(requestContext);
+// One line per request (method, route pattern, status, ms, request id) — never
+// the raw URL, so /s/:token share tokens and ids stay out of the log.
+app.use(accessLog);
+// Browser crash reports. Before the global JSON parser: it has its own 8 KB
+// cap and rate limit (routes/client-errors.js).
+app.use('/api/client-errors', require('./routes/client-errors'));
 app.use(
   express.json({
     verify(req, res, buf) {
@@ -152,6 +170,48 @@ app.use('/api/payments', checkoutRouter);
 // Food values. Lookup and arithmetic over sourced numbers — never a guess,
 // and never advice about what anyone should eat.
 app.use('/api/foods', require('./routes/foods'));
+app.use('/api/referrals', require('./routes/referrals'));
+app.use('/api/engagement', require('./routes/engagement')); // streaks, Health Score, achievements (auth per-route)
+app.use('/api/marketing', require('./routes/marketing'));
+app.use('/api/onboarding', require('./routes/onboarding')); // wizard status + targets preview (auth)
+app.use('/api/analytics', require('./routes/analytics')); // staff-only marketing dashboard (auth + requireStaff inside)
+app.use(require('./routes/share')); // /api/share/* (weekly card, links) + public /s/:token pages
+app.use('/api/push', require('./routes/push')); // Web Push: VAPID key, subscriptions, reminder settings (auth per-route)
+app.use('/api/admin', require('./routes/admin')); // staff-only system health (auth + requireStaff inside)
+app.use('/api/entitlements', require('./routes/entitlements')); // plan/premium state + what would be gated (auth)
+
+// ── Monetization hooks (utils/entitlements.js, utils/referrals.js) ─────────
+// Referral activation: a successful log by an invited friend within their
+// first 7 days earns both sides their premium days. After the response, and
+// fire-and-forget, so a reward problem can never fail a log.
+const ACTIVATION_LOG_PATHS = /^\/api\/(food-logs(\/bulk|\/import|\/copy)?|hydration-logs|sleep-logs|weight-logs)\/?$/;
+app.use((req, res, next) => {
+  if (req.method === 'POST' && ACTIVATION_LOG_PATHS.test(req.path)) {
+    res.on('finish', () => {
+      if (res.statusCode >= 200 && res.statusCode < 300 && req.user) referrals.noteActivity(req.user.userId);
+    });
+  }
+  next();
+});
+
+// Paid-feature gates. Pass-through (plus an X-Premium-Feature header) unless
+// ENTITLEMENTS_ENFORCED=true. NEVER add one to logging, streaks, safety,
+// export/deletion or the basic coach chat — see utils/entitlements.js.
+const premiumGate = (feature) => {
+  const check = entitlements.requireEntitlement(feature);
+  return (req, res, next) =>
+    entitlements.isEnforced() ? auth.authMiddleware(req, res, () => check(req, res, next)) : check(req, res, next);
+};
+// Generating a plan is the paid part; reading, swapping one meal, locking and
+// the shopping list of a plan already made stay open.
+app.post('/api/meal-plans/generate', premiumGate('meal_planner'));
+app.post('/api/meal-plans/week/generate', premiumGate('meal_planner'));
+// Fast food logging: single log (catalog or quick-add), suggestions, copy, undo,
+// favourites/saved meals. Mounted after the monetization hooks (so a log
+// counts toward referral activation) and before the /api/food-logs/:id handlers.
+app.use('/api/food-logs', require('./routes/food-logging'));
+// Mounted after the gates above (it has its own /week/generate handler).
+app.use('/api/meal-plans', require('./routes/meal-planner')); // weekly planner + shopping list (auth per-route); before /api/meal-plans/:id
 
 // WhatsApp inbound. The webhook is public (guarded by a path secret); the
 // listing endpoint underneath it requires auth because it returns message text.
@@ -160,6 +220,8 @@ const whatsappRouter = require('./routes/whatsapp');
 // route returns other people's inbound messages, including the health-flagged
 // ones, and signup is open — so being signed in is nowhere near enough.
 app.use('/api/whatsapp/pending', auth.authMiddleware, require('./middleware/requireStaff'));
+// Connect WhatsApp to the account (one-time code) — auth per route, own user only.
+app.use('/api/whatsapp/link', require('./routes/whatsapp-link'));
 app.use('/api/whatsapp', whatsappRouter);
 app.use('/api/auth', authLimiter);
 
@@ -234,12 +296,34 @@ app.get('/api/ready', async (req, res) => {
  */
 app.post('/api/auth/signup', async (req, res) => {
   try {
+    // Growth fields ride along with signup but can never fail it: a malformed
+    // referral code or attribution blob is dropped (`.catch`), not rejected.
+    const attributionField = z.string().trim().max(500).optional();
     const signupSchema = z.object({
       email: z.string().email(),
       password: z.string().min(MIN_PASSWORD_LENGTH),
-      name: z.string().min(1).optional()
+      name: z.string().min(1).optional(),
+      referralCode: z.string().trim().max(32).optional().catch(undefined),
+      attribution: z
+        .object({
+          utm_source: attributionField,
+          utm_medium: attributionField,
+          utm_campaign: attributionField,
+          utm_content: attributionField,
+          utm_term: attributionField,
+          landing_path: attributionField,
+          referrer: attributionField
+        })
+        .optional()
+        .catch(undefined),
+      // Messaging settings, same rule: never a reason to fail signup.
+      // marketingConsent is an unticked-by-default box; absent means no.
+      lang: z.enum(['he', 'en']).optional().catch(undefined),
+      timezone: z.string().max(64).optional().catch(undefined),
+      marketingConsent: z.boolean().optional().catch(undefined)
     });
-    const { email, password, name } = signupSchema.parse(req.body);
+    const { email, password, name, referralCode, attribution, lang, timezone, marketingConsent } =
+      signupSchema.parse(req.body);
 
     // Validate input
     if (!email || !password) {
@@ -262,6 +346,49 @@ app.post('/api/auth/signup', async (req, res) => {
     const passwordHash = await auth.hashPassword(password);
     const user = await db.createUser(email, passwordHash, name);
 
+    // Attribution and referral are recorded after the account exists, each in
+    // its own try: the person asked for an account, and a hiccup in growth
+    // bookkeeping is not a reason to tell them it failed.
+    const cleanAttribution = attribution
+      ? Object.fromEntries(Object.entries(attribution).filter(([, v]) => v))
+      : null;
+    if (cleanAttribution && Object.keys(cleanAttribution).length) {
+      try {
+        await db.setUserAttribution(user.id, {
+          ...cleanAttribution,
+          captured_at: new Date().toISOString()
+        });
+      } catch (error) {
+        req.log.warn('[signup] attribution not stored', { userId: user.id, err: error });
+      }
+    }
+
+    // Lifecycle messaging settings. A landing-page lead who consented to our
+    // email (and did not unsubscribe) keeps that consent, dated when given.
+    try {
+      const nowIso = new Date().toISOString();
+      const lead = await db.getLeadByEmail(user.email);
+      const leadConsent = lead && lead.consent_at && !lead.unsubscribed_at ? lead.consent_at : null;
+      const consentAt = marketingConsent === true ? nowIso : leadConsent;
+      await db.upsertNotificationPrefs(user.id, {
+        lang: lang || (lead && lead.lang) || null,
+        timezone: isValidTimeZone(timezone) ? timezone : null,
+        marketing_email: Boolean(consentAt),
+        marketing_consent_at: consentAt
+      });
+    } catch (error) {
+      req.log.warn('[signup] messaging preferences not stored', { userId: user.id, err: error });
+    }
+
+    let referral = { applied: false };
+    if (referralCode) {
+      try {
+        referral = await referrals.applyReferral({ rawCode: referralCode, refereeId: user.id });
+      } catch (error) {
+        req.log.warn('[signup] referral not recorded', { userId: user.id, err: error });
+      }
+    }
+
     // Generate token
     const token = auth.generateToken(user.id, user.email, user.token_version || 0);
 
@@ -269,10 +396,11 @@ app.post('/api/auth/signup', async (req, res) => {
       id: user.id,
       email: user.email,
       name: user.name,
-      token
+      token,
+      referralApplied: Boolean(referral.applied)
     });
   } catch (error) {
-    console.error('Signup error:', error);
+    req.log.error('signup failed', { err: error });
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
     }
@@ -315,7 +443,7 @@ app.post('/api/auth/login', async (req, res) => {
       token
     });
   } catch (error) {
-    console.error('Login error:', error);
+    req.log.error('login failed', { err: error });
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
     }
@@ -334,7 +462,10 @@ app.get('/api/auth/me', auth.authMiddleware, async (req, res) => {
       id: user.id,
       email: user.email,
       name: user.name,
-      preferences: user.preferences
+      preferences: user.preferences,
+      // Only decides whether the UI shows staff pages; every staff route
+      // re-checks is_staff in the database (middleware/requireStaff).
+      isStaff: user.is_staff === true
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to get user', details: safeErrorDetails(error) });
@@ -430,7 +561,7 @@ app.post('/api/auth/request-password-reset', async (req, res) => {
         // The reply stays the same either way. Telling the caller that sending
         // failed for this address would confirm the address exists, which is
         // the thing this endpoint is careful not to reveal.
-        console.error('[auth] could not send password reset mail:', mailError && mailError.message);
+        req.log.error('[auth] could not send password reset mail', { err: mailError });
       }
     }
 
@@ -528,7 +659,7 @@ app.delete('/api/users/me', auth.authMiddleware, async (req, res) => {
 
     // No identifying detail in the log line. The point of the request was to
     // stop holding this person's data.
-    console.info('[users] account deleted');
+    req.log.info('[users] account deleted');
 
     return res.json({
       status: 'ok',
@@ -576,7 +707,8 @@ app.put('/api/users/me/preferences', auth.authMiddleware, async (req, res) => {
       fat_grams: z.number().nonnegative().optional(),
       protein: z.number().nonnegative().optional(),
       carbs: z.number().nonnegative().optional(),
-      fat: z.number().nonnegative().optional()
+      fat: z.number().nonnegative().optional(),
+      calorieOverride: z.number().nonnegative().optional()
     }).partial();
 
     const schema = z.object({
@@ -597,7 +729,11 @@ app.put('/api/users/me/preferences', auth.authMiddleware, async (req, res) => {
         const n = Number(v);
         return Number.isFinite(n) ? n : null;
       };
+      // calorieOverride rides along: dropping it here would silently undo a
+      // calorie target the user confirmed (onboarding / PUT /api/targets).
+      const calorieOverride = toNumberOrNull(macro.calorieOverride);
       normalizedPreferences.macroTargets = {
+        ...(calorieOverride !== null ? { calorieOverride } : {}),
         protein_grams: toNumberOrNull(macro.protein_grams ?? macro.proteinGrams ?? macro.protein),
         carbs_grams: toNumberOrNull(macro.carbs_grams ?? macro.carbsGrams ?? macro.carbs),
         fat_grams: toNumberOrNull(macro.fat_grams ?? macro.fatGrams ?? macro.fat)
@@ -675,7 +811,7 @@ app.post('/api/surveys', auth.authMiddleware, async (req, res) => {
 
     res.status(201).json(survey);
   } catch (error) {
-    console.error('Survey creation error:', error);
+    req.log.error('survey creation failed', { err: error });
     res.status(500).json({ error: 'Failed to create survey', details: safeErrorDetails(error) });
   }
 });
@@ -836,15 +972,19 @@ app.get('/api/weight-logs', auth.authMiddleware, async (req, res) => {
  */
 app.post('/api/hydration-logs', auth.authMiddleware, async (req, res) => {
   try {
-    const { date, litersConsumed, timeOfDay, source } = req.body;
+    const { date, tz, litersConsumed, timeOfDay, source } = req.body;
     const userId = req.user.userId;
 
     if (!litersConsumed || litersConsumed < 0 || litersConsumed > 10) {
       return res.status(400).json({ error: 'Hydration must be between 0 and 10 liters' });
     }
 
+    // Omitted date → today in the client's time zone (tz), not server UTC.
+    const day = resolveRequestDate({ date, tz });
+    if (day.error) return res.status(400).json({ error: day.error });
+
     const log = await db.createHydrationLog(userId, {
-      date: date || new Date().toISOString().split('T')[0],
+      date: day.date,
       liters_consumed: litersConsumed,
       time_of_day: timeOfDay,
       source
@@ -877,15 +1017,19 @@ app.get('/api/hydration-logs', auth.authMiddleware, async (req, res) => {
  */
 app.post('/api/sleep-logs', auth.authMiddleware, async (req, res) => {
   try {
-    const { date, sleepHours, sleepQuality, notes } = req.body;
+    const { date, tz, sleepHours, sleepQuality, notes } = req.body;
     const userId = req.user.userId;
 
     if (!sleepHours || sleepHours < 0 || sleepHours > 16) {
       return res.status(400).json({ error: 'Sleep hours must be between 0 and 16' });
     }
 
+    // Omitted date → today in the client's time zone (tz), not server UTC.
+    const day = resolveRequestDate({ date, tz });
+    if (day.error) return res.status(400).json({ error: day.error });
+
     const log = await db.createSleepLog(userId, {
-      date: date || new Date().toISOString().split('T')[0],
+      date: day.date,
       sleep_hours: sleepHours,
       sleep_quality: sleepQuality,
       notes
@@ -1631,43 +1775,8 @@ app.post('/api/grocery-optimize', auth.authMiddleware, (req, res) => {
 
 const FOOD_LOG_MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
 
-/**
- * POST /api/food-logs
- * Log a single food item for a given date
- */
-app.post('/api/food-logs', auth.authMiddleware, async (req, res) => {
-  try {
-    const schema = z.object({
-      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      name: z.string().min(1),
-      mealType: z.enum(FOOD_LOG_MEAL_TYPES).optional(),
-      calories: z.number().nonnegative(),
-      proteinGrams: z.number().nonnegative().optional(),
-      carbsGrams: z.number().nonnegative().optional(),
-      fatGrams: z.number().nonnegative().optional(),
-      notes: z.string().max(500).optional()
-    });
-
-    const data = schema.parse(req.body);
-    const row = await db.createFoodLog(req.user.userId, {
-      date: data.date,
-      name: data.name,
-      meal_type: data.mealType || null,
-      calories: data.calories,
-      protein_grams: data.proteinGrams ?? null,
-      carbs_grams: data.carbsGrams ?? null,
-      fat_grams: data.fatGrams ?? null,
-      notes: data.notes ?? null
-    });
-
-    return res.status(201).json(row);
-  } catch (error) {
-    if (error instanceof ZodError) {
-      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
-    }
-    return res.status(500).json({ error: 'Failed to create food log', details: safeErrorDetails(error), requestId: req.id });
-  }
-});
+// POST /api/food-logs (single log, catalog or quick-add) lives in
+// routes/food-logging.js with the other fast-logging endpoints.
 
 /**
  * POST /api/food-logs/bulk
@@ -1776,143 +1885,8 @@ app.post('/api/food-logs/import', auth.authMiddleware, async (req, res) => {
   }
 });
 
-/**
- * POST /api/food-logs/copy
- * Copy all food logs from one date to another
- */
-app.post('/api/food-logs/copy', auth.authMiddleware, async (req, res) => {
-  try {
-    const bodySchema = z
-      .object({
-        fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
-      })
-      .refine((v) => v.fromDate !== v.toDate, { message: 'fromDate must be different than toDate' });
-
-    const { fromDate, toDate } = bodySchema.parse(req.body);
-    const sourceLogs = await db.getFoodLogs(req.user.userId, { date: fromDate });
-
-    const created = [];
-    for (const l of sourceLogs || []) {
-      const row = await db.createFoodLog(req.user.userId, {
-        date: toDate,
-        name: l.name,
-        meal_type: l.meal_type ?? null,
-        calories: l.calories,
-        protein_grams: Object.prototype.hasOwnProperty.call(l, 'protein_grams') ? (l.protein_grams ?? null) : null,
-        carbs_grams: Object.prototype.hasOwnProperty.call(l, 'carbs_grams') ? (l.carbs_grams ?? null) : null,
-        fat_grams: Object.prototype.hasOwnProperty.call(l, 'fat_grams') ? (l.fat_grams ?? null) : null,
-        notes: Object.prototype.hasOwnProperty.call(l, 'notes') ? (l.notes ?? null) : null
-      });
-      created.push(row);
-    }
-
-    return res.status(201).json({ fromDate, toDate, copiedCount: created.length, logs: created });
-  } catch (error) {
-    if (error instanceof ZodError) {
-      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
-    }
-    return res.status(500).json({ error: 'Failed to copy food logs', details: safeErrorDetails(error), requestId: req.id });
-  }
-});
-
-/**
- * POST /api/food-logs/template
- * Save a reusable food log template (meal)
- */
-app.post('/api/food-logs/template', auth.authMiddleware, async (req, res) => {
-  try {
-    const emptyStringToNull = (v) => {
-      if (v == null) return null;
-      if (typeof v !== 'string') return v;
-      const t = v.trim();
-      return t === '' ? null : t;
-    };
-
-    const schema = z.object({
-      name: z.string().min(1),
-      mealType: z.preprocess(emptyStringToNull, z.enum(FOOD_LOG_MEAL_TYPES).nullable()).optional(),
-      calories: z.number().nonnegative(),
-      proteinGrams: z.number().nonnegative().optional(),
-      carbsGrams: z.number().nonnegative().optional(),
-      fatGrams: z.number().nonnegative().optional(),
-      notes: z.preprocess(emptyStringToNull, z.string().max(500).nullable()).optional()
-    });
-
-    const data = schema.parse(req.body);
-    const row = await db.createFoodLogTemplate(req.user.userId, {
-      name: data.name,
-      meal_type: Object.prototype.hasOwnProperty.call(data, 'mealType') ? (data.mealType ?? null) : null,
-      calories: data.calories,
-      protein_grams: data.proteinGrams ?? null,
-      carbs_grams: data.carbsGrams ?? null,
-      fat_grams: data.fatGrams ?? null,
-      notes: Object.prototype.hasOwnProperty.call(data, 'notes') ? (data.notes ?? null) : null
-    });
-
-    return res.status(201).json(row);
-  } catch (error) {
-    if (error instanceof ZodError) {
-      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
-    }
-    return res.status(500).json({ error: 'Failed to create food log template', details: safeErrorDetails(error), requestId: req.id });
-  }
-});
-
-/**
- * GET /api/food-logs/templates
- * List reusable food log templates
- */
-app.get('/api/food-logs/templates', auth.authMiddleware, async (req, res) => {
-  try {
-    const querySchema = z
-      .object({
-        limit: z.coerce.number().int().positive().max(200).optional(),
-        offset: z.coerce.number().int().nonnegative().max(100000).optional()
-      })
-      .refine(v => (v.offset == null ? true : v.limit != null), {
-        message: 'offset requires limit'
-      });
-
-    const { limit, offset } = querySchema.parse(req.query);
-    const templates = await db.getFoodLogTemplates(req.user.userId, {
-      limit: limit ?? null,
-      offset: offset ?? null
-    });
-    return res.json(templates || []);
-  } catch (error) {
-    if (error instanceof ZodError) {
-      return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
-    }
-    return res.status(500).json({ error: 'Failed to get food log templates', details: safeErrorDetails(error), requestId: req.id });
-  }
-});
-
-/**
- * DELETE /api/food-logs/templates/:id
- * Delete a reusable food log template
- */
-app.delete('/api/food-logs/templates/:id', auth.authMiddleware, async (req, res) => {
-  try {
-    const paramsSchema = z.object({
-      id: z.string().min(1)
-    });
-
-    const { id } = paramsSchema.parse(req.params);
-    const deleted = await db.deleteFoodLogTemplate(req.user.userId, id);
-
-    if (!deleted) {
-      return res.status(404).json({ error: 'Template not found', requestId: req.id });
-    }
-
-    return res.json({ status: 'ok', deleted });
-  } catch (error) {
-    if (error instanceof ZodError) {
-      return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
-    }
-    return res.status(500).json({ error: 'Failed to delete food log template', details: safeErrorDetails(error), requestId: req.id });
-  }
-});
+// /copy, /undo, /suggestions, /template and /templates/* are in
+// routes/food-logging.js (mounted above, before the /:id handlers below).
 
 /**
  * GET /api/food-logs
@@ -3590,7 +3564,9 @@ app.get('/api/food-logs/macros-distribution', auth.authMiddleware, async (req, r
  */
 app.get('/api/insights/daily', auth.authMiddleware, async (req, res) => {
   try {
-    const { date = new Date().toISOString().split('T')[0] } = req.query;
+    const day = resolveRequestDate({ date: req.query.date, tz: req.query.tz });
+    if (day.error) return res.status(400).json({ error: day.error });
+    const { date } = day;
     const userId = req.user.userId;
 
     const foodLogs = await db.getFoodLogs(userId) || [];
@@ -3702,19 +3678,22 @@ app.get('/api/badges', auth.authMiddleware, async (req, res) => {
 app.get('/api/targets', auth.authMiddleware, async (req, res) => {
   try {
     const userId = req.user.userId;
-    const survey = db.getLatestSurvey(userId);
+    const survey = await db.getLatestSurvey(userId);
     const prefs = await db.getUserPreferences(userId);
+    const macro = prefs?.macroTargets || {};
 
+    // Targets the user confirmed (onboarding, or PUT /api/targets) win over
+    // what an older survey computed.
     let targets = {
-      calories: survey?.daily_calories?.targetDailyCalories || null,
-      protein_grams: survey?.protein_target_g || null,
-      carbs_grams: prefs?.macroTargets?.carbs_grams || null,
-      fat_grams: prefs?.macroTargets?.fat_grams || null
+      calories: macro.calorieOverride || survey?.daily_calories?.targetDailyCalories || null,
+      protein_grams: macro.protein_grams || survey?.protein_target_g || null,
+      carbs_grams: macro.carbs_grams || null,
+      fat_grams: macro.fat_grams || null
     };
 
     return res.json({
       targets,
-      source: survey ? 'survey' : 'preferences',
+      source: macro.calorieOverride || !survey ? 'preferences' : 'survey',
       surveyId: survey?.id || null,
       lastUpdated: survey?.created_at || null
     });
@@ -3730,15 +3709,35 @@ app.get('/api/targets', auth.authMiddleware, async (req, res) => {
 app.put('/api/targets', auth.authMiddleware, async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { calories, protein_grams, carbs_grams, fat_grams } = req.body;
 
-    // Validate
-    if (calories && (calories < 1000 || calories > 5000)) {
-      return res.status(400).json({ error: 'Invalid input', details: 'Calories must be between 1000 and 5000' });
+    // Numbers only. These land in preferences and are read back by
+    // /api/targets, engagement and the coach, so a string or an object here
+    // would poison every one of them. Numeric strings are still accepted.
+    const num = (schema) =>
+      z.preprocess((v) => (typeof v === 'string' && v.trim() !== '' ? Number(v) : v), schema)
+        .optional()
+        .nullable();
+    const targetsSchema = z.object({
+      calories: num(z.number().finite().min(1000).max(5000)),
+      protein_grams: num(z.number().finite().nonnegative().max(1000)),
+      carbs_grams: num(z.number().finite().nonnegative().max(2000)),
+      fat_grams: num(z.number().finite().nonnegative().max(1000))
+    });
+    const parsed = targetsSchema.safeParse(req.body || {});
+    if (!parsed.success) {
+      const caloriesIssue = parsed.error.issues.some((i) => i.path[0] === 'calories');
+      return res.status(400).json({
+        error: 'Invalid input',
+        details: caloriesIssue ? 'Calories must be between 1000 and 5000' : 'Macro targets must be non-negative numbers',
+        requestId: req.id
+      });
     }
+    const { calories, protein_grams, carbs_grams, fat_grams } = parsed.data;
 
-    // Store in preferences
-    const updated = db.setUserPreferences(userId, {
+    // Store in preferences, keeping everything else the user has there
+    const current = (await db.getUserPreferences(userId)) || {};
+    await db.updateUserPreferences(userId, {
+      ...current,
       macroTargets: {
         calorieOverride: calories,
         protein_grams: protein_grams || null,
@@ -3773,7 +3772,10 @@ app.get('/api/progress/overview', auth.authMiddleware, async (req, res) => {
     const foodLogs = await db.getFoodLogs(userId) || [];
     const weightLogs = db.getWeightLogs(userId) || [];
 
-    const today = new Date().toISOString().split('T')[0];
+    // ?date= or ?tz= pick the user's "today"; server UTC is only the fallback.
+    const day = resolveRequestDate({ date: req.query.date, tz: req.query.tz });
+    if (day.error) return res.status(400).json({ error: day.error });
+    const today = day.date;
     const todayLogs = foodLogs.filter(log => log.date === today);
     const totalDaysLogged = new Set(foodLogs.map(log => log.date)).size;
 
@@ -3806,7 +3808,8 @@ app.get('/api/progress/overview', auth.authMiddleware, async (req, res) => {
 
 // ========== AI COACHING (CRM) ==========
 // Rule-based coach grounded in the user's own data (see utils/coach.js).
-// Both endpoints are bilingual: pass ?lang=he or ?lang=en (default: en).
+// Both endpoints are bilingual: pass ?lang=he or ?lang=en (default: en), and
+// ?tz= (IANA) so streaks and late-night patterns use the user's own clock.
 
 app.get('/api/crm/users/:userId/insights', auth.authMiddleware, async (req, res) => {
   try {
@@ -3814,7 +3817,26 @@ app.get('/api/crm/users/:userId/insights', auth.authMiddleware, async (req, res)
       return res.status(403).json({ error: 'You can only access your own insights' });
     }
     const { lang = 'en' } = req.query;
-    const insights = await coach.generateInsights(req.user.userId, lang === 'he' ? 'he' : 'en');
+    const day = resolveRequestDate({ date: req.query.date, tz: req.query.tz });
+    if (day.error) return res.status(400).json({ error: day.error });
+    const l = lang === 'he' ? 'he' : 'en';
+    const insights = await coach.generateInsights(req.user.userId, l, { today: day.date, tz: req.query.tz });
+    // Insight cards are a Premium candidate (utils/entitlements.js). Locked
+    // only when ENTITLEMENTS_ENFORCED=true — and even then safety cards are
+    // always shown, and the /ask chat below stays free.
+    res.set('X-Premium-Feature', 'coach_insights');
+    if (entitlements.isEnforced()) {
+      let entitled = true;
+      try {
+        entitled = entitlements.has(await entitlements.getUserEntitlements(req.user.userId), 'coach_insights');
+      } catch (error) {
+        req.log.warn('coach insights: entitlement lookup failed; showing all cards', { err: error });
+      }
+      if (!entitled) {
+        res.set('X-Premium-Locked', 'coach_insights');
+        return res.json([...insights.filter((c) => c.kind === 'safety' || c.insight_type === 'safety'), coach.lockedInsightCard(l)]);
+      }
+    }
     res.json(insights);
   } catch (error) {
     res.status(500).json({ error: 'Failed to get insights', details: safeErrorDetails(error) });
@@ -3831,7 +3853,9 @@ app.post('/api/crm/users/:userId/ask', auth.authMiddleware, async (req, res) => 
       return res.status(400).json({ error: 'Message required' });
     }
     const { lang = 'en' } = req.query;
-    const response = await coach.answer(req.user.userId, message.trim(), lang === 'he' ? 'he' : 'en');
+    const day = resolveRequestDate({ date: req.query.date, tz: req.query.tz });
+    if (day.error) return res.status(400).json({ error: day.error });
+    const response = await coach.answer(req.user.userId, message.trim(), lang === 'he' ? 'he' : 'en', { today: day.date, tz: req.query.tz });
     res.json({ response });
   } catch (error) {
     res.status(500).json({ error: 'Coach request failed', details: safeErrorDetails(error) });
@@ -3867,13 +3891,28 @@ app.post('/api/summary/weekly/test', auth.authMiddleware, async (req, res) => {
 // ended. Vercel's serverless runtime can't host a scheduler, so the job only
 // arms where a long-lived process does.
 if (!process.env.VERCEL) {
+  jobs.register('weekly-summary', { schedule: '0 8 * * 0 (Asia/Jerusalem)', enabled: true });
   cron.schedule('0 8 * * 0', () => {
-    runWeeklySummaryJob().catch((err) =>
-      console.error(`📧 Weekly summary job crashed: ${err.message}`)
-    );
+    const run = jobs.start('weekly-summary');
+    runWeeklySummaryJob()
+      .then((r) => run.finish({ sent: r && r.sent, failed: r && r.failed }))
+      .catch((err) => {
+        run.fail(err);
+        logger.error('weekly summary job crashed', { err });
+      });
   }, { timezone: 'Asia/Jerusalem' });
-  console.log('📧 Weekly summary emails scheduled: Sundays 08:00 (Asia/Jerusalem)');
+  logger.info('weekly summary emails scheduled: Sundays 08:00 (Asia/Jerusalem)');
+} else {
+  jobs.register('weekly-summary', { enabled: false, disabledReason: 'vercel' });
 }
+
+// Lifecycle messaging (utils/lifecycle-runner.js): hourly, and never on
+// Vercel, under NODE_ENV=test or with LIFECYCLE_ENABLED=false. Double sends
+// are prevented by the persisted send log, not by this process's memory.
+scheduleLifecycle(cron);
+// Push reminders (water / meal / streak), every 5 minutes in each user's own
+// time zone. utils/push.js keeps it off on Vercel and under NODE_ENV=test.
+require('./utils/push').scheduleReminders(cron);
 
 // ========== ERROR HANDLING ==========
 
@@ -3886,13 +3925,19 @@ app.use(errorHandler);
 // through a bound port -- app.listen() would just occupy a port nothing
 // connects to. Skip it there; everywhere else (local dev, a plain VM) it's
 // how the server actually starts.
+let server = null;
 if (!process.env.VERCEL) {
-  app.listen(PORT, () => {
-    console.log(`🚀 YAHEALTHY server running on port ${PORT}`);
-    console.log(`📚 API docs: http://localhost:${PORT}/api/docs`);
-    console.log(`🔐 Authentication enabled with JWT`);
-    console.log(`💾 Database: ${process.env.SUPABASE_URL ? 'Supabase' : 'In-memory (development)'}`);
+  server = app.listen(PORT, () => {
+    logger.info('YAHEALTHY server listening', {
+      port: Number(PORT),
+      docs: `http://localhost:${PORT}/api/docs`,
+      db: db.isMemoryMode() ? 'memory' : 'supabase'
+    });
   });
 }
+
+// Unhandled rejections are logged; uncaught exceptions are logged and, in
+// production, end the process after connections drain (utils/process-handlers.js).
+installProcessHandlers({ getServer: () => server });
 
 module.exports = app;

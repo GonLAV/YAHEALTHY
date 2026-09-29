@@ -9,6 +9,7 @@ import { weightApi, WeightGoal, WeightLog } from '@/services/api';
 import { useLanguage } from '@/i18n/LanguageContext';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
+import { localDateISO } from '@/utils/date';
 
 export const WeightPage = () => {
   const { t, lang } = useLanguage();
@@ -28,7 +29,8 @@ export const WeightPage = () => {
     try {
       const goalsRes = await weightApi.getGoals();
       const goals = goalsRes.data;
-      const latest = goals.length > 0 ? goals[goals.length - 1] : null;
+      // The API returns goals and logs newest first.
+      const latest = goals.length > 0 ? goals[0] : null;
       setGoal(latest);
       if (latest) {
         const logsRes = await weightApi.getLogs({ goalId: latest.id });
@@ -91,7 +93,7 @@ export const WeightPage = () => {
 
   const current = useMemo(() => {
     if (logs.length === 0) return goal?.start_weight_kg ?? null;
-    return logs[logs.length - 1].weight_kg;
+    return logs[0].weight_kg;
   }, [logs, goal]);
 
   const progressPct = useMemo(() => {
@@ -108,7 +110,11 @@ export const WeightPage = () => {
   }, [goal, current]);
 
   const chartData = useMemo(() => {
-    const points = [...logs].reverse().map((l) => ({ kg: l.weight_kg, date: l.date || l.created_at }));
+    // Timestamps → the user's local calendar day, not the UTC one.
+    const points = [...logs].reverse().map((l) => ({
+      kg: l.weight_kg,
+      date: l.date || (l.created_at ? localDateISO(new Date(l.created_at)) : undefined),
+    }));
     return [
       ...(goal ? [{ kg: goal.start_weight_kg, date: 'start' }] : []),
       ...points,
@@ -162,7 +168,7 @@ export const WeightPage = () => {
             {showGoalForm && (
               <button
                 onClick={() => setShowGoalForm(false)}
-                className="text-sm text-slate-400 hover:text-slate-600"
+                className="text-sm text-slate-500 hover:text-slate-600"
               >
                 {t('common.cancel')}
               </button>
@@ -170,10 +176,11 @@ export const WeightPage = () => {
           </div>
           <form onSubmit={handleCreateGoal} className="grid gap-4 sm:grid-cols-3">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+              <label htmlFor="weight-goal-start" className="mb-1.5 block text-sm font-medium text-slate-700">
                 {t('weight.startWeight')}
               </label>
               <input
+                id="weight-goal-start"
                 type="number"
                 step="0.1"
                 min="20"
@@ -185,10 +192,11 @@ export const WeightPage = () => {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">
+              <label htmlFor="weight-goal-target" className="mb-1.5 block text-sm font-medium text-slate-700">
                 {t('weight.targetWeight')}
               </label>
               <input
+                id="weight-goal-target"
                 type="number"
                 step="0.1"
                 min="20"
@@ -203,7 +211,7 @@ export const WeightPage = () => {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full rounded-xl bg-emerald-600 py-2.5 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700 disabled:opacity-60"
+                className="w-full rounded-xl bg-emerald-700 py-2.5 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800 disabled:opacity-60"
               >
                 {t('weight.createGoal')}
               </button>
@@ -301,7 +309,7 @@ export const WeightPage = () => {
           {!showLogForm ? (
             <button
               onClick={() => setShowLogForm(true)}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-3.5 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700"
+              className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-700 py-3.5 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800"
             >
               <Plus size={18} />
               {t('weight.logWeight')}
@@ -311,7 +319,11 @@ export const WeightPage = () => {
               onSubmit={handleLogWeight}
               className="mt-6 flex flex-col gap-3 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100 sm:flex-row"
             >
+              <label htmlFor="weight-log" className="sr-only">
+                {`${t('weight.logWeight')} (${t('common.kg')})`}
+              </label>
               <input
+                id="weight-log"
                 type="number"
                 step="0.1"
                 min="20"
@@ -325,7 +337,7 @@ export const WeightPage = () => {
               <button
                 type="submit"
                 disabled={submitting}
-                className="rounded-xl bg-emerald-600 px-8 py-2.5 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700 disabled:opacity-60"
+                className="rounded-xl bg-emerald-700 px-8 py-2.5 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800 disabled:opacity-60"
               >
                 {t('common.save')}
               </button>
@@ -345,7 +357,7 @@ export const WeightPage = () => {
             <EmptyState icon={<Scale size={26} />} text={t('weight.noLogs')} />
           ) : (
             <div className="space-y-2">
-              {[...logs].reverse().slice(0, 10).map((log) => {
+              {logs.slice(0, 10).map((log) => {
                 const diff = current != null && log.weight_kg != null ? log.weight_kg - (goal?.start_weight_kg ?? log.weight_kg) : 0;
                 return (
                   <div
@@ -353,18 +365,18 @@ export const WeightPage = () => {
                     className="flex items-center justify-between rounded-2xl bg-white px-5 py-3.5 shadow-sm ring-1 ring-slate-100"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
                         <Flag size={17} />
                       </span>
                       <div>
                         <span className="num font-bold text-slate-900">{log.weight_kg} {t('common.kg')}</span>
-                        <div className="text-xs text-slate-400">{fmtDate(log.created_at || log.date)}</div>
+                        <div className="text-xs text-slate-500">{fmtDate(log.created_at || log.date)}</div>
                       </div>
                     </div>
                     {diff !== 0 && (
                       <span
                         className={`num flex items-center gap-1 text-sm font-semibold ${
-                          diff < 0 ? 'text-emerald-600' : 'text-sky-600'
+                          diff < 0 ? 'text-emerald-700' : 'text-sky-700'
                         }`}
                       >
                         {diff < 0 ? <TrendingDown size={15} /> : <TrendingUp size={15} />}

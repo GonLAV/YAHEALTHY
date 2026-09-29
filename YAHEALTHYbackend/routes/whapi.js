@@ -15,6 +15,11 @@ const { waitUntil } = require('@vercel/functions');
 const db = require('../utils/database');
 const whapi = require('../utils/whapi');
 const brain = require('../utils/whapi-brain');
+const foodLog = require('../utils/whatsapp-food-log');
+const linkStore = require('../utils/whatsapp-link-store');
+const { extractLinkCode } = require('../utils/whatsapp-logging');
+const logger = require('../utils/logger').child({ module: 'whapi' });
+const entitlements = require('../utils/entitlements');
 
 const router = express.Router();
 
@@ -42,7 +47,8 @@ const WELCOME = `שלום! \u{1F642} זאת עדי.
 // message feel less like an instant bot reply.
 async function sendWithTyping(phone, body) {
   await whapi.sendTyping(phone);
-  const typingDelayMs = Math.min(3500, Math.max(700, body.length * 35));
+  // No artificial pause under test: the suites drive whole conversations.
+  const typingDelayMs = process.env.NODE_ENV === 'test' ? 0 : Math.min(3500, Math.max(700, body.length * 35));
   await new Promise((resolve) => setTimeout(resolve, typingDelayMs));
   await whapi.sendText(phone, body);
 }
@@ -117,11 +123,31 @@ async function handleIncomingMessage(message) {
   // then rethrow so the existing per-message logging in the caller is
   // unchanged.
   try {
+    const now = new Date();
+    // WHAPI can deliver the same message twice. Claimed by message id before
+    // anything else, so a redelivery gets no second reply and -- the part that
+    // matters -- can never write a second diary entry.
+    if (!(await linkStore.claimInboundMessage(message.id, now))) return;
+
     const existingConversation = await db.getWhapiConversation(phone);
     const isNewConversation = !existingConversation;
     const conversation = existingConversation || (await db.upsertWhapiConversation(phone, 'adi'));
 
     const rawText = (message.text?.body || message.image?.caption || '').trim();
+
+    // "YH-XXXXXX" from the app's Connect WhatsApp: handled by the server,
+    // never shown to the model and never written to the transcript.
+    const linkCode = message.type === 'text' ? extractLinkCode(rawText) : null;
+    if (linkCode) {
+      const linkReply = await foodLog.handleLinkCode({ phone, code: linkCode, now });
+      await sendWithTyping(phone, linkReply);
+      return;
+    }
+
+    // Stop flags (docs/product-truth.md §5) win over everything below: an
+    // escalated conversation is never logged from and never invited to link.
+    const escalated = await foodLog.checkEscalation({ phone, message, text: rawText, now });
+
     const switchTo = SWITCH_COMMANDS[rawText.toLowerCase()];
     if (switchTo) {
       await db.upsertWhapiConversation(phone, switchTo);
@@ -136,6 +162,20 @@ async function handleIncomingMessage(message) {
       await sendWithTyping(phone, WELCOME);
     }
 
+    // An answer to the server's own "לרשום ביומן?" (כן / לא / a quick fix).
+    // Only a short, exact answer counts; anything else goes to Adi as usual.
+    if (!escalated && message.type === 'text' && rawText) {
+      const answered = await foodLog.handlePendingReply({ phone, text: rawText, now });
+      if (answered) {
+        await db.logWhapiMessage(phone, 'user', rawText);
+        if (answered.reply) {
+          await db.logWhapiMessage(phone, 'assistant', answered.reply, null);
+          await sendWithTyping(phone, answered.reply);
+        }
+        return;
+      }
+    }
+
     let imageBase64 = null;
     let imageMediaType = null;
     if (message.type === 'image' && message.image?.link) {
@@ -144,13 +184,24 @@ async function handleIncomingMessage(message) {
         imageBase64 = media.base64;
         imageMediaType = media.mimeType;
       } catch (err) {
-        console.error('[whapi] failed to download image:', err);
+        logger.error('failed to download image', { err });
         await whapi.sendText(phone, 'לא הצלחתי לפתוח את התמונה — אפשר לשלוח שוב?');
         return;
       }
     }
 
     if (!rawText && !imageBase64) return; // nothing usable to respond to
+
+    // Yoni is a paid feature (chef_whatsapp) — but only when
+    // ENTITLEMENTS_ENFORCED=true, after a free trial, and never for a message
+    // that touches a stop flag. See utils/entitlements.js.
+    if (conversation.active_bot === 'yoni') {
+      const gate = await entitlements.checkChefWhatsapp(phone, rawText);
+      if (!gate.allowed) {
+        await sendWithTyping(phone, gate.message);
+        return;
+      }
+    }
 
     await whapi.sendTyping(phone);
 
@@ -161,12 +212,16 @@ async function handleIncomingMessage(message) {
     // nuri-bot-prompt.md's "מסע 0" for how she's instructed to use them.
     // Yoni (the chef) has no use for them and keeps the plain path.
     const generate = conversation.active_bot === 'adi' ? brain.generateReplyWithTools : brain.generateReply;
+    // What the calculators actually returned this turn -- the only input the
+    // diary proposal below is built from (never the reply text).
+    const toolCalls = [];
     const reply = await generate({
       activeBot: conversation.active_bot,
       history,
       userText: rawText,
       imageBase64,
-      imageMediaType
+      imageMediaType,
+      onToolResult: (call) => toolCalls.push(call)
     });
 
     await db.logWhapiMessage(phone, 'user', rawText || '[תמונה]');
@@ -181,6 +236,27 @@ async function handleIncomingMessage(message) {
       brain.PROMPT_VERSIONS[conversation.active_bot] || null
     );
     await sendReplyInChunks(phone, reply);
+
+    // Adi computed a meal → the server asks "לרשום ביומן?" (linked) or
+    // invites to link (unlinked, throttled). Adi's reply is already out, so a
+    // failure here is logged, not turned into the generic fallback message.
+    try {
+      const followUp = await foodLog.afterModelReply({
+        phone,
+        activeBot: conversation.active_bot,
+        toolCalls,
+        escalated,
+        messageId: message.id || null,
+        messageAt: message.timestamp ? new Date(message.timestamp * 1000) : null,
+        now
+      });
+      if (followUp) {
+        await db.logWhapiMessage(phone, 'assistant', followUp, null);
+        await sendWithTyping(phone, followUp);
+      }
+    } catch (followErr) {
+      logger.error('diary follow-up failed', { err: followErr, messageId: message.id || null });
+    }
   } catch (err) {
     await sendFallbackReply(phone);
     throw err;

@@ -16,7 +16,17 @@
     "test:phone": "node tests/phone.test.js",
     "approvals:hash": "node scripts/approvals-hash.js",
     "test:clinical": "node tests/clinical-approval.test.js",
-    "test:staff": "node tests/staff-access.test.js"
+    "test:staff": "node tests/staff-access.test.js",
+    "test:referrals": "node tests/referrals.test.js",
+    "test:engagement": "node tests/engagement.test.js",
+    "test:marketing": "node tests/marketing.test.js",
+    "test:onboarding": "node tests/onboarding.test.js",
+    "test:lifecycle": "node tests/lifecycle.test.js",
+    "test:config": "node tests/config-check.test.js",
+    "test:migrations": "node tests/migrations.test.js",
+    "check:migrations": "node scripts/check-migrations.js",
+    "build:migrations": "node scripts/check-migrations.js --write",
+    "test:push": "node tests/push.test.js"
   },
   "keywords": [],
   "author": "",
@@ -38,6 +48,7 @@
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "uuid": "^13.0.0",
+    "web-push": "^3.6.7",
     "zod": "^3.24.1"
   },
   "devDependencies": {

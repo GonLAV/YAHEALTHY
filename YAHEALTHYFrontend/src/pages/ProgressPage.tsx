@@ -11,15 +11,15 @@ import {
 import { useLanguage } from '@/i18n/LanguageContext';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
+import { addDaysISO, localDateISO, parseLocalDate } from '@/utils/date';
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+// Tooltip rows default to the series colour, which is too light to read as
+// text on white (WCAG 1.4.3); the lines/bars keep the colour.
+const TOOLTIP_ITEM_STYLE = { color: '#0f172a' };
+
 const RANGE_DAYS = 14;
 
 const MACRO_COLORS = ['#10b981', '#3b82f6', '#f59e0b'];
-
-// Local dates, not UTC — the server stores date strings as entered locally.
-const localIso = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 const ChartCard = ({
   title,
@@ -36,7 +36,9 @@ const ChartCard = ({
   >
     <h2 className="mb-4 text-base font-semibold text-slate-900">{title}</h2>
     <figure>
-      <div role="img" aria-label={title} className="h-64">
+      {/* Charts stay LTR in Hebrew too (time runs left→right, numbers stay LTR),
+          matching WeightPage; YAxis has no `dir` prop, so set it on the container. */}
+      <div role="img" aria-label={title} dir="ltr" className="h-64">
         {children}
       </div>
       <figcaption className="sr-only">{summary}</figcaption>
@@ -90,8 +92,7 @@ export const ProgressPage = () => {
         // Day buckets for the range window
         const byKey = new Map<string, { calories: number; liters: number; sleepHours: number }>();
         for (let i = 0; i < RANGE_DAYS; i++) {
-          const d = new Date(Date.now() - i * DAY_MS);
-          byKey.set(localIso(d), { calories: 0, liters: 0, sleepHours: 0 });
+          byKey.set(addDaysISO(-i), { calories: 0, liters: 0, sleepHours: 0 });
         }
         const inWindow = (date: string) => byKey.has(String(date || '').slice(0, 10));
 
@@ -108,8 +109,8 @@ export const ProgressPage = () => {
         // Oldest → newest for the charts
         const points: DailyPoint[] = [];
         for (let i = RANGE_DAYS - 1; i >= 0; i--) {
-          const d = new Date(Date.now() - i * DAY_MS);
-          const key = localIso(d);
+          const key = addDaysISO(-i);
+          const d = parseLocalDate(key);
           const bucket = byKey.get(key)!;
           points.push({
             key,
@@ -123,11 +124,16 @@ export const ProgressPage = () => {
 
         // Weight trend — every log with a usable date, oldest first
         const weightPoints = weights
-          .map((w) => ({ date: String(w.date || w.created_at || '').slice(0, 10), weight: w.weight_kg }))
-          .filter((w) => w.date)
-          .sort((a, b) => a.date.localeCompare(b.date))
           .map((w) => ({
-            label: dayLabel(new Date(`${w.date}T00:00:00`)),
+            date: w.date ? w.date.slice(0, 10) : w.created_at ? localDateISO(new Date(w.created_at)) : '',
+            weight: w.weight_kg,
+            at: w.created_at || '',
+          }))
+          .filter((w) => w.date)
+          // Same-day weigh-ins keep their time order (the API lists newest first).
+          .sort((a, b) => a.date.localeCompare(b.date) || a.at.localeCompare(b.at))
+          .map((w) => ({
+            label: dayLabel(parseLocalDate(w.date)),
             weight: w.weight,
           }));
         setWeightSeries(weightPoints);
@@ -198,7 +204,7 @@ export const ProgressPage = () => {
     .join(', ');
 
   const noChartData = (
-    <p className="flex h-full items-center justify-center px-6 text-center text-sm text-slate-400">
+    <p className="flex h-full items-center justify-center px-6 text-center text-sm text-slate-500">
       {t('progress.noData')}
     </p>
   );
@@ -224,8 +230,8 @@ export const ProgressPage = () => {
                 <LineChart data={daily}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                  <YAxis dir="ltr" />
-                  <Tooltip />
+                  <YAxis />
+                  <Tooltip itemStyle={TOOLTIP_ITEM_STYLE} />
                   <Line
                     type="monotone"
                     dataKey="calories"
@@ -250,8 +256,8 @@ export const ProgressPage = () => {
                 <BarChart data={daily}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                  <YAxis dir="ltr" />
-                  <Tooltip />
+                  <YAxis />
+                  <Tooltip itemStyle={TOOLTIP_ITEM_STYLE} />
                   <Bar
                     dataKey="liters"
                     name={t('progress.hydration')}
@@ -274,8 +280,8 @@ export const ProgressPage = () => {
                 <BarChart data={daily}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                  <YAxis dir="ltr" />
-                  <Tooltip />
+                  <YAxis />
+                  <Tooltip itemStyle={TOOLTIP_ITEM_STYLE} />
                   <Bar
                     dataKey="sleepHours"
                     name={t('progress.sleep')}
@@ -295,8 +301,8 @@ export const ProgressPage = () => {
                 <LineChart data={weightSeries}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                  <YAxis domain={['auto', 'auto']} dir="ltr" />
-                  <Tooltip />
+                  <YAxis domain={['auto', 'auto']} />
+                  <Tooltip itemStyle={TOOLTIP_ITEM_STYLE} />
                   <Line
                     type="monotone"
                     dataKey="weight"
@@ -326,10 +332,10 @@ export const ProgressPage = () => {
                     outerRadius={85}
                   >
                     {macros.map((entry, i) => (
-                      <Cell key={entry.name} fill={MACRO_COLORS[i % MACRO_COLORS.length]} />
+                      <Cell key={entry.name} fill={MACRO_COLORS[i % MACRO_COLORS.length]} aria-label={entry.name} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip itemStyle={TOOLTIP_ITEM_STYLE} />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>

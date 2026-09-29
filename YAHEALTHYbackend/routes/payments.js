@@ -1,10 +1,28 @@
 /**
  * Payments — a hosted PayPlus page in, a subscription out.
  *
- * The person buying does not have an account yet. That is the whole shape of
+ * The person buying may not have an account yet. That is the whole shape of
  * this flow: they pay first, the callback creates the account, and a
  * set-your-password link goes to the address they paid with. A password is
- * never mailed to anyone.
+ * never mailed to anyone. A signed-in buyer (the /upgrade page) pays for their
+ * own account.
+ *
+ * CHARGING IS OFF BY DEFAULT (utils/checkout.js): until CHECKOUT_ENABLED=true
+ * and CANCELLATION_POLICY_URL are set, and PayPlus is configured, checkout
+ * answers 503 and the UI offers "Talk to us" instead of Pay.
+ *
+ * What may be sold is the plan catalog (utils/plans.js) — one list, shared
+ * with the landing page's price list and the entitlement resolver. An unknown
+ * plan is refused rather than granted, so a typo or a tampered field cannot
+ * mint access to something that does not exist. Legacy ids `base` and `yoni`
+ * are aliases of coaching_3m / combo_3m. Prices come only from the
+ * environment; a plan with no price refuses to sell rather than taking
+ * nothing for something.
+ *
+ * Recurring billing: PayPlus hosted pages here charge once (utils/payplus.js
+ * has no token/recurring API), and no card is ever stored. A periodic plan
+ * gets an ends_at; before it ends the lifecycle runner sends a renewal email
+ * with a link back to /upgrade (utils/lifecycle.js, campaign `renewal`).
  *
  * Two routers, because they need opposite treatment:
  *   callbackRouter — mounted before the rate limiter. Every callback arrives
@@ -20,33 +38,16 @@ const auth = require('../utils/auth');
 const db = require('../utils/database');
 const mailer = require('../utils/mailer');
 const payplus = require('../utils/payplus');
+const plans = require('../utils/plans');
+const { checkoutStatus, DISABLED_MESSAGE } = require('../utils/checkout');
 const { normalizePhone, maskPhone } = require('../utils/phone');
+const logger = require('../utils/logger');
+
+const reqLog = logger.forRequest;
+const log = logger.child({ component: 'payments' });
 
 const callbackRouter = express.Router();
 const checkoutRouter = express.Router();
-
-// What may be sold. An unknown plan is refused rather than granted, so a typo
-// or a tampered field cannot mint access to something that does not exist.
-// Two tiers, set by the business owner: 150 for coaching, 250 for coaching
-// with Yoni. The amounts still come from the environment rather than from
-// here — a price changes on a business's schedule, not on a deploy's — and a
-// plan with no price refuses to sell rather than taking nothing for something.
-//
-// `includes` is what the gate reads. Keeping it on the plan means the answer
-// to "does this person get Yoni?" lives next to what they bought, instead of
-// being an `if` repeated wherever someone remembers to write it.
-const PLANS = {
-  base: {
-    amount: Number(process.env.PLAN_BASE_AMOUNT || 0),
-    label: 'ליווי',
-    includes: []
-  },
-  yoni: {
-    amount: Number(process.env.PLAN_YONI_AMOUNT || 0),
-    label: 'ליווי עם יוני',
-    includes: ['yoni']
-  }
-};
 
 // PayPlus reports the outcome as a code. '000' is approved on every PayPlus
 // account we have documentation for, but it is configurable rather than
@@ -55,17 +56,48 @@ const PLANS = {
 const APPROVED_STATUS_CODE = process.env.PAYPLUS_APPROVED_CODE || '000';
 
 /**
- * POST /api/payments/checkout
+ * GET /api/payments/status — public: may the UI show a Pay button?
  *
- * Public: the buyer has no account yet. Returns a link to PayPlus's page —
- * this server never sees a card number.
+ * Gives a coarse reason, never which variable is missing.
+ */
+checkoutRouter.get('/status', (req, res) => {
+  const status = checkoutStatus();
+  res.set('Cache-Control', 'no-store');
+  return res.json({
+    checkoutEnabled: status.enabled,
+    reason: status.reason,
+    cancellationPolicyUrl: status.cancellationPolicyUrl,
+    installments: status.installments,
+    message: status.enabled ? null : DISABLED_MESSAGE
+  });
+});
+
+/** The signed-in user behind an optional Bearer token, or null. Never 401s. */
+async function optionalUser(req) {
+  const header = req.headers.authorization || '';
+  if (!header.startsWith('Bearer ')) return null;
+  const decoded = auth.verifyToken(header.slice(7));
+  if (!decoded || decoded.typ !== 'access' || typeof decoded.tv !== 'number') return null;
+  const user = await db.getUser(decoded.userId);
+  if (!user || (user.token_version || 0) !== decoded.tv) return null;
+  return user;
+}
+
+/**
+ * POST /api/payments/checkout  { plan, email, phone, name?, installments? }
+ *
+ * Returns a link to PayPlus's page — this server never sees a card number.
+ * The request is validated first (400s), then the switch (503).
  */
 checkoutRouter.post('/checkout', async (req, res) => {
   try {
-    const email = String(req.body?.email || '').trim().toLowerCase();
-    const plan = String(req.body?.plan || '').trim();
-    const name = req.body?.name ? String(req.body.name).trim() : null;
-    const phone = normalizePhone(req.body?.phone);
+    const signedIn = await optionalUser(req).catch(() => null);
+    const email = String((signedIn && signedIn.email) || req.body?.email || '').trim().toLowerCase();
+    const plan = plans.getPlan(String(req.body?.plan || ''));
+    const name = req.body?.name
+      ? String(req.body.name).trim().slice(0, 100)
+      : (signedIn && signedIn.name) || null;
+    const phone = normalizePhone(req.body?.phone) || (signedIn && signedIn.phone ? normalizePhone(signedIn.phone) : null);
 
     if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
       return res.status(400).json({ error: 'A valid email is required', requestId: req.id });
@@ -81,40 +113,59 @@ checkoutRouter.post('/checkout', async (req, res) => {
         requestId: req.id
       });
     }
-    if (!Object.prototype.hasOwnProperty.call(PLANS, plan)) {
+    if (!plan) {
       return res.status(400).json({ error: 'Unknown plan', requestId: req.id });
     }
-    if (!payplus.isConfigured()) {
+
+    const status = checkoutStatus();
+    if (!status.enabled) {
       return res.status(503).json({
-        error: 'Payments are not configured on this server',
+        error:
+          status.reason === 'payments_not_configured'
+            ? 'Payments are not configured on this server'
+            : 'Online checkout is not open yet — talk to us instead',
+        code: 'checkout_disabled',
+        reason: status.reason,
+        message: DISABLED_MESSAGE,
         requestId: req.id
       });
     }
 
-    const amount = PLANS[plan].amount;
-    if (!amount || amount <= 0) {
+    if (!plan.amount) {
       // Better a refusal than a payment page for nothing, which would take
       // zero shekels and grant a paid plan.
-      return res.status(503).json({ error: 'That plan has no price set', requestId: req.id });
+      return res.status(503).json({ error: 'That plan has no price set', code: 'no_price', requestId: req.id });
+    }
+
+    // Installments only when the owner allowed them, and never more than that.
+    let installments = null;
+    if (req.body?.installments !== undefined && req.body?.installments !== null) {
+      const n = Number(req.body.installments);
+      const max = status.installments || 1;
+      if (!Number.isInteger(n) || n < 1 || n > max) {
+        return res.status(400).json({ error: `installments must be between 1 and ${max}`, requestId: req.id });
+      }
+      installments = n > 1 ? n : null;
     }
 
     const appUrl = mailer.APP_URL;
     const apiUrl = process.env.API_PUBLIC_URL || '';
 
     const link = await payplus.createPaymentLink({
-      amount,
+      amount: plan.amount,
       customerName: name,
       email,
       phone,
-      plan,
+      plan: plan.id,
+      installments,
       callbackUrl: `${apiUrl}/api/payments/callback`,
       successUrl: `${appUrl}/welcome`,
       failureUrl: `${appUrl}/payment-failed`
     });
 
-    return res.status(201).json({ paymentPageLink: link.paymentPageLink });
+    return res.status(201).json({ paymentPageLink: link.paymentPageLink, plan: plan.id });
   } catch (error) {
-    console.error('[payments] checkout failed:', error && error.message);
+    reqLog(req).error('[payments] checkout failed', { err: error });
     return res.status(502).json({ error: 'Could not start the payment', requestId: req.id });
   }
 });
@@ -125,6 +176,9 @@ checkoutRouter.post('/checkout', async (req, res) => {
  * PayPlus calls this, not a signed-in user, so there is no JWT to check. The
  * `hash` header is the authentication: it proves the sender holds the account
  * secret. Without that check this route is a public "mark me as paid" button.
+ *
+ * Deliberately NOT behind CHECKOUT_ENABLED: a payment already taken (a page
+ * opened before the switch went off, a PayPlus retry) must still be honoured.
  */
 callbackRouter.post('/callback', async (req, res) => {
   const verdict = payplus.verifyCallback({
@@ -135,7 +189,7 @@ callbackRouter.post('/callback', async (req, res) => {
   });
 
   if (!verdict.ok) {
-    console.warn('[payments] rejected an unverified callback:', verdict.reason);
+    log.warn('rejected an unverified callback', { reason: verdict.reason });
     // Nothing about why. An attacker probing this endpoint learns only that
     // it refused them.
     return res.status(401).json({ error: 'Unauthorized' });
@@ -148,7 +202,10 @@ callbackRouter.post('/callback', async (req, res) => {
     return res.status(400).json({ error: 'Callback carries no transaction id' });
   }
 
-  const plan = transaction.more_info || null;
+  const rawPlan = transaction.more_info || null;
+  // Canonical catalog id; a legacy `base`/`yoni` still in flight maps across.
+  const catalogPlan = plans.getPlan(rawPlan);
+  const plan = catalogPlan ? catalogPlan.id : rawPlan;
   const email = String(transaction.more_info_2 || '').trim().toLowerCase() || null;
   const phone = normalizePhone(transaction.more_info_3);
   const approved = String(transaction.status_code) === APPROVED_STATUS_CODE;
@@ -172,14 +229,14 @@ callbackRouter.post('/callback', async (req, res) => {
     }
 
     if (!approved) {
-      console.info('[payments] declined transaction recorded');
+      log.info('declined transaction recorded');
       return res.json({ received: true });
     }
 
-    if (!email || !Object.prototype.hasOwnProperty.call(PLANS, plan)) {
+    if (!email || !catalogPlan) {
       // Money changed hands but we cannot tell what for. Recorded above, so it
       // is recoverable by hand, and loud here so someone looks.
-      console.error('[payments] approved payment with no usable email or plan:', uid);
+      log.error('approved payment with no usable email or plan', { paymentRequestUid: uid, plan: rawPlan });
       return res.json({ received: true, needsAttention: true });
     }
 
@@ -206,13 +263,21 @@ callbackRouter.post('/callback', async (req, res) => {
         // payment still stands — refusing it would take money and give nothing
         // — but a person will have to untangle it, so it is logged loudly and
         // with the number masked.
-        console.error(
-          `[payments] could not attach ${maskPhone(phone)} to the account: ${phoneError.message}`
-        );
+        log.error('could not attach the phone number to the account', {
+          phone: maskPhone(phone),
+          err: phoneError
+        });
       }
     }
 
-    await db.createSubscription(user.id, plan);
+    // ends_at from the plan's period (null for a one-time purchase). Paying
+    // again while a period is still running extends it from its end, so an
+    // early renewal never loses days.
+    const now = new Date();
+    const { subscription } = await db.createSubscription(user.id, catalogPlan.id, {
+      extend: true,
+      endsAtFor: (currentEndsAt) => plans.computeEndsAt(catalogPlan, { now, currentEndsAt })
+    });
 
     // The same single-use, session-cutting mechanism as a password reset. A
     // password is never sent by email, only a link to choose one.
@@ -222,13 +287,17 @@ callbackRouter.post('/callback', async (req, res) => {
     } catch (mailError) {
       // The subscription is already real. A failed email is a delivery problem
       // to chase, not a reason to tell PayPlus the payment failed.
-      console.error('[payments] could not send the welcome mail:', mailError && mailError.message);
+      log.error('could not send the welcome mail', { err: mailError });
     }
 
-    console.info(`[payments] subscription activated (new account: ${isNewAccount})`);
+    log.info('subscription activated', {
+      plan: catalogPlan.id,
+      endsAt: (subscription && subscription.ends_at) || null,
+      newAccount: isNewAccount
+    });
     return res.json({ received: true });
   } catch (error) {
-    console.error('[payments] callback processing failed:', error && error.message);
+    log.error('callback processing failed', { err: error });
     // A 500 makes PayPlus retry, which is what we want: the event was not
     // recorded, so the retry will be treated as new rather than as a duplicate.
     return res.status(500).json({ error: 'Could not process the callback' });
@@ -236,22 +305,28 @@ callbackRouter.post('/callback', async (req, res) => {
 });
 
 /**
- * GET /api/payments/my-plans — what the signed-in person is entitled to.
+ * GET /api/payments/my-plans — what the signed-in person has bought and until when.
  */
 checkoutRouter.get('/my-plans', auth.authMiddleware, async (req, res) => {
   try {
     const active = await db.getActiveSubscriptions(req.user.userId);
     return res.json({
-      plans: active.map((row) => ({
-        plan: row.plan,
-        status: row.status,
-        startedAt: row.started_at,
-        endsAt: row.ends_at
-      }))
+      plans: active.map((row) => {
+        const plan = plans.getPlan(row.plan);
+        return {
+          plan: plan ? plan.id : row.plan,
+          ...(plans.isLegacyId(row.plan) ? { legacyPlan: row.plan } : {}),
+          name: plan ? plan.name : null,
+          includes: plan ? [...plan.includes] : [],
+          status: row.status,
+          startedAt: row.started_at,
+          endsAt: row.ends_at
+        };
+      })
     });
   } catch (error) {
     return res.status(500).json({ error: 'Failed to read subscriptions', requestId: req.id });
   }
 });
 
-module.exports = { callbackRouter, checkoutRouter, PLANS };
+module.exports = { callbackRouter, checkoutRouter };

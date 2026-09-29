@@ -5,17 +5,21 @@ function getClientKey(req) {
   return req.ip;
 }
 
+// All of /api per IP per 15 min. Env-tunable for the same reason as the auth
+// limiter below: the E2E suite (incl. the page-by-page a11y audit) is one IP.
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 500,
+  max: Number(process.env.API_RATE_LIMIT_MAX) || 500,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: getClientKey
 });
 
+// /api/auth/* (signup, login, me, …) per IP per 15 min. Env-tunable like the
+// other limits so the E2E suite, which runs every test from one IP, can raise it.
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 50,
+  max: Number(process.env.AUTH_RATE_LIMIT_MAX) || 50,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: getClientKey

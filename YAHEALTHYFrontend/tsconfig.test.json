@@ -1,0 +1,12 @@
+{
+  // Type-checks the unit tests (src/**/*.test.ts(x)) and vitest.config.ts
+  // without emitting anything: `npm run typecheck:test`. Not part of `tsc -b`.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node", "vite/client"]
+  },
+  "include": ["src", "vitest.config.ts"],
+  "exclude": [],
+  "references": []
+}

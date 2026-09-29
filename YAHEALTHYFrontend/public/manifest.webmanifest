@@ -1,0 +1,44 @@
+{
+  "id": "/",
+  "name": "YAHealthy — מעקב תזונה ובריאות",
+  "short_name": "YAHealthy",
+  "description": "יומן אוכל, מים, שינה ומשקל בעברית או באנגלית, עם תזכורות ותובנות מהנתונים שלכם.",
+  "lang": "he",
+  "dir": "rtl",
+  "start_url": "/dashboard?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "theme_color": "#059669",
+  "background_color": "#f8fafc",
+  "categories": ["health", "fitness", "food", "lifestyle"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    {
+      "name": "רישום ארוחה",
+      "short_name": "ארוחה",
+      "url": "/food-log?source=pwa-shortcut",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "הוספת מים",
+      "short_name": "מים",
+      "url": "/hydration?source=pwa-shortcut",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ],
+  "translations": {
+    "en": {
+      "name": "YAHealthy — Nutrition & Health Tracker",
+      "short_name": "YAHealthy",
+      "description": "Food, water, sleep and weight tracking in Hebrew or English, with reminders and insights from your own data."
+    }
+  }
+}

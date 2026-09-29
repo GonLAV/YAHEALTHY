@@ -4,6 +4,7 @@ import { sleepApi, SleepLog } from '@/services/api';
 import { useLanguage } from '@/i18n/LanguageContext';
 import PageHeader from '@/components/ui/PageHeader';
 import EmptyState from '@/components/ui/EmptyState';
+import { parseLocalDate, todayISO } from '@/utils/date';
 
 const QUALITY_OPTIONS = [
   { value: 'excellent', stars: 4 },
@@ -56,6 +57,7 @@ export const SleepPage = () => {
     setSubmitting(true);
     try {
       await sleepApi.add({
+        date: todayISO(),
         sleepHours: h,
         sleepQuality: quality,
         notes: notes.trim() || undefined,
@@ -76,18 +78,18 @@ export const SleepPage = () => {
     'w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100';
 
   const formatDate = (date: string) =>
-    new Date(date).toLocaleDateString(lang === 'he' ? 'he-IL' : 'en-US', {
+    parseLocalDate(date).toLocaleDateString(lang === 'he' ? 'he-IL' : 'en-US', {
       weekday: 'short',
       day: 'numeric',
       month: 'short',
     });
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = todayISO();
   const todayLog = logs.find((l) => l.date === todayStr);
 
   return (
     <div className="mx-auto max-w-4xl p-4 md:p-8">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3">
         <PageHeader
           title={t('sleep.title')}
           subtitle={t('sleep.subtitle')}
@@ -95,7 +97,7 @@ export const SleepPage = () => {
         />
         <button
           onClick={() => setShowForm(!showForm)}
-          className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-md transition ${
+          className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-md transition sm:px-5 ${
             showForm
               ? 'bg-slate-500 hover:bg-slate-600'
               : 'bg-indigo-600 shadow-indigo-200 hover:bg-indigo-700'
@@ -114,7 +116,7 @@ export const SleepPage = () => {
             {todayLog ? (
               <div className="mt-1 flex items-baseline gap-1">
                 <span className="num text-4xl font-extrabold">{todayLog.sleep_hours.toFixed(1)}</span>
-                <span className="text-lg font-medium text-indigo-200">h</span>
+                <span className="text-lg font-medium text-indigo-200">{t('common.hoursShort')}</span>
               </div>
             ) : (
               <p className="mt-1 text-lg font-medium text-indigo-200">{t('dash.noSleepLogged')}</p>
@@ -209,7 +211,7 @@ export const SleepPage = () => {
       {/* History */}
       <h2 className="mb-4 font-semibold text-slate-900">{t('sleep.history')}</h2>
       {loading ? (
-        <p className="py-8 text-center text-sm text-slate-400">{t('common.loading')}</p>
+        <p className="py-8 text-center text-sm text-slate-500">{t('common.loading')}</p>
       ) : logs.length === 0 ? (
         <EmptyState icon={<Moon size={26} />} text={t('sleep.noLogs')} />
       ) : (
@@ -224,10 +226,10 @@ export const SleepPage = () => {
                   <Moon size={20} />
                 </span>
                 <div>
-                  <div className="num font-bold text-slate-900">
-                    {log.sleep_hours.toFixed(1)}h
+                  <div className="font-bold text-slate-900">
+                    <span className="num">{log.sleep_hours.toFixed(1)}</span>{'\u00a0'}{t('common.hoursShort')}
                   </div>
-                  <div className="text-xs text-slate-400">{formatDate(log.date)}</div>
+                  <div className="text-xs text-slate-500">{formatDate(log.date)}</div>
                 </div>
               </div>
               <div className="flex flex-col items-end gap-1">
@@ -241,7 +243,7 @@ export const SleepPage = () => {
                   </span>
                 )}
                 {log.notes && (
-                  <span className="max-w-40 truncate text-xs text-slate-400">{log.notes}</span>
+                  <span className="max-w-40 truncate text-xs text-slate-500">{log.notes}</span>
                 )}
               </div>
             </div>

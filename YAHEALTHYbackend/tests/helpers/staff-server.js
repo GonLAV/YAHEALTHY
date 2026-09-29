@@ -52,7 +52,8 @@ async function main() {
   const realApp = require('../../index.js');
 
   const wrapper = express();
-  wrapper.use(express.json());
+  // No body parser here: the real app's own parsers (and their limits and
+  // error handler) must be the ones a request meets — see tests/observability.test.js.
 
   wrapper.post('/api/test-only/grant-staff', auth.authMiddleware, async (req, res) => {
     // In memory mode this is the stored object itself, which is as close as a

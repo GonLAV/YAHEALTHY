@@ -94,6 +94,45 @@ const HEALTH_CONSTANTS = {
 };
 
 /**
+ * Referral program rewards — config, not code.
+ *
+ * What is recorded here is an entitlement *earned*; nothing in the referral
+ * flow applies it to billing. Whoever wires rewards into subscriptions reads
+ * the referral_rewards rows, so changing these numbers only affects rewards
+ * recorded after the change.
+ */
+const nonNegativeInt = (raw, fallback) => {
+  if (raw === undefined || raw === null || String(raw).trim() === '') return fallback;
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 0 ? n : fallback;
+};
+
+const REFERRAL_REWARDS = {
+  // Granted to the referrer when the person they invited ACTIVATES — logs
+  // anything within `activationWindowDays` of signing up — not at signup, so
+  // a scripted signup is worth nothing. Applied as premium days
+  // (users.premium_until, utils/referrals.js).
+  referrer: {
+    trigger: 'referee_activation',
+    type: 'premium_days',
+    amount: Number(process.env.REFERRAL_REWARD_DAYS) || 14
+  },
+  // The invited friend's own welcome gift, on the same activation. 0 turns it off.
+  referee: {
+    trigger: 'friend_activation',
+    type: 'premium_days',
+    amount: nonNegativeInt(process.env.REFERRAL_FRIEND_REWARD_DAYS, 7)
+  },
+  // Same window as the staff funnel's "activated" (utils/analytics.js).
+  activationWindowDays: 7,
+  // Rewarded referrals per referrer. Past this, referrals are still counted
+  // but earn nothing — the cap is what keeps a scripted signup farm from
+  // minting unlimited premium time.
+  // The friend's reward is not part of the cap: it is theirs, not the referrer's.
+  maxRewardedReferrals: Number(process.env.REFERRAL_MAX_REWARDED) || 10
+};
+
+/**
  * Normalize lifestyle string
  */
 function normalizeLifestyle(lifestyle) {
@@ -148,6 +187,7 @@ function validateGender(gender) {
 
 module.exports = {
   HEALTH_CONSTANTS,
+  REFERRAL_REWARDS,
   normalizeLifestyle,
   validateWeight,
   validateHeight,

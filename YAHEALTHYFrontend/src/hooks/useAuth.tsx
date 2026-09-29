@@ -1,9 +1,15 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { authApi } from '@/services/api';
+import type { SignupExtras } from '@/services/api';
+
+// The API client (and axios) loads on first use, not with the app shell: the
+// public pages render every visitor without a token and never need it.
+const loadAuthApi = () => import('@/services/api').then((m) => m.authApi);
 
 interface User {
   id: string;
   email: string;
+  /** Only hides/shows staff pages; the server re-checks on every staff request. */
+  isStaff?: boolean;
 }
 
 interface AuthContextType {
@@ -11,15 +17,27 @@ interface AuthContextType {
   loading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string) => Promise<void>;
+  signup: (email: string, password: string, extras?: SignupExtras) => Promise<void>;
   logout: () => Promise<void>;
 }
+
+const hasStoredToken = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  try {
+    return Boolean(localStorage.getItem('token'));
+  } catch {
+    return false;
+  }
+};
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Only a stored token needs checking. Without one there is nothing to wait
+  // for, so the public landing page renders at once — and identically to its
+  // prerendered HTML (no token on the server either), which hydration needs.
+  const [loading, setLoading] = useState(hasStoredToken);
 
   useEffect(() => {
     // Check if user is already logged in
@@ -27,7 +45,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const token = localStorage.getItem('token');
       if (token) {
         try {
-          const response = await authApi.getCurrentUser();
+          const response = await (await loadAuthApi()).getCurrentUser();
           setUser(response.data);
         } catch (error) {
           localStorage.removeItem('token');
@@ -40,6 +58,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = async (email: string, password: string) => {
+    const authApi = await loadAuthApi();
     const response = await authApi.login(email, password);
     const token = response.data.access_token || response.data.token || '';
     if (token) localStorage.setItem('token', token);
@@ -48,8 +67,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(userResponse.data);
   };
 
-  const signup = async (email: string, password: string) => {
-    const response = await authApi.signup(email, password);
+  const signup = async (email: string, password: string, extras?: SignupExtras) => {
+    const authApi = await loadAuthApi();
+    const response = await authApi.signup(email, password, extras);
     const token = response.data.access_token || response.data.token || '';
     if (token) localStorage.setItem('token', token);
     else localStorage.removeItem('token');
@@ -59,7 +79,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = async () => {
     try {
-      await authApi.logout();
+      await (await loadAuthApi()).logout();
     } finally {
       // The local session ends even if the server could not be reached, so a
       // failed request never strands someone in a logged-in screen. What it

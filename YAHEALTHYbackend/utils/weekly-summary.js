@@ -10,6 +10,7 @@
 
 const db = require('./database');
 const mailer = require('./mailer');
+const logger = require('./logger');
 const { calculateStreak } = require('./health-calculations');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -144,7 +145,8 @@ async function runWeeklySummaryJob() {
       sent += 1;
     } catch (err) {
       failed += 1;
-      console.error(`📧 Weekly summary failed for ${user.email}: ${err.message}`);
+      // Log the user id, never the address (the logger redacts, but don't hand it PII to begin with).
+      logger.error('weekly summary failed', { userId: user.id, error: err.message });
     }
   }
 
@@ -158,8 +160,44 @@ function s(start, end) {
   return `${start} – ${end}`;
 }
 
+/**
+ * Pure counterpart of buildWeeklySummary for callers that already hold the
+ * rows (the coach). Same field meanings; `start`/`end` are inclusive local
+ * dates, and rows outside them are ignored. No DB reads, no clock.
+ */
+function summarizeWeekRows({ foodLogs = [], hydrationLogs = [], sleepLogs = [], weightLogs = [], start, end }) {
+  const food = (foodLogs || []).filter((r) => inRange(r.date, start, end));
+  const water = (hydrationLogs || []).filter((r) => inRange(r.date, start, end));
+  const sleep = (sleepLogs || []).filter((r) => inRange(r.date, start, end));
+  const weights = (weightLogs || [])
+    .filter((r) => inRange(r.date || r.created_at, start, end))
+    .sort((a, b) => String(a.date || a.created_at).localeCompare(String(b.date || b.created_at)));
+
+  const loggedDays = new Set(food.map((l) => l.date)).size;
+  const totalCalories = food.reduce((sum, l) => sum + (Number(l.calories) || 0), 0);
+  const totalProtein = food.reduce((sum, l) => sum + (Number(l.protein_grams) || 0), 0);
+  const totalLiters = water.reduce((sum, l) => sum + (Number(l.liters_consumed) || 0), 0);
+  const sleepTotal = sleep.reduce((sum, l) => sum + (Number(l.sleep_hours) || 0), 0);
+  const nightsLogged = new Set(sleep.map((l) => l.date)).size;
+
+  return {
+    range: { start, end },
+    loggedDays,
+    avgCalories: loggedDays ? Math.round(totalCalories / loggedDays) : 0,
+    avgProtein: loggedDays ? Math.round(totalProtein / loggedDays) : 0,
+    totalLiters: round1(totalLiters),
+    avgLiters: round1(totalLiters / 7),
+    nightsLogged,
+    avgSleep: nightsLogged ? round1(sleepTotal / nightsLogged) : 0,
+    weightChange: weights.length >= 2
+      ? round1(Number(weights[weights.length - 1].weight_kg) - Number(weights[0].weight_kg))
+      : null
+  };
+}
+
 module.exports = {
   buildWeeklySummary,
+  summarizeWeekRows,
   renderWeeklySummaryEmail,
   sendWeeklySummaryEmail,
   runWeeklySummaryJob

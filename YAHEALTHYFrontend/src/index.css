@@ -75,3 +75,25 @@ html[dir='rtl'] body {
 .skip-link:focus {
   top: 12px;
 }
+
+/* Achievement celebration — only animates when motion is welcome */
+@media (prefers-reduced-motion: no-preference) {
+  .celebrate-pop {
+    animation: celebrate-pop 700ms cubic-bezier(0.34, 1.56, 0.64, 1) 1;
+  }
+}
+@keyframes celebrate-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+/* --- Public pages: Core Web Vitals --- */
+
+/* Below-the-fold sections skip layout/paint until they approach the viewport.
+   `auto` remembers the real size once rendered; the placeholder height keeps
+   the scrollbar and in-page anchor targets roughly stable. */
+.below-fold {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 720px;
+}
