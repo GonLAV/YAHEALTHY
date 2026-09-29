@@ -28,6 +28,7 @@ const InvitePage = lazy(() => import('@/pages/InvitePage').then((m) => ({ defaul
 const OnboardingPage = lazy(() => import('@/pages/OnboardingPage').then((m) => ({ default: m.OnboardingPage })));
 const GuidesIndexPage = lazy(() => import('@/pages/GuidesPage').then((m) => ({ default: m.GuidesIndexPage })));
 const GuidePage = lazy(() => import('@/pages/GuidesPage').then((m) => ({ default: m.GuidePage })));
+const MealPlanPage = lazy(() => import('@/pages/MealPlanPage').then((m) => ({ default: m.MealPlanPage })));
 const SettingsPage = lazy(() => import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 const AchievementsPage = lazy(() => import('@/pages/AchievementsPage').then((m) => ({ default: m.AchievementsPage })));
 const MarketingDashboardPage = lazy(() =>
@@ -123,6 +124,16 @@ const AppRoutes = () => (
           <PrivateRoute>
             <AppLayout>
               <WeightPage />
+            </AppLayout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/meal-plan"
+        element={
+          <PrivateRoute>
+            <AppLayout>
+              <MealPlanPage />
             </AppLayout>
           </PrivateRoute>
         }
