@@ -44,7 +44,7 @@ fs.mkdirSync(logDir, { recursive: true });
 
 const PASSWORD = 'correct horse battery staple';
 const VIEWPORTS = {
-  mobile: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 },
+  mobile: { viewport: { width: 390, height: 844 }, isMobile: !process.env.SHOTS_NO_MOBILE_EMULATION, hasTouch: true, deviceScaleFactor: 1 },
   desktop: { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 }
 };
 const LANGS = ['he', 'en'];
@@ -183,13 +183,30 @@ async function measure(page) {
   const configured = page.viewportSize().width;
   return page.evaluate((vw) => {
     const offenders = [];
+    // Clipped by a scroller? An absolutely positioned element (e.g. .sr-only)
+    // escapes every scroller between it and its nearest positioned ancestor.
+    const clipped = (el) => {
+      let escaping = getComputedStyle(el).position === 'absolute';
+      for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) {
+        const s = getComputedStyle(a);
+        if (s.position === 'fixed') return false;
+        if (escaping && s.position === 'static') continue;
+        escaping = s.position === 'absolute';
+        if (s.overflowX !== 'visible') return true;
+      }
+      return false;
+    };
     for (const el of document.querySelectorAll('body *')) {
       const r = el.getBoundingClientRect();
       if (r.width === 0 || r.height === 0) continue;
+      if (getComputedStyle(el).position === 'fixed' || clipped(el)) continue;
       if (r.right > vw + 1 || r.left < -1) {
-        // Only report elements whose parent is inside, i.e. the outermost culprit.
-        const p = el.parentElement.getBoundingClientRect();
-        if (p.right <= vw + 1 && p.left >= -1) {
+        // Report the innermost culprits: no child of theirs sticks out too.
+        const childOut = [...el.children].some((c) => {
+          const cr = c.getBoundingClientRect();
+          return cr.width > 0 && (cr.right > vw + 1 || cr.left < -1);
+        });
+        if (!childOut) {
           offenders.push(`${el.tagName.toLowerCase()}.${String(el.className).slice(0, 80)} [${Math.round(r.left)}..${Math.round(r.right)}] "${(el.textContent || '').trim().slice(0, 40)}"`);
         }
       }
@@ -252,6 +269,7 @@ try {
       APP_URL: webUrl,
       SHARE_BASE_URL: webUrl,
       LIFECYCLE_ENABLED: 'false',
+      AUTH_RATE_LIMIT_MAX: '1000',
       SCREENSHOT_STAFF_EMAIL: emails.staff
     }
   });

@@ -274,8 +274,8 @@ export const FoodLogPage = () => {
       )}
 
       {/* Today's totals */}
-      <div className="mb-6 flex items-center justify-between rounded-2xl bg-emerald-50 px-5 py-4 ring-1 ring-emerald-100">
-        <span className="text-sm font-semibold text-emerald-800">{t('food.totalToday')}</span>
+      <div className="mb-6 flex items-center justify-between gap-3 rounded-2xl bg-emerald-50 px-5 py-4 ring-1 ring-emerald-100">
+        <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-emerald-800">{t('food.totalToday')}</span>
         <div className="flex flex-wrap justify-end gap-x-4 gap-y-1 text-sm font-medium text-emerald-700">
           <span className="whitespace-nowrap"><span className="num">{todayTotals.calories}</span> {t('common.kcal')}</span>
           <span className="whitespace-nowrap">{t('common.proteinShort')} <span className="num">{todayTotals.protein.toFixed(0)}</span>{'\u00a0'}{t('common.grams')}</span>
