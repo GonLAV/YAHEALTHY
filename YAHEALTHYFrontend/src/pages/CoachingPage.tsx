@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { crmApi } from '@/services/api';
 import { useLanguage } from '@/i18n/LanguageContext';
 import PageHeader from '@/components/ui/PageHeader';
+import { parseCoachLink } from '@/utils/mealPlan';
 
 type InsightPriority = 'high' | 'medium' | 'low';
 
@@ -212,7 +213,23 @@ export const CoachingPage = () => {
                     : 'bg-slate-100 text-slate-800'
                 }`}
               >
-                {msg.text}
+                {msg.role === 'coach'
+                  ? msg.text.split('\n').map((line, li, all) => {
+                      // A trailing " → /path" line is an in-app link (e.g. the meal planner).
+                      const link = parseCoachLink(line);
+                      const br = li < all.length - 1 ? '\n' : '';
+                      return link ? (
+                        <span key={li}>
+                          <Link to={link.href} className="font-semibold text-emerald-700 underline">
+                            {link.label}
+                          </Link>
+                          {br}
+                        </span>
+                      ) : (
+                        <span key={li}>{line}{br}</span>
+                      );
+                    })
+                  : msg.text}
               </div>
               {msg.role === 'user' && (
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500">

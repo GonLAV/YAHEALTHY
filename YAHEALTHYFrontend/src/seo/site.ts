@@ -33,6 +33,7 @@ export const SITE_CONTENT_UPDATED = '2026-09-27';
 export const PRIVATE_PATHS = [
   '/dashboard',
   '/food-log',
+  '/meal-plan',
   '/hydration',
   '/sleep',
   '/weight',
