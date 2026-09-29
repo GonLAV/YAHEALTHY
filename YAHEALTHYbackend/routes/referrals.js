@@ -10,6 +10,7 @@
  * its own tight rate limit so enumerating the code space is not practical.
  */
 
+const { forRequest: reqLog } = require('../utils/logger');
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const auth = require('../utils/auth');
@@ -34,7 +35,7 @@ router.get('/me', auth.authMiddleware, async (req, res) => {
     if (!summary) return res.status(404).json({ error: 'User not found', requestId: req.id });
     return res.json(summary);
   } catch (error) {
-    console.error('Referral summary error:', error);
+    reqLog(req).error('Referral summary error', { err: error });
     return res.status(500).json({ error: 'Could not load referral details', requestId: req.id });
   }
 });
@@ -47,7 +48,7 @@ router.get('/validate/:code', validateLimiter, async (req, res) => {
     const referrerFirstName = referrals.publicFirstName(found.referrer);
     return res.json(referrerFirstName ? { valid: true, referrerFirstName } : { valid: true });
   } catch (error) {
-    console.error('Referral validate error:', error);
+    reqLog(req).error('Referral validate error', { err: error });
     return res.status(500).json({ error: 'Could not validate code', requestId: req.id });
   }
 });

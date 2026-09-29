@@ -7,6 +7,7 @@ import { PrivateRoute } from '@/components/PrivateRoute';
 import { StaffRoute } from '@/components/StaffRoute';
 import { WhatsAppWidget } from '@/components/WhatsAppWidget';
 import { PwaChrome } from '@/components/pwa/PwaChrome';
+import { AppErrorBoundary } from '@/components/AppErrorBoundary';
 import { captureAttribution } from '@/utils/attribution';
 import type { Lang } from '@/i18n/translations';
 
@@ -207,17 +208,21 @@ const AppRoutes = () => (
  * the build-time prerender wraps it in StaticRouter (src/entry-server.tsx).
  */
 export function AppShell({ initialLang }: { initialLang?: Lang }) {
+  // Outermost, so a crash anywhere — providers included — gets the bilingual
+  // fallback page and a report to /api/client-errors instead of a blank screen.
   return (
-    <LanguageProvider initialLang={initialLang}>
-      <AuthProvider>
-        <OnboardingProvider>
-          <AppRoutes />
-        </OnboardingProvider>
-        {/* Rendered in the prerender too (its hooks are SSR-safe), so hydration matches. */}
-        <PwaChrome />
-      </AuthProvider>
-      <WhatsAppWidget />
-    </LanguageProvider>
+    <AppErrorBoundary>
+      <LanguageProvider initialLang={initialLang}>
+        <AuthProvider>
+          <OnboardingProvider>
+            <AppRoutes />
+          </OnboardingProvider>
+          {/* Rendered in the prerender too (its hooks are SSR-safe), so hydration matches. */}
+          <PwaChrome />
+        </AuthProvider>
+        <WhatsAppWidget />
+      </LanguageProvider>
+    </AppErrorBoundary>
   );
 }
 

@@ -16,6 +16,8 @@
  */
 
 const db = require('./database');
+const logger = require('./logger').child({ job: 'lifecycle' });
+const { jobs } = require('./health-registry');
 const mailer = require('./mailer');
 const whapi = require('./whapi');
 const auth = require('./auth');
@@ -243,6 +245,12 @@ function zoneOf(prefs, cfg) {
 
 let running = false;
 
+/** sent / failed / skipped for the job registry. */
+function runCounts(result) {
+  const skipped = Object.values(result.skipped || {}).reduce((sum, n) => sum + n, 0) + (result.alreadyClaimed || 0);
+  return { sent: result.sent, failed: result.failed, skipped };
+}
+
 /**
  * One pass over every lead and user.
  *
@@ -258,6 +266,9 @@ async function runLifecycle({ dryRun = false, now = new Date(), deps = {}, confi
 
   if (!dryRun && running) return { dryRun, skipped: 'already_running' };
   if (!dryRun) running = true;
+  // Real runs (cron or the staff "run now" button) are recorded for
+  // GET /api/admin/health; dry runs are previews and are not.
+  const jobRun = dryRun ? null : jobs.start('lifecycle');
 
   const result = {
     dryRun,
@@ -319,7 +330,15 @@ async function runLifecycle({ dryRun = false, now = new Date(), deps = {}, confi
           .catch(() => {});
         result.failed++;
         plan.status = 'failed';
-        console.error(`[lifecycle] ${decision.campaign}/${decision.step} to ${decision.recipientType} ${decision.recipientId} failed: ${error.message}`);
+        jobs.noteError('lifecycle', error);
+        logger.error('send failed', {
+          campaign: decision.campaign,
+          step: decision.step,
+          recipientType: decision.recipientType,
+          recipientId: decision.recipientId,
+          channel: decision.channel,
+          err: error
+        });
       }
     };
 
@@ -351,7 +370,8 @@ async function runLifecycle({ dryRun = false, now = new Date(), deps = {}, confi
           else noteSkip(decision.reason);
         } catch (error) {
           noteSkip('error');
-          console.error(`[lifecycle] lead ${lead.id} failed: ${error.message}`);
+          jobs.noteError('lifecycle', error);
+          logger.error('lead evaluation failed', { leadId: lead.id, err: error });
         }
       });
     }
@@ -391,13 +411,18 @@ async function runLifecycle({ dryRun = false, now = new Date(), deps = {}, confi
           else noteSkip(decision.reason);
         } catch (error) {
           noteSkip('error');
-          console.error(`[lifecycle] user ${user.id} failed: ${error.message}`);
+          jobs.noteError('lifecycle', error);
+          logger.error('user evaluation failed', { userId: user.id, err: error });
         }
       });
     }
 
     return result;
+  } catch (error) {
+    if (jobRun) jobRun.fail(error, runCounts(result));
+    throw error;
   } finally {
+    if (jobRun) jobRun.finish(runCounts(result));
     if (!dryRun) running = false;
   }
 }
@@ -510,18 +535,27 @@ async function getCampaignStats() {
 
 /** Arm the hourly job. Called from index.js. */
 function scheduleLifecycle(cron) {
-  if (process.env.VERCEL || process.env.NODE_ENV === 'test' || process.env.LIFECYCLE_ENABLED === 'false') {
+  const disabledReason = process.env.VERCEL
+    ? 'vercel'
+    : process.env.NODE_ENV === 'test'
+      ? 'test'
+      : process.env.LIFECYCLE_ENABLED === 'false'
+        ? 'LIFECYCLE_ENABLED=false'
+        : null;
+  if (disabledReason) {
+    jobs.register('lifecycle', { enabled: false, disabledReason });
     return false;
   }
+  jobs.register('lifecycle', { schedule: '7 * * * * (Asia/Jerusalem)', enabled: true });
   // Minute 7, not 0: the weekly summary and most other jobs sit on the hour.
   cron.schedule('7 * * * *', () => {
     runLifecycle()
       .then((r) => {
-        if (r.sent || r.failed) console.log(`📬 Lifecycle run: ${r.sent} sent, ${r.failed} failed, ${r.converted} conversions`);
+        if (r.sent || r.failed) logger.info('run finished', { sent: r.sent, failed: r.failed, converted: r.converted });
       })
-      .catch((err) => console.error(`📬 Lifecycle job crashed: ${err.message}`));
+      .catch((err) => logger.error('job crashed', { err }));
   }, { timezone: 'Asia/Jerusalem' });
-  console.log('📬 Lifecycle messaging scheduled: hourly at :07 (Asia/Jerusalem)');
+  logger.info('lifecycle messaging scheduled: hourly at :07 (Asia/Jerusalem)');
   return true;
 }
 

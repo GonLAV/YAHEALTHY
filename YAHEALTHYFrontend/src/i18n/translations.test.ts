@@ -6,6 +6,7 @@ import { translations, type Lang } from './translations';
 // them in so every check below covers the whole dictionary.
 import './strings/staff';
 import './strings/onboarding';
+import './strings/errors';
 
 const { en, he } = translations;
 const LANGS: Lang[] = ['he', 'en'];

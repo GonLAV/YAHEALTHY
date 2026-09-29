@@ -12,6 +12,7 @@
  * input and talks to utils/database.js.
  */
 
+const { forRequest: reqLog } = require('../utils/logger');
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { z } = require('zod');
@@ -133,7 +134,7 @@ router.post('/subscribe', auth.authMiddleware, async (req, res) => {
     const devices = (await db.getPushSubscriptions(userId)).length;
     return res.status(201).json({ subscribed: true, devices });
   } catch (error) {
-    console.error('push subscribe failed:', error && error.message);
+    reqLog(req).error('push subscribe failed', { err: error });
     return res.status(500).json({ error: 'Failed to save subscription', requestId: req.id });
   }
 });
@@ -145,7 +146,7 @@ router.delete('/subscribe', auth.authMiddleware, async (req, res) => {
     const removed = await db.deletePushSubscription(req.user.userId, parsed.data.endpoint);
     return res.json({ removed });
   } catch (error) {
-    console.error('push unsubscribe failed:', error && error.message);
+    reqLog(req).error('push unsubscribe failed', { err: error });
     return res.status(500).json({ error: 'Failed to remove subscription', requestId: req.id });
   }
 });
@@ -156,7 +157,7 @@ router.get('/reminders', auth.authMiddleware, async (req, res) => {
     const [row, subs] = await Promise.all([db.getPushReminderSettings(userId), db.getPushSubscriptions(userId)]);
     return res.json(presentSettings(row, subs.length));
   } catch (error) {
-    console.error('push reminders read failed:', error && error.message);
+    reqLog(req).error('push reminders read failed', { err: error });
     return res.status(500).json({ error: 'Failed to load reminder settings', requestId: req.id });
   }
 });
@@ -182,7 +183,7 @@ router.put('/reminders', auth.authMiddleware, async (req, res) => {
     const devices = (await db.getPushSubscriptions(userId)).length;
     return res.json(presentSettings(saved, devices));
   } catch (error) {
-    console.error('push reminders save failed:', error && error.message);
+    reqLog(req).error('push reminders save failed', { err: error });
     return res.status(500).json({ error: 'Failed to save reminder settings', requestId: req.id });
   }
 });
@@ -199,7 +200,7 @@ router.post('/test', auth.authMiddleware, testLimiter, async (req, res) => {
     }
     return res.json(result);
   } catch (error) {
-    console.error('push test failed:', error && error.message);
+    reqLog(req).error('push test failed', { err: error });
     return res.status(500).json({ error: 'Failed to send test notification', requestId: req.id });
   }
 });

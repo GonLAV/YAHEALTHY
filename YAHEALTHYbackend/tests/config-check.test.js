@@ -46,7 +46,8 @@ const FULL = {
   WHAPI_TOKEN: SECRET,
   WHAPI_WEBHOOK_SECRET: SECRET,
   WHATSAPP_WEBHOOK_SECRET: SECRET,
-  ANTHROPIC_API_KEY: SECRET
+  ANTHROPIC_API_KEY: SECRET,
+  SENTRY_DSN: `https://${SECRET}@o1.ingest.sentry.io/123`
 };
 
 const features = (report) => report.warnings.map((w) => w.feature);

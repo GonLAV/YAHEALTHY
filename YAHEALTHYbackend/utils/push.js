@@ -27,6 +27,8 @@
 
 const webpush = require('web-push');
 const db = require('./database');
+const logger = require('./logger').child({ component: 'push' });
+const { jobs } = require('./health-registry');
 const {
   localDate,
   addDays,
@@ -45,10 +47,10 @@ let vapidCache; // undefined: not resolved yet · null: push disabled · object:
 function resolveSubject() {
   const configured = (process.env.VAPID_SUBJECT || '').trim();
   if (/^(mailto:|https:\/\/)/.test(configured)) return configured;
-  if (configured) console.warn(`[push] VAPID_SUBJECT must start with mailto: or https:// — ignoring "${configured}".`);
+  if (configured) logger.warn('VAPID_SUBJECT must start with mailto: or https:// — ignoring the configured value.');
   const appUrl = (process.env.APP_URL || '').trim();
   if (appUrl.startsWith('https://')) return appUrl;
-  if (IS_PRODUCTION) console.warn('[push] VAPID_SUBJECT is not set. Some push services (Apple) reject pushes without a real contact.');
+  if (IS_PRODUCTION) logger.warn('VAPID_SUBJECT is not set. Some push services (Apple) reject pushes without a real contact.');
   return 'mailto:push@yahealthy.invalid';
 }
 
@@ -66,8 +68,8 @@ function getVapid() {
   }
 
   if (IS_PRODUCTION) {
-    console.error(
-      '[push] VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY are not set. Web Push is DISABLED: ' +
+    logger.error(
+      'VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY are not set. Web Push is DISABLED: ' +
       '/api/push/* answers 503 and no reminders are sent. Generate a pair once with ' +
       '`npx web-push generate-vapid-keys` and set both.'
     );
@@ -76,10 +78,10 @@ function getVapid() {
   }
 
   const generated = webpush.generateVAPIDKeys();
-  console.warn(
-    '\n[push] ⚠️  VAPID keys are not set. Generated a throwaway pair for this process only — ' +
+  logger.warn(
+    'VAPID keys are not set. Generated a throwaway pair for this process only — ' +
     'every browser subscription is invalidated on restart. Set VAPID_PUBLIC_KEY, ' +
-    'VAPID_PRIVATE_KEY and VAPID_SUBJECT for stable push.\n'
+    'VAPID_PRIVATE_KEY and VAPID_SUBJECT for stable push.'
   );
   vapidCache = { publicKey: generated.publicKey, privateKey: generated.privateKey, subject, ephemeral: true };
   return vapidCache;
@@ -192,7 +194,7 @@ async function sendPush(userId, payload, { ttl = DEFAULT_TTL_SECONDS, urgency = 
           return;
         }
         result.failed++;
-        console.warn(`[push] delivery failed (${status || 'network'}): ${error && error.message}`);
+        logger.warn('delivery failed', { status: status || 'network', err: error });
         if ((sub.failure_count || 0) + 1 >= MAX_FAILURES) {
           await db.deletePushSubscriptionByEndpoint(sub.endpoint).catch(() => {});
           result.removed++;
@@ -555,7 +557,9 @@ async function decidePage(due, now, summary) {
       summary.skipped += skipped.length;
       await db.updatePushReminderState(row.user_id, nextState(state, [...send, ...skipped]));
     } catch (error) {
-      console.error(`[push] reminder tick failed for a user: ${error && error.message}`);
+      summary.failed++;
+      jobs.noteError('push-reminders', error);
+      logger.error('reminder tick failed for a user', { err: error });
     }
   });
 }
@@ -570,7 +574,9 @@ let tickRunning = false;
 async function runReminderTick({ now = new Date() } = {}) {
   if (tickRunning) return { skipped: true };
   tickRunning = true;
-  const summary = { users: 0, sent: 0, skipped: 0 };
+  const summary = { users: 0, sent: 0, skipped: 0, failed: 0 };
+  // Recorded for GET /api/admin/health (in memory, this process only).
+  const jobRun = jobs.start('push-reminders');
   try {
     if (!isPushEnabled()) return summary;
 
@@ -592,7 +598,9 @@ async function runReminderTick({ now = new Date() } = {}) {
           const clock = timeDueReminders({ settings: row.settings, state, now, tz });
           if (clock.due.length) due.push({ row, tz, state, clock });
         } catch (error) {
-          console.error(`[push] reminder tick failed for a user: ${error && error.message}`);
+          summary.failed++;
+          jobs.noteError('push-reminders', error);
+          logger.error('reminder tick failed for a user', { err: error });
         }
       }
 
@@ -600,13 +608,19 @@ async function runReminderTick({ now = new Date() } = {}) {
         try {
           await decidePage(due, now, summary);
         } catch (error) {
-          console.error(`[push] reminder tick failed for a page of ${due.length} users: ${error && error.message}`);
+          summary.failed += due.length;
+          jobs.noteError('push-reminders', error);
+          logger.error('reminder tick failed for a page of users', { users: due.length, err: error });
         }
       }
       if (rows.length < TICK_PAGE_SIZE) break;
     }
     return summary;
+  } catch (error) {
+    jobRun.fail(error, summary);
+    throw error;
   } finally {
+    jobRun.finish(summary);
     tickRunning = false;
   }
 }
@@ -617,13 +631,23 @@ async function runReminderTick({ now = new Date() } = {}) {
  * PUSH_REMINDERS_DISABLED=true.
  */
 function scheduleReminders(cron) {
-  if (process.env.NODE_ENV === 'test' || process.env.VERCEL || process.env.PUSH_REMINDERS_DISABLED === 'true') {
+  const disabledReason =
+    process.env.NODE_ENV === 'test'
+      ? 'test'
+      : process.env.VERCEL
+        ? 'vercel'
+        : process.env.PUSH_REMINDERS_DISABLED === 'true'
+          ? 'PUSH_REMINDERS_DISABLED=true'
+          : null;
+  if (disabledReason) {
+    jobs.register('push-reminders', { enabled: false, disabledReason });
     return null;
   }
+  jobs.register('push-reminders', { schedule: '*/5 * * * *', enabled: true });
   const task = cron.schedule('*/5 * * * *', () => {
-    runReminderTick().catch((err) => console.error(`[push] reminder tick crashed: ${err.message}`));
+    runReminderTick().catch((err) => logger.error('reminder tick crashed', { err }));
   });
-  console.log('🔔 Push reminders scheduled: every 5 minutes (per-user time zone and quiet hours)');
+  logger.info('push reminders scheduled: every 5 minutes (per-user time zone and quiet hours)');
   return task;
 }
 
