@@ -28,6 +28,9 @@ const messages = require('../utils/appointment-messages');
 const router = express.Router();
 
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+// No real address is longer (RFC 5321). Checked before EMAIL, which
+// backtracks quadratically on a long near-miss: ~90 KB took seconds.
+const EMAIL_MAX = 254;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 router.get('/options', (req, res) => {
@@ -75,7 +78,7 @@ router.post('/', bookingLimiter, async (req, res) => {
   if (!booking.TYPES.includes(type)) return res.status(400).json({ error: 'Unknown appointment type', requestId: req.id });
   if (name.length < 2 || name.length > 80) return res.status(400).json({ error: 'A name is required', requestId: req.id });
   if (!phone) return res.status(400).json({ error: 'A valid Israeli mobile number is required', requestId: req.id });
-  if (email && !EMAIL.test(email)) return res.status(400).json({ error: 'That email does not look right', requestId: req.id });
+  if (email && (email.length > EMAIL_MAX || !EMAIL.test(email))) return res.status(400).json({ error: 'That email does not look right', requestId: req.id });
   // A paid session sends a receipt, and PayPlus needs somewhere to send it.
   if (paid && !email) return res.status(400).json({ error: 'An email is required for a paid session', requestId: req.id });
   if (type === 'supermarket' && (!location || location.length > 200)) {

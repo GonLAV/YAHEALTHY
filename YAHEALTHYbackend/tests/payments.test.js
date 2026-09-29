@@ -247,6 +247,24 @@ async function run() {
     'it should reach the unconfigured-PayPlus refusal, not fail validation'
   );
 
+  // Checkout is public, and the email pattern backtracks quadratically on a
+  // long near-miss. No real address is longer than 254 characters.
+  check(
+    'checkout refuses an email longer than any real address',
+    (await call('POST', '/api/payments/checkout', {
+      body: { email: `${'a'.repeat(250)}@example.com`, plan: 'yoni', phone: '0501234567' }
+    })).status === 400
+  );
+  const hostileStarted = Date.now();
+  const hostile = await call('POST', '/api/payments/checkout', {
+    body: { email: `a@${'b.'.repeat(45000)} x`, plan: 'yoni', phone: '0501234567' }
+  });
+  const hostileMs = Date.now() - hostileStarted;
+  check(
+    'and a huge one is refused without being scanned',
+    hostile.status === 400 && hostileMs < 500,
+    `${hostile.status} after ${hostileMs} ms — the server is blocked for every other request meanwhile`
+  );
 }
 
 (async () => {

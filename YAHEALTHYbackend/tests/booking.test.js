@@ -178,6 +178,20 @@ async function run() {
   check('a bad phone is refused', (await call('POST', '/api/booking', { ...person, phone: '03-1234567', type: 'online', start: after[8].start })).status === 400);
   check('a missing name is refused', (await call('POST', '/api/booking', { ...person, name: '', type: 'online', start: after[8].start })).status === 400);
 
+  // No real address is longer than 254 characters (RFC 5321), and the email
+  // pattern backtracks quadratically on a long near-miss: ~90 KB of "b." took
+  // about two seconds of the event loop, per request, on a public endpoint.
+  const longEmail = `${'a'.repeat(250)}@test.com`;
+  check(
+    'an email longer than any real address is refused',
+    (await call('POST', '/api/booking', { ...person, email: longEmail, type: 'online', start: after[8].start })).status === 400
+  );
+  const hostileEmail = `a@${'b.'.repeat(45000)} x`;
+  const hostileStarted = Date.now();
+  const hostile = await call('POST', '/api/booking', { ...person, email: hostileEmail, type: 'online', start: after[8].start });
+  const hostileMs = Date.now() - hostileStarted;
+  check('and a huge one is refused without being scanned', hostile.status === 400 && hostileMs < 500, `${hostile.status} after ${hostileMs} ms`);
+
   // ── a paid supermarket session ────────────────────────────────────────────
   const shopSlots = (await call('GET', '/api/booking/slots?type=supermarket')).body.slots;
   const shopStart = shopSlots.at(-1).start;
