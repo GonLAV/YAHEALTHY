@@ -162,6 +162,47 @@ export const SystemHealthSection = () => {
                   <th scope="row" className={`${tdText} font-medium text-slate-600`}>{t('health.errorTracking')}</th>
                   <td className={tdText}>{t(state.data.errorTracking.enabled ? 'health.on' : 'health.off')}</td>
                 </tr>
+                {state.data.monetization && (
+                  <>
+                    <tr>
+                      <th scope="row" className={`${tdText} font-medium text-slate-600`}>{t('health.checkout')}</th>
+                      <td className={tdText}>
+                        {t(state.data.monetization.checkoutEnabled ? 'health.on' : 'health.off')}
+                        {state.data.monetization.checkoutBlockedBy && (
+                          <span className="ms-1 font-mono text-xs text-slate-600" dir="ltr">
+                            ({state.data.monetization.checkoutBlockedBy})
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                    <tr>
+                      <th scope="row" className={`${tdText} font-medium text-slate-600`}>{t('health.entitlements')}</th>
+                      <td className={tdText}>{t(state.data.monetization.entitlementsEnforced ? 'health.on' : 'health.off')}</td>
+                    </tr>
+                    <tr>
+                      <th scope="row" className={`${tdText} font-medium text-slate-600`}>{t('health.subscriptions')}</th>
+                      <td className={tdText}>
+                        {state.data.monetization.subscriptions && 'active' in state.data.monetization.subscriptions ? (
+                          <>
+                            {t('health.subscriptions.summary', {
+                              active: num.format(state.data.monetization.subscriptions.active),
+                              soon: num.format(state.data.monetization.subscriptions.endingSoon),
+                            })}
+                            <ul className="mt-1 flex flex-wrap gap-1.5">
+                              {Object.entries(state.data.monetization.subscriptions.byPlan).map(([plan, n]) => (
+                                <li key={plan} className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-700" dir="ltr">
+                                  {plan}: {num.format(n)}
+                                </li>
+                              ))}
+                            </ul>
+                          </>
+                        ) : (
+                          t('analytics.none')
+                        )}
+                      </td>
+                    </tr>
+                  </>
+                )}
                 <tr>
                   <th scope="row" className={`${tdText} font-medium text-slate-600`}>{t('health.disabled')}</th>
                   <td className={tdText}>

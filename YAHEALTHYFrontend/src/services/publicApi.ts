@@ -8,7 +8,8 @@
  * `{ data }` on success, and an error carrying `response.status` (as axios
  * errors do) on a non-2xx answer.
  */
-import type { LeadInput, MarketingPlan } from './api';
+import type { LeadInput } from './api';
+import type { PlansResponse } from '@/utils/plans';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? '';
 
@@ -34,6 +35,6 @@ async function request<T>(method: 'GET' | 'POST', path: string, body?: unknown):
 }
 
 export const publicMarketingApi = {
-  getPlans: () => request<{ plans: MarketingPlan[] }>('GET', '/api/marketing/plans'),
+  getPlans: () => request<PlansResponse>('GET', '/api/marketing/plans'),
   submitLead: (lead: LeadInput) => request<{ ok: boolean }>('POST', '/api/marketing/leads', lead),
 };

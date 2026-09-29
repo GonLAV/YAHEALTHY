@@ -169,5 +169,42 @@ check(
     maxInstallments({ PAYPLUS_MAX_INSTALLMENTS: '99' }) === null
 );
 
+// ── recurring billing = a renewal reminder, not a stored card ───────────────
+const lifecycle = require('../utils/lifecycle');
+const { renderMessage } = require('../utils/lifecycle-templates');
+const rNow = new Date('2026-10-05T09:00:00.000Z'); // a Monday, 12:00 in Israel
+const subs = [
+  { plan: 'app_y', status: 'active', ends_at: '2027-06-01T00:00:00.000Z' },
+  { plan: 'yoni', status: 'active', ends_at: '2026-10-09T10:00:00.000Z' },
+  { plan: 'plan_once', status: 'active', ends_at: null }
+];
+const cand = lifecycle.renewalCandidate(subs, rNow);
+check('the soonest-ending periodic plan is the one to renew (legacy id resolved)', cand && cand.plan === 'combo_3m', JSON.stringify(cand));
+check('one-time and open-ended purchases never need renewing', lifecycle.renewalCandidate([subs[2]], rNow) === null);
+
+const user = { id: 'u1', email: 'a@example.com', created_at: '2026-01-01T00:00:00Z' };
+const base = { user, prefs: {}, activity: { renewal: cand }, sends: [], now: rNow };
+check(
+  'no renewal reminder while checkout is off (the default)',
+  lifecycle.decideUser({ ...base, config: lifecycle.DEFAULT_CONFIG }).campaign !== 'renewal'
+);
+const on7 = { ...lifecycle.DEFAULT_CONFIG, renewal: { enabled: true, daysBefore: 7 } };
+const d = lifecycle.decideUser({ ...base, config: on7 });
+check(
+  'checkout on: a period ending within 7 days gets one service email',
+  d.action === 'send' && d.campaign === 'renewal' && d.marketing === false && d.channel === 'email' && d.periodKey === 'combo_3m:2026-10-09',
+  JSON.stringify(d)
+);
+check(
+  'never twice for the same period',
+  lifecycle.decideUser({ ...base, config: on7, sends: [{ campaign: 'renewal', period_key: d.periodKey, status: 'sent', sent_at: '2026-09-01T00:00:00Z' }] }).campaign !== 'renewal'
+);
+const msg = renderMessage({ campaign: 'renewal', step: 'before_end', lang: 'he', marketing: false, vars: { renewal: cand, renewUrl: 'https://x/upgrade?plan=combo_3m' } });
+check(
+  'the reminder names the plan, links to /upgrade, promises no automatic charge and carries no price',
+  /שילוב מלא/.test(msg.text) && /\/upgrade\?plan=combo_3m/.test(msg.text) && /לא מחייבים אוטומטית/.test(msg.text) && !/₪|\d{3,}\s*ש/.test(msg.text) && !/^פרסומת/.test(msg.subject),
+  msg.subject
+);
+
 console.log(`\n${passed} passed, ${failed} failed\n`);
 process.exit(failed === 0 ? 0 : 1);

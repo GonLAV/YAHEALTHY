@@ -536,6 +536,11 @@ export const SettingsPage = () => {
         </SettingsSection>
 
         <SettingsSection id="account" title={t('settings.account.title')} icon={<KeyRound size={20} />}>
+          <p className="mb-4">
+            <Link to="/upgrade" className="text-sm font-semibold text-emerald-800 underline">
+              {t('settings.planLink')}
+            </Link>
+          </p>
           <AccountSection />
         </SettingsSection>
       </div>

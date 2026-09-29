@@ -47,6 +47,7 @@ const PRIVATE_ROUTES = [
   '/progress',
   '/achievements',
   '/invite',
+  '/upgrade',
   '/settings'
 ];
 

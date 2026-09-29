@@ -74,6 +74,7 @@ const CAMPAIGN_STEP_ORDER: Record<string, string[]> = {
   onboarding: ['day0', 'day1', 'day3', 'day7'],
   streak_risk: ['evening'],
   win_back: ['d7', 'd21'],
+  renewal: ['before_end'],
 };
 const orderedSteps = (campaign: string, byStep: Record<string, CampaignStepStats>) => {
   const known = CAMPAIGN_STEP_ORDER[campaign] ?? [];
@@ -469,6 +470,18 @@ export const MarketingDashboardPage = () => {
                   <p className="mt-1 text-xs text-amber-700">
                     {t('analytics.funnel.pending', { n: num.format(funnel.pending.activation) })}
                   </p>
+                )}
+                {funnel.payingByPlan && Object.keys(funnel.payingByPlan).length > 0 && (
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-slate-600">
+                    <span>{t('analytics.funnel.payingByPlan')}:</span>
+                    <ul className="flex flex-wrap gap-1.5">
+                      {Object.entries(funnel.payingByPlan).map(([plan, n]) => (
+                        <li key={plan} className="rounded-full bg-slate-100 px-2 py-0.5 font-mono text-slate-700" dir="ltr">
+                          {plan}: {num.format(n)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
               </>
             )}

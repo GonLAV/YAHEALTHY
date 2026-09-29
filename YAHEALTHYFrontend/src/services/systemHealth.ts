@@ -35,6 +35,19 @@ export interface SystemHealth {
   db: { mode: 'memory' | 'supabase'; ok: boolean; latencyMs: number | null; error?: string };
   config: { production: boolean; requiredMissing: number; disabledFeatures: string[] };
   errorTracking: { enabled: boolean };
+  /** Charging and gating switches, and live subscriptions by catalog plan (no users, no prices). */
+  monetization?: {
+    checkoutEnabled: boolean;
+    checkoutBlockedBy: string | null;
+    entitlementsEnforced: boolean;
+    installments: number | null;
+    pricedPlans: string[];
+    unpricedPlans: string[];
+    subscriptions:
+      | { active: number; byPlan: Record<string, number>; legacy: number; endingWithinDays: number; endingSoon: number; openEnded: number }
+      | { error: string }
+      | null;
+  };
   jobs: JobHealth[];
   errors: { windowMinutes: number; serverErrors: number; clientErrors: number; routes: RouteErrors[]; droppedRoutes: number };
 }

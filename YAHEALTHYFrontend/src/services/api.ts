@@ -350,12 +350,19 @@ export interface ReferralSummary {
   shareUrl: string;
   invitedCount: number;
   convertedCount: number;
+  /** Invited friends who have not logged anything yet, still inside their 7-day window. */
+  pendingActivationCount?: number;
   rewards: {
     type: string;
+    trigger?: string;
     perReferral: number;
+    /** Premium days the invited friend gets on activation (0 = none). */
+    friendReward?: number;
+    activationWindowDays?: number;
     maxRewardedReferrals: number;
     earnedCount: number;
     earnedPremiumDays: number;
+    premiumUntil?: string | null;
   };
 }
 
@@ -477,13 +484,56 @@ export const analyticsApi = {
 // ── Marketing (public, no login) ─────────────────────────────────────────────
 
 /** A plan checkout actually sells. `amount` is null when no price is configured. */
-export interface MarketingPlan {
-  id: string;
-  label: string;
-  amount: number | null;
-  currency: string;
-  includes: string[];
+export type { MarketingPlan, EntitlementKey } from '@/utils/plans';
+import type { EntitlementKey, PlansResponse } from '@/utils/plans';
+
+export interface FeatureState {
+  key: EntitlementKey;
+  entitled: boolean;
+  /** True whenever the person lacks the key — show a "Premium" badge. */
+  wouldGate: boolean;
+  /** True only when enforcement is on and they lack it. */
+  locked: boolean;
 }
+
+export interface EntitlementsSummary {
+  enforced: boolean;
+  entitlements: EntitlementKey[];
+  until: Partial<Record<EntitlementKey, string | null>>;
+  premiumUntil: string | null;
+  staff: boolean;
+  features: Record<string, FeatureState>;
+  checkout: { enabled: boolean; cancellationPolicyUrl: string | null };
+}
+
+export interface PaymentStatus {
+  checkoutEnabled: boolean;
+  reason: string | null;
+  cancellationPolicyUrl: string | null;
+  installments: number | null;
+  message: { he: string; en: string } | null;
+}
+
+export interface OwnedPlan {
+  plan: string;
+  legacyPlan?: string;
+  name: { he: string; en: string } | null;
+  includes: EntitlementKey[];
+  status: string;
+  startedAt: string;
+  endsAt: string | null;
+}
+
+export const entitlementsApi = {
+  getMe: () => api.get<EntitlementsSummary>('/api/entitlements/me'),
+};
+
+export const paymentsApi = {
+  status: () => api.get<PaymentStatus>('/api/payments/status'),
+  myPlans: () => api.get<{ plans: OwnedPlan[] }>('/api/payments/my-plans'),
+  checkout: (input: { plan: string; phone: string; installments?: number }) =>
+    api.post<{ paymentPageLink: string; plan: string }>('/api/payments/checkout', input),
+};
 
 export interface LeadInput {
   email: string;
@@ -504,7 +554,7 @@ export interface LeadInput {
 export { UTM_KEYS } from './publicApi';
 
 export const marketingApi = {
-  getPlans: () => api.get<{ plans: MarketingPlan[] }>('/api/marketing/plans'),
+  getPlans: () => api.get<PlansResponse>('/api/marketing/plans'),
   submitLead: (lead: LeadInput) => api.post<{ ok: boolean }>('/api/marketing/leads', lead),
 };
 

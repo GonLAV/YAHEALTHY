@@ -170,7 +170,6 @@ app.use('/api/payments', checkoutRouter);
 // Food values. Lookup and arithmetic over sourced numbers — never a guess,
 // and never advice about what anyone should eat.
 app.use('/api/foods', require('./routes/foods'));
-app.use('/api/meal-plans', require('./routes/meal-planner')); // weekly planner + shopping list (auth per-route); before /api/meal-plans/:id
 app.use('/api/referrals', require('./routes/referrals'));
 app.use('/api/engagement', require('./routes/engagement')); // streaks, Health Score, achievements (auth per-route)
 app.use('/api/marketing', require('./routes/marketing'));
@@ -203,7 +202,12 @@ const premiumGate = (feature) => {
   return (req, res, next) =>
     entitlements.isEnforced() ? auth.authMiddleware(req, res, () => check(req, res, next)) : check(req, res, next);
 };
+// Generating a plan is the paid part; reading, swapping one meal, locking and
+// the shopping list of a plan already made stay open.
 app.post('/api/meal-plans/generate', premiumGate('meal_planner'));
+app.post('/api/meal-plans/week/generate', premiumGate('meal_planner'));
+// Mounted after the gates above (it has its own /week/generate handler).
+app.use('/api/meal-plans', require('./routes/meal-planner')); // weekly planner + shopping list (auth per-route); before /api/meal-plans/:id
 
 // WhatsApp inbound. The webhook is public (guarded by a path secret); the
 // listing endpoint underneath it requires auth because it returns message text.

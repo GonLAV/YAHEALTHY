@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Gift, Copy, Check, Share2, Users, BadgeCheck, CalendarPlus, AlertCircle, MessageCircle } from 'lucide-react';
+import { Gift, Copy, Check, Share2, Users, BadgeCheck, CalendarPlus, AlertCircle, MessageCircle, Hourglass } from 'lucide-react';
 import { referralApi, ReferralSummary } from '@/services/api';
 import { useLanguage } from '@/i18n/LanguageContext';
 import PageHeader from '@/components/ui/PageHeader';
 import StatCard from '@/components/ui/StatCard';
+import { formatEndDate } from '@/utils/plans';
 
 type CopyState = 'idle' | 'copied' | 'failed';
 
 export const InvitePage = () => {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [summary, setSummary] = useState<ReferralSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -38,6 +39,7 @@ export const InvitePage = () => {
   }, [load]);
 
   const shareText = summary ? t('referral.shareText', { code: summary.code }) : '';
+  const premiumUntilText = formatEndDate(summary?.rewards.premiumUntil, lang);
 
   const handleCopy = async () => {
     if (!summary) return;
@@ -106,7 +108,13 @@ export const InvitePage = () => {
                 days: summary.rewards.perReferral,
                 max: summary.rewards.maxRewardedReferrals,
               })}
+              {(summary.rewards.friendReward ?? 0) > 0 && (
+                <> {t('referral.friendExplainer', { friend: summary.rewards.friendReward ?? 0 })}</>
+              )}
             </p>
+            {premiumUntilText && (
+              <p className="mt-2 text-sm font-semibold text-white">{t('referral.premiumUntil', { date: premiumUntilText })}</p>
+            )}
 
             <label htmlFor="invite-link" className="mt-6 block text-sm font-medium text-emerald-50">
               {t('referral.yourLink')}
@@ -161,8 +169,14 @@ export const InvitePage = () => {
             <h2 id="invite-stats-heading" className="mb-3 text-lg font-bold text-slate-900">
               {t('referral.stats')}
             </h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <StatCard label={t('referral.invited')} value={summary.invitedCount} icon={<Users size={18} />} color="emerald" />
+              <StatCard
+                label={t('referral.pending')}
+                value={summary.pendingActivationCount ?? 0}
+                icon={<Hourglass size={18} />}
+                color="amber"
+              />
               <StatCard label={t('referral.converted')} value={summary.convertedCount} icon={<BadgeCheck size={18} />} color="sky" />
               <StatCard
                 label={t('referral.daysEarned')}

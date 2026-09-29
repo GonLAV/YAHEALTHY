@@ -185,6 +185,8 @@ async function run() {
     freeGen.status !== 402 && freeGen.headers.get('x-premium-feature') === 'meal_planner',
     `status ${freeGen.status}`
   );
+  const freeWeek = await call('POST', '/api/meal-plans/week/generate', { token: alice.token, body: {} });
+  check('not enforced: the weekly planner is open', freeWeek.status !== 402, `status ${freeWeek.status}`);
   const freeIns = await call('GET', `/api/crm/users/${alice.id}/insights?lang=en`, { token: alice.token });
   check(
     'not enforced: all insight cards, none locked',
@@ -205,6 +207,10 @@ async function run() {
       gated.body?.message?.he && gated.body?.upgradeUrl === '/upgrade',
     `status ${gated.status} ${JSON.stringify(gated.body)}`
   );
+  const weekGated = await call('POST', '/api/meal-plans/week/generate', { token: alice.token, body: {} });
+  check('enforced: the weekly planner generate is gated too', weekGated.status === 402, `status ${weekGated.status}`);
+  const weekRead = await call('GET', '/api/meal-plans/weeks', { token: alice.token });
+  check('enforced: reading saved plans is not gated', weekRead.status !== 402, `status ${weekRead.status}`);
   check(
     'enforced: an unauthenticated call is still a 401, not a 402',
     (await call('POST', '/api/meal-plans/generate', { body: generateBody })).status === 401
