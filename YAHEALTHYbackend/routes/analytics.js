@@ -17,6 +17,7 @@
  * contains a full email, a phone number or a user id.
  */
 
+const { forRequest: reqLog } = require('../utils/logger');
 const express = require('express');
 const auth = require('../utils/auth');
 const db = require('../utils/database');
@@ -52,7 +53,7 @@ function handler(name, build) {
         ...result
       });
     } catch (error) {
-      console.error(`[analytics] ${name} failed:`, error && error.message);
+      reqLog(req).error('[analytics] query failed', { query: name, err: error });
       return res.status(500).json({ error: 'Could not build analytics', requestId: req.id });
     }
   };

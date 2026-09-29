@@ -57,6 +57,10 @@ const { isValidTimeZone } = require('./utils/engagement');
 
 const { apiLimiter, authLimiter } = require('./middleware/rateLimit');
 const { requestContext } = require('./middleware/requestContext');
+const { accessLog } = require('./middleware/accessLog');
+const logger = require('./utils/logger');
+const { jobs } = require('./utils/health-registry');
+const { installProcessHandlers } = require('./utils/process-handlers');
 const { notFoundHandler, errorHandler } = require('./utils/error-handler');
 const { buildOpenApiSpec } = require('./openapi');
 
@@ -130,6 +134,12 @@ app.use(
 // its own change with its own testing — not a flag flipped in passing.
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(requestContext);
+// One line per request (method, route pattern, status, ms, request id) — never
+// the raw URL, so /s/:token share tokens and ids stay out of the log.
+app.use(accessLog);
+// Browser crash reports. Before the global JSON parser: it has its own 8 KB
+// cap and rate limit (routes/client-errors.js).
+app.use('/api/client-errors', require('./routes/client-errors'));
 app.use(
   express.json({
     verify(req, res, buf) {
@@ -166,6 +176,7 @@ app.use('/api/onboarding', require('./routes/onboarding')); // wizard status + t
 app.use('/api/analytics', require('./routes/analytics')); // staff-only marketing dashboard (auth + requireStaff inside)
 app.use(require('./routes/share')); // /api/share/* (weekly card, links) + public /s/:token pages
 app.use('/api/push', require('./routes/push')); // Web Push: VAPID key, subscriptions, reminder settings (auth per-route)
+app.use('/api/admin', require('./routes/admin')); // staff-only system health (auth + requireStaff inside)
 
 // WhatsApp inbound. The webhook is public (guarded by a path secret); the
 // listing endpoint underneath it requires auth because it returns message text.
@@ -311,7 +322,7 @@ app.post('/api/auth/signup', async (req, res) => {
           captured_at: new Date().toISOString()
         });
       } catch (error) {
-        console.warn(`[signup] attribution not stored for ${user.id}: ${error.message}`);
+        req.log.warn('[signup] attribution not stored', { userId: user.id, err: error });
       }
     }
 
@@ -329,7 +340,7 @@ app.post('/api/auth/signup', async (req, res) => {
         marketing_consent_at: consentAt
       });
     } catch (error) {
-      console.warn(`[signup] messaging preferences not stored for ${user.id}: ${error.message}`);
+      req.log.warn('[signup] messaging preferences not stored', { userId: user.id, err: error });
     }
 
     let referral = { applied: false };
@@ -337,7 +348,7 @@ app.post('/api/auth/signup', async (req, res) => {
       try {
         referral = await referrals.applyReferral({ rawCode: referralCode, refereeId: user.id });
       } catch (error) {
-        console.warn(`[signup] referral not recorded for ${user.id}: ${error.message}`);
+        req.log.warn('[signup] referral not recorded', { userId: user.id, err: error });
       }
     }
 
@@ -352,7 +363,7 @@ app.post('/api/auth/signup', async (req, res) => {
       referralApplied: Boolean(referral.applied)
     });
   } catch (error) {
-    console.error('Signup error:', error);
+    req.log.error('signup failed', { err: error });
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
     }
@@ -395,7 +406,7 @@ app.post('/api/auth/login', async (req, res) => {
       token
     });
   } catch (error) {
-    console.error('Login error:', error);
+    req.log.error('login failed', { err: error });
     if (error instanceof ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.issues, requestId: req.id });
     }
@@ -513,7 +524,7 @@ app.post('/api/auth/request-password-reset', async (req, res) => {
         // The reply stays the same either way. Telling the caller that sending
         // failed for this address would confirm the address exists, which is
         // the thing this endpoint is careful not to reveal.
-        console.error('[auth] could not send password reset mail:', mailError && mailError.message);
+        req.log.error('[auth] could not send password reset mail', { err: mailError });
       }
     }
 
@@ -611,7 +622,7 @@ app.delete('/api/users/me', auth.authMiddleware, async (req, res) => {
 
     // No identifying detail in the log line. The point of the request was to
     // stop holding this person's data.
-    console.info('[users] account deleted');
+    req.log.info('[users] account deleted');
 
     return res.json({
       status: 'ok',
@@ -763,7 +774,7 @@ app.post('/api/surveys', auth.authMiddleware, async (req, res) => {
 
     res.status(201).json(survey);
   } catch (error) {
-    console.error('Survey creation error:', error);
+    req.log.error('survey creation failed', { err: error });
     res.status(500).json({ error: 'Failed to create survey', details: safeErrorDetails(error) });
   }
 });
@@ -3996,12 +4007,19 @@ app.post('/api/summary/weekly/test', auth.authMiddleware, async (req, res) => {
 // ended. Vercel's serverless runtime can't host a scheduler, so the job only
 // arms where a long-lived process does.
 if (!process.env.VERCEL) {
+  jobs.register('weekly-summary', { schedule: '0 8 * * 0 (Asia/Jerusalem)', enabled: true });
   cron.schedule('0 8 * * 0', () => {
-    runWeeklySummaryJob().catch((err) =>
-      console.error(`📧 Weekly summary job crashed: ${err.message}`)
-    );
+    const run = jobs.start('weekly-summary');
+    runWeeklySummaryJob()
+      .then((r) => run.finish({ sent: r && r.sent, failed: r && r.failed }))
+      .catch((err) => {
+        run.fail(err);
+        logger.error('weekly summary job crashed', { err });
+      });
   }, { timezone: 'Asia/Jerusalem' });
-  console.log('📧 Weekly summary emails scheduled: Sundays 08:00 (Asia/Jerusalem)');
+  logger.info('weekly summary emails scheduled: Sundays 08:00 (Asia/Jerusalem)');
+} else {
+  jobs.register('weekly-summary', { enabled: false, disabledReason: 'vercel' });
 }
 
 // Lifecycle messaging (utils/lifecycle-runner.js): hourly, and never on
@@ -4023,13 +4041,19 @@ app.use(errorHandler);
 // through a bound port -- app.listen() would just occupy a port nothing
 // connects to. Skip it there; everywhere else (local dev, a plain VM) it's
 // how the server actually starts.
+let server = null;
 if (!process.env.VERCEL) {
-  app.listen(PORT, () => {
-    console.log(`🚀 YAHEALTHY server running on port ${PORT}`);
-    console.log(`📚 API docs: http://localhost:${PORT}/api/docs`);
-    console.log(`🔐 Authentication enabled with JWT`);
-    console.log(`💾 Database: ${process.env.SUPABASE_URL ? 'Supabase' : 'In-memory (development)'}`);
+  server = app.listen(PORT, () => {
+    logger.info('YAHEALTHY server listening', {
+      port: Number(PORT),
+      docs: `http://localhost:${PORT}/api/docs`,
+      db: db.isMemoryMode() ? 'memory' : 'supabase'
+    });
   });
 }
+
+// Unhandled rejections are logged; uncaught exceptions are logged and, in
+// production, end the process after connections drain (utils/process-handlers.js).
+installProcessHandlers({ getServer: () => server });
 
 module.exports = app;
