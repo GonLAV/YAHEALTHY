@@ -75,7 +75,6 @@ export const DashboardPage = () => {
     const load = async () => {
       const today = todayISO();
       const results = await Promise.allSettled([
-        foodLogApi.getStats({ startDate: today, endDate: today }),
         targetsApi.get(),
         streakApi.get(),
         badgesApi.get(),
@@ -84,9 +83,7 @@ export const DashboardPage = () => {
         foodLogApi.getAll({ date: today }),
       ]);
 
-      const [statsRes, targetsRes, streakRes, badgesRes, waterRes, sleepRes, mealsRes] = results;
-
-      const stats: any = statsRes.status === 'fulfilled' ? statsRes.value.data : {};
+      const [targetsRes, streakRes, badgesRes, waterRes, sleepRes, mealsRes] = results;
       const targets = targetsRes.status === 'fulfilled'
         ? targetsRes.value.data?.targets
         : { calories: null, protein_grams: null, carbs_grams: null, fat_grams: null };
@@ -98,12 +95,14 @@ export const DashboardPage = () => {
 
       const waterLiters = waterLogs.reduce((sum: number, log: any) => sum + (log.liters_consumed || 0), 0);
       const sleepHours = sleepLogs.length > 0 ? sleepLogs.reduce((s: number, l: any) => s + (l.sleep_hours || 0), 0) : null;
+      // Today's totals come from today's meals (the /stats endpoint has no macro totals).
+      const sum = (key: string) => meals.reduce((s: number, m: any) => s + (Number(m[key]) || 0), 0);
 
       setData({
-        calories: stats.total_calories || 0,
-        protein: stats.total_protein || 0,
-        carbs: stats.total_carbs || 0,
-        fat: stats.total_fat || 0,
+        calories: Math.round(sum('calories')),
+        protein: sum('protein_grams'),
+        carbs: sum('carbs_grams'),
+        fat: sum('fat_grams'),
         targets,
         streak,
         badges,
@@ -215,9 +214,12 @@ export const DashboardPage = () => {
                     </span>
                     <span className="font-medium text-slate-700">{m.label}</span>
                   </div>
-                  <span className="num text-sm font-semibold text-slate-500">
-                    <span className="text-slate-900">{Math.round(m.value)}</span>
-                    {m.target ? ` / ${Math.round(m.target)}${t('common.grams')}` : t('common.grams')}
+                  <span className="whitespace-nowrap text-sm font-semibold text-slate-500">
+                    <span className="num">
+                      <span className="text-slate-900">{Math.round(m.value)}</span>
+                      {m.target ? ` / ${Math.round(m.target)}` : ''}
+                    </span>
+                    {'\u00a0'}{t('common.grams')}
                   </span>
                 </div>
                 <ProgressBar value={m.value} target={m.target ?? 0} color={style.color} />
@@ -274,7 +276,7 @@ export const DashboardPage = () => {
             <>
               <div className="flex items-baseline gap-1">
                 <span className="num text-2xl font-bold text-slate-900">{data.sleepHours.toFixed(1)}</span>
-                <span className="text-sm font-medium text-slate-400">h</span>
+                <span className="text-sm font-medium text-slate-400">{t('common.hoursShort')}</span>
               </div>
               <ProgressBar value={data.sleepHours} target={8} color="bg-indigo-500" height="h-2" />
             </>
@@ -353,15 +355,15 @@ export const DashboardPage = () => {
         {data?.recentMeals?.length ? (
           <ul className="divide-y divide-slate-100">
             {data.recentMeals.map((meal) => (
-              <li key={meal.id} className="flex items-center justify-between py-3">
-                <div>
-                  <div className="font-medium text-slate-800">{meal.name}</div>
+              <li key={meal.id} className="flex items-center justify-between gap-3 py-3">
+                <div className="min-w-0">
+                  <div className="break-words font-medium text-slate-800"><bdi>{meal.name}</bdi></div>
                   {meal.meal_type && (
                     <div className="text-xs text-slate-400">{t(`meal.${meal.meal_type}`)}</div>
                   )}
                 </div>
-                <span className="num text-sm font-semibold text-slate-600">
-                  {meal.calories} kcal
+                <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-slate-600">
+                  <span className="num">{meal.calories}</span> {t('common.kcal')}
                 </span>
               </li>
             ))}

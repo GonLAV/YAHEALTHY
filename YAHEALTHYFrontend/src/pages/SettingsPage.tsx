@@ -53,7 +53,7 @@ const SettingsSection = ({
     className="scroll-mt-20 rounded-3xl bg-slate-100/60 p-4 outline-none ring-emerald-300 focus-visible:ring-2 sm:p-5"
   >
     <div className="mb-4 flex items-center gap-3">
-      <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700" aria-hidden="true">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700" aria-hidden="true">
         {icon}
       </span>
       <div>

@@ -69,6 +69,7 @@ Backend unit/integration suites (in-memory store, no Docker needed): `cd YAHEALT
 cd e2e && npm install          # @playwright/test only; never run `playwright install`
 npm test                       # or from YAHEALTHYFrontend: npm run test:e2e
 ```
+Visual QA (not part of `npm test`): `cd e2e && node scripts/screenshots.mjs [outDir] [--only=he-mobile/dashboard]` boots the same stack, seeds a week of data (+ a staff user via the dev-only `scripts/staff-preload.cjs`) and writes full-page he/en × 390/1440 screenshots plus `report.json` (horizontal-overflow culprits) to the gitignored `e2e/screenshots/`. `tests/layout.spec.mjs` guards no-sideways-scroll at 390px (measured without mobile emulation, which hides overflow) — note an `absolute`/`sr-only` child escapes an `overflow-x-auto` scroller unless the scroller is `relative`.
 Chromium is taken from `PLAYWRIGHT_BROWSERS_PATH` (defaults to the preinstalled `/opt/pw-browsers`). Server logs and failure traces land in `e2e/test-results/`. Covers landing (he/en) lead form, `?ref=`+utm → signup → onboarding → Health Score, water → streak, `/invite` copy, share link create/visit/sign-up/revoke, staff page blocked for non-staff, mobile More sheet keyboard/RTL, settings (pref persists across reload, `/reminders` redirect, password change, campaigns table with mocked stats), coach (insight cards + CTA, allergy-safe dinner answer, he/RTL).
 
 ## Dev Commands

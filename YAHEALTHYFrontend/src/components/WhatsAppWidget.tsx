@@ -1,3 +1,4 @@
+import { useLocation } from 'react-router-dom';
 import { useLanguage } from '@/i18n/LanguageContext';
 
 /** The WhatsApp bot number, in international format (055-3174301 → 972553174301) */
@@ -18,7 +19,11 @@ const WhatsAppIcon = ({ size = 28 }: { size?: number }) => (
 
 export const WhatsAppWidget = () => {
   const { t } = useLanguage();
+  const { pathname } = useLocation();
   const label = t('whatsapp.chat');
+
+  // The setup wizard is a focused flow; the floating button would cover its answers.
+  if (pathname === '/onboarding') return null;
 
   return (
     <a
