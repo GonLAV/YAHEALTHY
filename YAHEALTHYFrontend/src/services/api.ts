@@ -16,6 +16,9 @@ export interface FoodLogInput {
   date: string; // YYYY-MM-DD
   name: string;
   calories: number;
+  /** Catalog food: with `grams`, the server computes calories/macros itself. */
+  foodId?: string;
+  grams?: number;
   mealType?: string;
   proteinGrams?: number;
   carbsGrams?: number;
@@ -34,8 +37,85 @@ export interface FoodLog {
   fat_grams?: number;
   meal_type?: string;
   date: string;
-  quantity?: number;
-  unit?: string;
+  quantity?: number | null;
+  unit?: string | null;
+  food_id?: string | null;
+  created_at?: string;
+}
+
+export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+
+/** A "Log again" chip: the user's own food with its last-used values. */
+export interface FoodSuggestion {
+  key: string;
+  name: string;
+  foodId: string | null;
+  mealType: MealType | null;
+  calories: number;
+  proteinGrams: number | null;
+  carbsGrams: number | null;
+  fatGrams: number | null;
+  quantity: number | null;
+  unit: string | null;
+  count: number;
+  lastDate: string | null;
+}
+
+export interface SavedMealItem {
+  name: string;
+  calories: number;
+  protein_grams: number | null;
+  carbs_grams: number | null;
+  fat_grams: number | null;
+  quantity: number | null;
+  unit: string | null;
+  food_id: string | null;
+}
+
+/** A favourite food (kind 'food') or a saved meal (kind 'meal'). */
+export interface FoodTemplate extends SavedMealItem {
+  id: string;
+  kind: 'food' | 'meal';
+  meal_type: MealType | null;
+  items: SavedMealItem[] | null;
+  created_at?: string;
+}
+
+/** Input for one catalog food, a typed food or a quick add. */
+export interface FoodItemInput {
+  name?: string;
+  mealType?: MealType | null;
+  calories?: number;
+  proteinGrams?: number | null;
+  carbsGrams?: number | null;
+  fatGrams?: number | null;
+  quantity?: number | null;
+  unit?: string | null;
+  foodId?: string | null;
+  grams?: number;
+}
+
+/** Many-rows result (copy / saved meal / undo) — `ids` feed the Undo snackbar. */
+export interface LoggedBatch {
+  ids: string[];
+  logs: FoodLog[];
+}
+
+export interface CatalogFood {
+  id: string;
+  nameHe: string;
+  nameEn: string | null;
+  category: string | null;
+  state: string | null;
+  per100g: { kcal: number; proteinG: number | null; carbsG: number | null; fatG: number | null };
+  commonServings: Array<{ name_en?: string; name_he?: string; grams: number }>;
+  source: { name: string; ref: string };
+}
+
+export interface FoodCalculation {
+  items: Array<{ foodId: string; grams: number; kcal: number | null; proteinG: number | null; carbsG: number | null; fatG: number | null }>;
+  total: { kcal: number; proteinG: number; carbsG: number; fatG: number };
+  complete: boolean;
 }
 
 const api = axios.create({
@@ -99,7 +179,45 @@ export const authApi = {
 
 export const foodLogApi = {
   create: (data: FoodLogInput) =>
-    api.post('/api/food-logs', data),
+    api.post<FoodLog>('/api/food-logs', data),
+
+  /** One food: a catalog food (foodId + grams) or a typed/quick-add one. */
+  log: (data: FoodItemInput & { date: string }) =>
+    api.post<FoodLog>('/api/food-logs', data),
+
+  suggestions: (params: { meal?: MealType; tz?: string; limit?: number }) =>
+    api.get<{ meal: MealType; inferredMeal: boolean; date: string; suggestions: FoodSuggestion[] }>(
+      '/api/food-logs/suggestions',
+      { params: { tz: browserTimeZone(), ...params } }
+    ),
+
+  /** Copy a day (or one meal of it) — defaults to yesterday → today locally. */
+  copy: (body: { fromDate?: string; toDate?: string; mealType?: MealType; toMealType?: MealType }) =>
+    api.post<LoggedBatch & { copiedCount: number; fromDate: string; toDate: string }>('/api/food-logs/copy', {
+      tz: browserTimeZone(),
+      ...body,
+    }),
+
+  /** Deletes only the caller's own rows among `ids`. */
+  undo: (ids: string[]) =>
+    api.post<{ deletedCount: number; ids: string[] }>('/api/food-logs/undo', { ids }),
+
+  templates: () => api.get<FoodTemplate[]>('/api/food-logs/templates'),
+
+  saveFavorite: (item: FoodItemInput) =>
+    api.post<FoodTemplate>('/api/food-logs/template', { kind: 'food', ...item }),
+
+  saveMealFromLog: (body: { date: string; mealType: MealType; name: string }) =>
+    api.post<FoodTemplate>('/api/food-logs/templates/from-meal', body),
+
+  renameTemplate: (id: string, name: string) =>
+    api.patch<FoodTemplate>(`/api/food-logs/templates/${id}`, { name }),
+
+  deleteTemplate: (id: string) =>
+    api.delete(`/api/food-logs/templates/${id}`),
+
+  logTemplate: (id: string, body: { date: string; mealType?: MealType }) =>
+    api.post<LoggedBatch & { loggedCount: number }>(`/api/food-logs/templates/${id}/log`, body),
 
   getAll: (filters?: { date?: string; mealType?: string }) =>
     api.get<FoodLog[]>('/api/food-logs', { params: filters }),
@@ -121,6 +239,15 @@ export const foodLogApi = {
 
   getMacrosDistribution: (params?: { date?: string }) =>
     api.get('/api/food-logs/macros-distribution', { params }),
+};
+
+/** The sourced food catalog (routes/foods.js). Values per 100 g. */
+export const foodsApi = {
+  search: (q: string, signal?: AbortSignal) =>
+    api.get<{ query: string; count: number; foods: CatalogFood[] }>('/api/foods/search', { params: { q }, signal }),
+
+  calculate: (items: Array<{ foodId: string; grams: number }>, signal?: AbortSignal) =>
+    api.post<FoodCalculation>('/api/foods/calculate', { items }, { signal }),
 };
 
 export interface HydrationLog {
