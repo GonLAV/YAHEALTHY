@@ -884,6 +884,34 @@ function buildInsights(ctx) {
   }));
 }
 
+/**
+ * What stands in for the insight cards when they are a locked Premium feature
+ * (ENTITLEMENTS_ENFORCED=true and no coach_insights entitlement). Safety cards
+ * are never replaced by this — the route keeps them.
+ */
+function lockedInsightCard(lang = 'en', now = new Date()) {
+  const he = lang === 'he';
+  const reason = he
+    ? 'תובנות אישיות מהרישומים שלכם הן חלק מפרימיום.'
+    : 'Personal insights from your logs are part of Premium.';
+  const action = he
+    ? 'הרישום, הרצפים והצ׳אט עם המאמן נשארים פתוחים.'
+    : 'Logging, streaks and the coach chat stay open.';
+  return {
+    id: 'premium-locked',
+    insight_type: 'premium',
+    kind: 'premium',
+    priority: 'low',
+    rank: 99,
+    title: he ? 'תובנות פרימיום' : 'Premium insights',
+    reason,
+    action,
+    content: `${reason} ${action}`,
+    cta: { href: '/upgrade', label: he ? 'לשדרוג' : 'See plans' },
+    created_at: now.toISOString()
+  };
+}
+
 // ─── /ask ──────────────────────────────────────────────────────────────────
 
 /** Optimal-string-alignment distance, capped (we only care about ≤ 2). */
@@ -1357,6 +1385,7 @@ async function answer(userId, message, lang = 'en', opts = {}) {
 module.exports = {
   generateInsights,
   answer,
+  lockedInsightCard,
   // pure layer (tests)
   loadCoachData,
   buildCoachContext,

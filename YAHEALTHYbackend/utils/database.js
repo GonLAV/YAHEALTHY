@@ -621,7 +621,7 @@ async function getReferralRewards(userId) {
 
   const { data, error } = await supabase
     .from('referral_rewards')
-    .select('id, type, amount, reason, status, created_at')
+    .select('id, referral_id, type, amount, reason, status, applied_at, created_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
@@ -1054,8 +1054,18 @@ async function hasEntitlement(userId, plan) {
  * somebody renewing paid, the callback logged an activation, and they had no
  * access. An ended row is closed and replaced instead.
  */
-async function createSubscription(userId, plan) {
+async function createSubscription(userId, plan, opts = {}) {
   const isLive = (row) => row && (!row.ends_at || row.ends_at > new Date().toISOString());
+  // opts.endsAtFor(currentEndsAt) → Date|null (see utils/plans.js
+  // computeEndsAt). Without it — every caller before the plan catalog — a
+  // subscription is open-ended exactly as it always was.
+  const endsAtFor = typeof opts.endsAtFor === 'function' ? opts.endsAtFor : null;
+  const toIso = (d) => (d ? new Date(d).toISOString() : null);
+  // A paid renewal of a live, dated subscription moves its end date out
+  // instead of being dropped as "already subscribed". Only when the caller
+  // says so (opts.extend): a repeated PayPlus delivery is stopped earlier, by
+  // recordPaymentEvent, so reaching here with extend means a new payment.
+  const shouldExtend = (holder) => Boolean(opts.extend && endsAtFor && holder && holder.ends_at);
 
   if (USE_MEMORY_DB) {
     maybeLogMemoryMode();
@@ -1063,7 +1073,13 @@ async function createSubscription(userId, plan) {
       (row) => row.user_id === userId && row.plan === plan && row.status === 'active'
     );
 
-    if (isLive(holder)) return { subscription: holder, created: false };
+    if (isLive(holder)) {
+      if (shouldExtend(holder)) {
+        holder.ends_at = toIso(endsAtFor(holder.ends_at));
+        return { subscription: holder, created: false, extended: true };
+      }
+      return { subscription: holder, created: false };
+    }
 
     // Closed rather than overwritten: what was sold and when is the record a
     // billing dispute gets settled from.
@@ -1075,19 +1091,20 @@ async function createSubscription(userId, plan) {
       plan,
       status: 'active',
       started_at: new Date().toISOString(),
-      ends_at: null,
+      ends_at: endsAtFor ? toIso(endsAtFor(null)) : null,
       created_at: new Date().toISOString()
     };
     memoryDb.subscriptions.push(row);
     return { subscription: row, created: true };
   }
 
-  // Two passes at most: the insert, then — if an ended row was holding the
-  // slot — the same insert again once that row has been closed.
-  for (let attempt = 0; attempt < 2; attempt++) {
+  // A few passes at most: the insert, then — if an ended row was holding the
+  // slot — the same insert again once that row has been closed (or, for a
+  // renewal, the extension, retried if a concurrent one moved the date).
+  for (let attempt = 0; attempt < 3; attempt++) {
     const { data, error } = await supabase
       .from('subscriptions')
-      .insert([{ user_id: userId, plan, status: 'active' }])
+      .insert([{ user_id: userId, plan, status: 'active', ends_at: endsAtFor ? toIso(endsAtFor(null)) : null }])
       .select()
       .single();
 
@@ -1107,8 +1124,21 @@ async function createSubscription(userId, plan) {
 
     if (readError) throw readError;
 
-    // A live subscription already: the repeated-delivery case the index is for.
-    if (isLive(holder)) return { subscription: holder, created: false };
+    // A live subscription already: the repeated-delivery case the index is for,
+    // or a paid renewal that moves the end date out.
+    if (isLive(holder)) {
+      if (!shouldExtend(holder)) return { subscription: holder, created: false };
+      const { data: extended, error: extendError } = await supabase
+        .from('subscriptions')
+        .update({ ends_at: toIso(endsAtFor(holder.ends_at)) })
+        .eq('id', holder.id)
+        .eq('ends_at', holder.ends_at)
+        .select()
+        .maybeSingle();
+      if (extendError) throw extendError;
+      if (extended) return { subscription: extended, created: false, extended: true };
+      continue; // someone else moved it first — read it again
+    }
 
     // Gone between the conflict and the read — try the insert once more.
     if (!holder) continue;
@@ -3009,7 +3039,7 @@ async function listRewardsForReferrals(referralIds) {
   return selectByIds(
     supabase,
     'referral_rewards',
-    'user_id, referral_id, type, amount, status, created_at',
+    'user_id, referral_id, type, amount, reason, status, created_at',
     'referral_id',
     referralIds
   );
@@ -3379,3 +3409,181 @@ module.exports = {
   listEnabledPushReminderSettingsPage,
   listUsersWithPushSubscriptions
 };
+
+// ─── Monetization (migrations/025) ──────────────────────────────────────────
+//
+// Referral premium time lives on the user (users.premium_until), not in
+// subscriptions: subscriptions are what somebody paid for, and the staff
+// funnel's "paying" stage counts them. A reward is claimed (earned → applied)
+// before the date moves, so two processes can never apply it twice.
+
+const memoryChefTrials = new Map();
+
+/** The referral that brought this user in, or null. */
+async function getReferralByReferee(refereeId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.referrals.find((r) => r.referee_id === refereeId) || null;
+  }
+  const { data, error } = await supabase
+    .from('referrals')
+    .select('id, referrer_id, referee_id, status, created_at')
+    .eq('referee_id', refereeId)
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
+/**
+ * earned → applied, once. Returns true only for the caller that made the
+ * change; everyone else (a retry, a concurrent request) gets false.
+ */
+async function claimReferralReward(rewardId, at = new Date().toISOString()) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const row = memoryDb.referralRewards.find((r) => r.id === rewardId);
+    if (!row || row.status !== 'earned') return false;
+    row.status = 'applied';
+    row.applied_at = at;
+    return true;
+  }
+  const { data, error } = await supabase
+    .from('referral_rewards')
+    .update({ status: 'applied', applied_at: at })
+    .eq('id', rewardId)
+    .eq('status', 'earned')
+    .select('id');
+  if (error) throw error;
+  return Array.isArray(data) && data.length === 1;
+}
+
+/** Undo a claim whose premium extension failed, so a later pass retries it. */
+async function releaseReferralReward(rewardId) {
+  if (USE_MEMORY_DB) {
+    const row = memoryDb.referralRewards.find((r) => r.id === rewardId);
+    if (row && row.status === 'applied') {
+      row.status = 'earned';
+      row.applied_at = null;
+    }
+    return;
+  }
+  const { error } = await supabase
+    .from('referral_rewards')
+    .update({ status: 'earned', applied_at: null })
+    .eq('id', rewardId)
+    .eq('status', 'applied');
+  if (error) throw error;
+}
+
+/**
+ * Push users.premium_until out by `days`: from now if it has lapsed (or was
+ * never set), from the current end otherwise, so stacked rewards add up.
+ * Compare-and-set on the old value, retried, so two rewards applied at the
+ * same moment both count.
+ */
+async function extendPremiumUntil(userId, days, now = new Date()) {
+  const n = Number(days);
+  if (!Number.isFinite(n) || n <= 0) throw new Error('days must be positive');
+  const next = (current) => {
+    const base = current && new Date(current).getTime() > now.getTime() ? new Date(current) : new Date(now);
+    return new Date(base.getTime() + n * 24 * 60 * 60 * 1000).toISOString();
+  };
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const user = memoryDb.usersById.get(userId);
+    if (!user) throw new Error('User not found');
+    const updated = replaceMemoryUser({ ...user, premium_until: next(user.premium_until || null) });
+    return updated.premium_until;
+  }
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data: user, error: readError } = await supabase
+      .from('users')
+      .select('id, premium_until')
+      .eq('id', userId)
+      .maybeSingle();
+    if (readError) throw readError;
+    if (!user) throw new Error('User not found');
+
+    const value = next(user.premium_until);
+    let query = supabase.from('users').update({ premium_until: value }).eq('id', userId);
+    query = user.premium_until ? query.eq('premium_until', user.premium_until) : query.is('premium_until', null);
+    const { data, error } = await query.select('id');
+    if (error) throw error;
+    if (Array.isArray(data) && data.length === 1) return value;
+  }
+  throw new Error(`Could not extend premium for user ${userId}`);
+}
+
+/**
+ * One more free message with Yoni for this WhatsApp number, if the trial
+ * allows it. Returns { allowed, used }. Counted per number, not per account:
+ * people message before they have one.
+ */
+async function consumeChefTrial(phone, limit) {
+  const max = Math.max(0, Number(limit) || 0);
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const used = memoryChefTrials.get(phone) || 0;
+    if (used >= max) return { allowed: false, used };
+    memoryChefTrials.set(phone, used + 1);
+    return { allowed: true, used: used + 1 };
+  }
+  const { data, error } = await supabaseServiceRole
+    .from('whatsapp_chef_trials')
+    .select('used')
+    .eq('phone', phone)
+    .maybeSingle();
+  if (error) throw error;
+  const used = (data && data.used) || 0;
+  if (used >= max) return { allowed: false, used };
+  // Read-then-write: a burst of simultaneous messages can overshoot the trial
+  // by one. Acceptable for a courtesy allowance; billing never goes through here.
+  const { error: writeError } = await supabaseServiceRole
+    .from('whatsapp_chef_trials')
+    .upsert({ phone, used: used + 1, updated_at: new Date().toISOString() }, { onConflict: 'phone' });
+  if (writeError) throw writeError;
+  return { allowed: true, used: used + 1 };
+}
+
+/**
+ * Active subscriptions, for the staff health view: count per stored plan id
+ * and how many end within `soonDays`. Never returns who.
+ */
+async function summarizeActiveSubscriptions(now = new Date(), soonDays = 7) {
+  const nowIso = now.toISOString();
+  const soonIso = new Date(now.getTime() + soonDays * 24 * 60 * 60 * 1000).toISOString();
+  let rows;
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    rows = memoryDb.subscriptions.filter((r) => r.status === 'active' && (!r.ends_at || r.ends_at > nowIso));
+  } else {
+    const { data, error } = await supabase
+      .from('subscriptions')
+      .select('plan, ends_at')
+      .eq('status', 'active')
+      .or(`ends_at.is.null,ends_at.gt.${nowIso}`)
+      .limit(10000);
+    if (error) throw error;
+    rows = data || [];
+  }
+  const byPlan = {};
+  let endingSoon = 0;
+  let openEnded = 0;
+  for (const r of rows) {
+    byPlan[r.plan] = (byPlan[r.plan] || 0) + 1;
+    if (!r.ends_at) openEnded++;
+    else if (new Date(r.ends_at).toISOString() <= soonIso) endingSoon++;
+  }
+  return { active: rows.length, byPlan, endingSoon, openEnded, soonDays };
+}
+
+Object.assign(module.exports, {
+  getReferralByReferee,
+  claimReferralReward,
+  releaseReferralReward,
+  extendPremiumUntil,
+  consumeChefTrial,
+  summarizeActiveSubscriptions
+});

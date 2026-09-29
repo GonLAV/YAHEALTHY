@@ -22,6 +22,8 @@ process.env.ALLOW_MEMORY_DB = 'true';
 process.env.JWT_SECRET = 'referrals-test-secret';
 process.env.VERCEL = '1'; // index.js exports the app instead of binding a port
 process.env.REFERRAL_MAX_REWARDED = '2';
+process.env.REFERRAL_REWARD_DAYS = '14';
+process.env.REFERRAL_FRIEND_REWARD_DAYS = '7';
 process.env.REFERRAL_VALIDATE_LIMIT = '30';
 
 const db = require('../utils/database');
@@ -59,6 +61,15 @@ async function call(method, route, { token, body } = {}) {
     /* some responses carry no body */
   }
   return { status: res.status, body: json };
+}
+
+async function waitFor(predicate, timeoutMs = 3000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await predicate()) return true;
+    await new Promise((r) => setTimeout(r, 25));
+  }
+  return false;
 }
 
 const password = 'correct horse battery';
@@ -149,12 +160,78 @@ async function run() {
   let aliceMe = await call('GET', '/api/referrals/me', { token: alice.body.token });
   check('invitedCount counts the referee', aliceMe.body?.invitedCount === 1, JSON.stringify(aliceMe.body));
   check(
+    'signing up alone earns nothing — the reward waits for activation',
+    aliceMe.body?.rewards?.earnedCount === 0 && aliceMe.body?.rewards?.earnedPremiumDays === 0 &&
+      aliceMe.body?.pendingActivationCount === 1 && !(await db.getUser(aliceId)).premium_until,
+    JSON.stringify(aliceMe.body)
+  );
+  check(
+    'the invite page is told the rule: activation, window, friend reward',
+    aliceMe.body?.rewards?.trigger === 'referee_activation' &&
+      aliceMe.body?.rewards?.activationWindowDays === 7 &&
+      aliceMe.body?.rewards?.friendReward === REFERRAL_REWARDS.referee.amount,
+    JSON.stringify(aliceMe.body?.rewards)
+  );
+
+  // ── activation: the friend's first log earns both sides their days ───────
+  const before = Date.now();
+  const logged = await call('POST', '/api/hydration-logs', { token: bob.body.token, body: { litersConsumed: 0.5 } });
+  check('the friend logs water', logged.status === 201, `status ${logged.status}`);
+  const rewarded = await waitFor(async () => (await db.getReferralRewards(aliceId)).length === 1);
+  check('the first log rewards the referrer (after the response, not in it)', rewarded);
+
+  aliceMe = await call('GET', '/api/referrals/me', { token: alice.body.token });
+  check(
     'the referrer earns the configured reward',
     aliceMe.body?.rewards?.earnedCount === 1 &&
       aliceMe.body?.rewards?.earnedPremiumDays === REFERRAL_REWARDS.referrer.amount,
     JSON.stringify(aliceMe.body?.rewards)
   );
   check('/me exposes counts, never referee identities', !JSON.stringify(aliceMe.body).includes(bob.email));
+
+  const days = (iso) => Math.round((Date.parse(iso) - before) / 86400000);
+  const alicePremium = (await db.getUser(aliceId)).premium_until;
+  check(
+    "the reward is applied: the referrer's premium end moves out",
+    !!alicePremium && days(alicePremium) === REFERRAL_REWARDS.referrer.amount,
+    String(alicePremium)
+  );
+  const bobPremium = (await db.getUser(bob.body.id)).premium_until;
+  check(
+    'the invited friend gets their own reward too',
+    !!bobPremium && days(bobPremium) === REFERRAL_REWARDS.referee.amount,
+    String(bobPremium)
+  );
+  check(
+    'applied rewards are marked applied, once',
+    (await db.getReferralRewards(aliceId)).every((r) => r.status === 'applied' && r.applied_at)
+  );
+
+  const bobEnt = await call('GET', '/api/entitlements/me', { token: bob.body.token });
+  check(
+    'premium days show up as entitlements (premium, insights, planner — not the chef)',
+    ['premium', 'coach_insights', 'meal_planner'].every((k) => bobEnt.body?.entitlements?.includes(k)) &&
+      !bobEnt.body?.entitlements?.includes('chef_whatsapp') && !!bobEnt.body?.premiumUntil,
+    JSON.stringify(bobEnt.body)
+  );
+
+  // ── idempotency ───────────────────────────────────────────────────────────
+  await call('POST', '/api/hydration-logs', { token: bob.body.token, body: { litersConsumed: 0.3 } });
+  const replays = await Promise.all([
+    referrals.rewardOnActivation(bob.body.id),
+    referrals.rewardOnActivation(bob.body.id),
+    referrals.rewardOnActivation(bob.body.id)
+  ]);
+  await new Promise((r) => setTimeout(r, 200));
+  check(
+    'more logs and repeated checks pay nothing twice',
+    (await db.getReferralRewards(aliceId)).length === 1 &&
+      (await db.getReferralRewards(bob.body.id)).length === 1 &&
+      (await db.getUser(aliceId)).premium_until === alicePremium &&
+      (await db.getUser(bob.body.id)).premium_until === bobPremium,
+    JSON.stringify(replays)
+  );
+  check('a repeat check says so', replays.every((r) => r.status === 'already_rewarded'), JSON.stringify(replays));
 
   // ── invalid codes never block signup ──────────────────────────────────────
   const withUnknown = await signup({ referralCode: 'NOPE99' });
@@ -198,15 +275,52 @@ async function run() {
     JSON.stringify(aliceMe.body)
   );
 
-  // ── reward cap ────────────────────────────────────────────────────────────
-  await signup({ referralCode: code });
-  await signup({ referralCode: code });
+  // ── a log that bypassed the hook is still found (invite page reconciles) ──
+  const carol = await signup({ referralCode: code });
+  await db.createHydrationLog(carol.body.id, { date: new Date().toISOString().slice(0, 10), liters_consumed: 1 });
+  aliceMe = await call('GET', '/api/referrals/me', { token: alice.body.token });
+  check(
+    'an activation logged elsewhere (e.g. WhatsApp) is rewarded when the referrer looks',
+    aliceMe.body?.rewards?.earnedCount === 2 && !!(await db.getUser(carol.body.id)).premium_until,
+    JSON.stringify(aliceMe.body)
+  );
+
+  // ── reward cap (REFERRAL_MAX_REWARDED=2 in this suite) ────────────────────
+  const dave = await signup({ referralCode: code });
+  await call('POST', '/api/hydration-logs', { token: dave.body.token, body: { litersConsumed: 0.5 } });
+  await waitFor(async () => (await db.getReferralRewards(dave.body.id)).length === 1);
   aliceMe = await call('GET', '/api/referrals/me', { token: alice.body.token });
   check(
     'referrals past the cap are counted but not rewarded',
     aliceMe.body?.invitedCount === 3 && aliceMe.body?.rewards?.earnedCount === 2,
     JSON.stringify(aliceMe.body)
   );
+  check(
+    "the cap is the referrer's: the friend past it still gets their reward",
+    !!(await db.getUser(dave.body.id)).premium_until
+  );
+
+  // ── the 7-day window ──────────────────────────────────────────────────────
+  const namelessCode = namelessMe.body.code;
+  const late = await signup({ referralCode: namelessCode });
+  (await db.getUser(late.body.id)).created_at = new Date(Date.now() - 10 * 86400000).toISOString();
+  await call('POST', '/api/hydration-logs', { token: late.body.token, body: { litersConsumed: 0.5 } });
+  await new Promise((r) => setTimeout(r, 200));
+  const lateCheck = await referrals.rewardOnActivation(late.body.id);
+  check(
+    'a first log after the 7-day window earns nothing',
+    lateCheck.status === 'window_closed' && (await db.getReferralRewards(nameless.body.id)).length === 0 &&
+      !(await db.getUser(late.body.id)).premium_until,
+    JSON.stringify(lateCheck)
+  );
+
+  const idle = await signup({ referralCode: namelessCode });
+  check(
+    'no log yet → not activated, nothing paid',
+    (await referrals.rewardOnActivation(idle.body.id)).status === 'not_activated' &&
+      (await db.getReferralRewards(nameless.body.id)).length === 0
+  );
+  check('a user nobody invited is not referred', (await referrals.rewardOnActivation(noGrowth.body.id)).status === 'not_referred');
 
   // ── conversion reads subscriptions, nothing more ──────────────────────────
   await db.createSubscription(bob.body.id, 'base');
@@ -214,10 +328,12 @@ async function run() {
   check('a subscribed referee counts as converted', aliceMe.body?.convertedCount === 1, JSON.stringify(aliceMe.body));
 
   // ── deletion ──────────────────────────────────────────────────────────────
+  const alicePremiumBeforeDelete = (await db.getUser(aliceId)).premium_until;
   await db.deleteUser(bob.body.id);
   aliceMe = await call('GET', '/api/referrals/me', { token: alice.body.token });
-  check('a deleted referee drops out of the counts', aliceMe.body?.invitedCount === 2 && aliceMe.body?.convertedCount === 0);
+  check('a deleted referee drops out of the counts', aliceMe.body?.invitedCount === 2 && aliceMe.body?.convertedCount === 0, JSON.stringify(aliceMe.body));
   check('rewards already earned are kept', aliceMe.body?.rewards?.earnedCount === 2);
+  check('and the premium time they bought is kept', (await db.getUser(aliceId)).premium_until === alicePremiumBeforeDelete);
 
   // ── the public endpoint is rate limited ───────────────────────────────────
   let limited = false;

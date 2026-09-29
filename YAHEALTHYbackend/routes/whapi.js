@@ -15,6 +15,7 @@ const { waitUntil } = require('@vercel/functions');
 const db = require('../utils/database');
 const whapi = require('../utils/whapi');
 const brain = require('../utils/whapi-brain');
+const entitlements = require('../utils/entitlements');
 
 const router = express.Router();
 
@@ -151,6 +152,17 @@ async function handleIncomingMessage(message) {
     }
 
     if (!rawText && !imageBase64) return; // nothing usable to respond to
+
+    // Yoni is a paid feature (chef_whatsapp) — but only when
+    // ENTITLEMENTS_ENFORCED=true, after a free trial, and never for a message
+    // that touches a stop flag. See utils/entitlements.js.
+    if (conversation.active_bot === 'yoni') {
+      const gate = await entitlements.checkChefWhatsapp(phone, rawText);
+      if (!gate.allowed) {
+        await sendWithTyping(phone, gate.message);
+        return;
+      }
+    }
 
     await whapi.sendTyping(phone);
 

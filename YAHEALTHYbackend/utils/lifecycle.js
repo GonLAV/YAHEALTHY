@@ -34,6 +34,7 @@
 
 const crypto = require('crypto');
 const { localDate, addDays, isValidTimeZone } = require('./engagement');
+const plans = require('./plans');
 
 const ISRAEL_TZ = 'Asia/Jerusalem';
 
@@ -63,6 +64,16 @@ const CAMPAIGNS = Object.freeze({
     audience: 'user',
     marketing: true,
     steps: ['d7', 'd21']
+  },
+  // Recurring billing without a stored card: a periodic plan ends on its
+  // ends_at, and a week before that the customer gets a link to renew
+  // (/upgrade). Service, not marketing — it is about what they bought. Only
+  // while checkout is enabled, or the link would lead nowhere.
+  renewal: {
+    id: 'renewal',
+    audience: 'user',
+    marketing: false,
+    steps: ['before_end']
   }
 });
 
@@ -94,7 +105,9 @@ const DEFAULT_CONFIG = Object.freeze({
     { step: 'd21', minDays: 21, maxDays: 35 }
   ],
   // Onboarding owns the first week and a half; win-back does not talk over it.
-  winBackMinAccountDays: 10
+  winBackMinAccountDays: 10,
+  // Off unless the runner finds checkout enabled (utils/checkout.js).
+  renewal: { enabled: false, daysBefore: 7 }
 });
 
 const intEnv = (value, fallback, lo, hi) => {
@@ -363,7 +376,24 @@ function decideUser({ user, prefs = {}, activity = {}, sends = [], now, config =
     }
   }
 
-  // 2. Onboarding.
+  // 2. Renewal — a paid period ending within the week. One per period: the
+  //    key carries the plan and the end day, so a renewal (which moves the
+  //    end date) gets its own reminder next time.
+  const renewal = activity.renewal;
+  const rc = config.renewal || DEFAULT_CONFIG.renewal;
+  if (rc.enabled && renewal && renewal.endsAt && renewal.plan) {
+    const endDay = localDate(renewal.endsAt, tz);
+    const daysLeft = daysBetween(today, endDay);
+    if (daysLeft >= 0 && daysLeft < rc.daysBefore) {
+      const d = tryCandidate('renewal', 'before_end', `${renewal.plan}:${endDay}`, {
+        plan: renewal.plan,
+        endsAt: renewal.endsAt
+      });
+      if (d) return d;
+    }
+  }
+
+  // 3. Onboarding.
   for (const w of config.onboarding) {
     if (!inWindow(accountDays, w)) continue;
     if (w.onlyIfNoFoodLogs && activity.hasFoodLogs) {
@@ -374,7 +404,7 @@ function decideUser({ user, prefs = {}, activity = {}, sends = [], now, config =
     if (d) return d;
   }
 
-  // 3. Win-back. Inactive since the last log of any kind, or since signup for
+  // 4. Win-back. Inactive since the last log of any kind, or since signup for
   //    someone who never logged. The period key carries that date, so a person
   //    who comes back and drifts off again can be welcomed back again later —
   //    but never twice for the same lapse.
@@ -389,6 +419,26 @@ function decideUser({ user, prefs = {}, activity = {}, sends = [], now, config =
   }
 
   return skip('nothing_due', { considered });
+}
+
+/**
+ * The paid period a renewal reminder would be about: of this user's active,
+ * dated subscriptions to a periodic catalog plan, the one ending soonest
+ * (after `now`). One-time and open-ended purchases never need renewing.
+ * → { plan, endsAt } | null
+ */
+function renewalCandidate(subscriptions = [], now = new Date()) {
+  const nowMs = new Date(now).getTime();
+  let best = null;
+  for (const s of subscriptions) {
+    if (!s || s.status !== 'active' || !s.ends_at) continue;
+    const endMs = new Date(s.ends_at).getTime();
+    if (!(endMs > nowMs)) continue;
+    const plan = plans.getPlan(s.plan);
+    if (!plan || !plan.months) continue;
+    if (!best || endMs < best.ms) best = { ms: endMs, plan: plan.id, endsAt: new Date(endMs).toISOString() };
+  }
+  return best ? { plan: best.plan, endsAt: best.endsAt } : null;
 }
 
 /**
@@ -463,6 +513,7 @@ module.exports = {
   decideLead,
   decideUser,
   pickChannel,
+  renewalCandidate,
   conversionsFor,
   summarizeStats,
   addDays

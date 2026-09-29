@@ -86,11 +86,32 @@ async function run() {
   const plans = await call('GET', '/api/marketing/plans');
   check('plans are public', plans.status === 200, `got ${plans.status}`);
   const ids = (plans.body?.plans || []).map((p) => p.id).sort().join(',');
-  check('plans are the ones checkout sells', ids === 'base,yoni', `got ${ids}`);
+  check(
+    'plans are the catalog checkout sells',
+    ids === 'app_m,app_y,chef_addon,coaching_3m,combo_3m,plan_once',
+    `got ${ids}`
+  );
   check(
     'a plan with no configured price has no price, not zero',
     (plans.body?.plans || []).every((p) => p.amount === null),
     'the landing page must not advertise a price nobody set'
+  );
+  check(
+    'a price comes only from its PLAN_PRICE_* variable',
+    (plans.body?.plans || []).find((p) => p.id === 'app_m')?.amount === null,
+    'PLAN_PRICE_APP_M is unset in this suite'
+  );
+  check(
+    'each plan carries a bilingual name, a period and what it includes',
+    (plans.body?.plans || []).every(
+      (p) => p.name?.he && p.name?.en && typeof p.period === 'string' && Array.isArray(p.includes) && p.includes.length > 0
+    ),
+    JSON.stringify(plans.body?.plans?.[0])
+  );
+  check(
+    'checkout is reported off by default',
+    plans.body?.checkout?.enabled === false,
+    JSON.stringify(plans.body?.checkout)
   );
 
   // ── capture ───────────────────────────────────────────────────────────────
@@ -231,8 +252,16 @@ async function run() {
       ALLOW_MEMORY_DB: 'true',
       JWT_SECRET: 'marketing-test-secret',
       LEAD_RATE_LIMIT_MAX: String(RATE_LIMIT),
-      PLAN_BASE_AMOUNT: '',
-      PLAN_YONI_AMOUNT: ''
+      // A legacy price must not leak into the catalog.
+      PLAN_BASE_AMOUNT: '150',
+      PLAN_YONI_AMOUNT: '250',
+      PLAN_PRICE_APP_M: '',
+      PLAN_PRICE_APP_Y: '',
+      PLAN_PRICE_CHEF_ADDON: '',
+      PLAN_PRICE_COACHING_3M: '',
+      PLAN_PRICE_COMBO_3M: '',
+      PLAN_PRICE_PLAN_ONCE: '',
+      CHECKOUT_ENABLED: ''
     },
     stdio: ['ignore', 'pipe', 'pipe']
   });

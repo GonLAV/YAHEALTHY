@@ -23,6 +23,7 @@ const whapi = require('./whapi');
 const auth = require('./auth');
 const lifecycle = require('./lifecycle');
 const { renderMessage } = require('./lifecycle-templates');
+const { checkoutStatus } = require('./checkout');
 const { buildEngagementSummary, buildDays, addDays, localDate, isValidTimeZone } = require('./engagement');
 
 const HISTORY_DAYS = 60;
@@ -31,6 +32,14 @@ const safe = (p) => Promise.resolve(p).then((v) => v || []).catch(() => []);
 
 function tokenSecret() {
   return process.env.LIFECYCLE_TOKEN_SECRET || auth.JWT_SECRET;
+}
+
+/**
+ * Renewal reminders only while checkout is actually open: a "renew here"
+ * link to a page that answers "not open yet" helps nobody.
+ */
+function withRenewal(cfg) {
+  return { ...cfg, renewal: { ...(cfg.renewal || {}), enabled: checkoutStatus().enabled } };
 }
 
 /** Where links in messages point. The unsubscribe link must reach the API. */
@@ -176,9 +185,15 @@ function renderFor({ decision, recipient, activity }) {
   const kind = decision.recipientType;
   const links = buildLinks({ kind, recipient, step: decision.step });
   const firstName = recipient.name ? String(recipient.name).trim().split(/\s+/)[0] : '';
+  const renewal =
+    decision.plan && decision.endsAt
+      ? { plan: decision.plan, endsAt: decision.endsAt }
+      : (activity && activity.renewal) || null;
   const vars = {
     name: firstName,
     ...links,
+    renewal,
+    renewUrl: `${urls().app}/upgrade${renewal ? `?plan=${encodeURIComponent(renewal.plan)}` : ''}`,
     streakDays: decision.streakDays || (activity && activity.streak && activity.streak.current) || 0,
     recap: activity ? activity.recap : null
   };
@@ -261,7 +276,7 @@ function runCounts(result) {
  * @param {object}  [opts.config]
  */
 async function runLifecycle({ dryRun = false, now = new Date(), deps = {}, config } = {}) {
-  const cfg = config || lifecycle.configFromEnv(process.env);
+  const cfg = config || withRenewal(lifecycle.configFromEnv(process.env));
   const io = { mailer: deps.mailer || mailer, whapi: deps.whapi || whapi };
 
   if (!dryRun && running) return { dryRun, skipped: 'already_running' };
@@ -390,6 +405,20 @@ async function runLifecycle({ dryRun = false, now = new Date(), deps = {}, confi
       const sendsBy = groupSends(sends);
       const tzById = new Map(ids.map((id) => [id, zoneOf(prefsMap.get(id), cfg)]));
       const activityById = await loadActivityForUsers(tzById, now);
+      if (cfg.renewal && cfg.renewal.enabled) {
+        // One bulk read for the page; a failure only costs this page its
+        // renewal reminders, never the other campaigns.
+        const subs = await safe(db.listSubscriptionsForUsers(ids));
+        const subsBy = new Map();
+        for (const s of subs) {
+          if (!subsBy.has(s.user_id)) subsBy.set(s.user_id, []);
+          subsBy.get(s.user_id).push(s);
+        }
+        for (const id of ids) {
+          const renewal = lifecycle.renewalCandidate(subsBy.get(id) || [], now);
+          if (renewal) activityById.set(id, { ...(activityById.get(id) || {}), renewal });
+        }
+      }
 
       await forEachLimit(users, CONCURRENCY, async (user) => {
         result.evaluated.users++;
@@ -447,7 +476,7 @@ async function previewCampaign(campaignId, target = {}, { step, lang, now = new 
     throw err;
   }
 
-  const cfg = lifecycle.configFromEnv(process.env);
+  const cfg = withRenewal(lifecycle.configFromEnv(process.env));
   let recipient = null;
   const kind = meta.audience;
 
@@ -471,6 +500,8 @@ async function previewCampaign(campaignId, target = {}, { step, lang, now = new 
     const prefs = await db.getNotificationPrefs(recipient.id);
     const tz = isValidTimeZone(prefs.timezone) ? prefs.timezone : cfg.defaultTz;
     activity = await loadUserActivity(recipient.id, tz, now);
+    const renewal = lifecycle.renewalCandidate(await safe(db.getActiveSubscriptions(recipient.id)), now);
+    if (renewal) activity = { ...activity, renewal };
     const sends = await db.listLifecycleSends({ recipientType: 'user', recipientId: recipient.id });
     decision = lifecycle.decideUser({ user: recipient, prefs, activity, sends, now, config: cfg });
     if (decision.action !== 'send' || decision.campaign !== campaignId || (step && decision.step !== step)) {

@@ -14,7 +14,9 @@
  *              day or the 6 days after it — "≥1 log within 7 days"
  *   engaged    active on ≥ 3 distinct days of the first 14
  *   paying     holds an active subscription right now (status 'active' and
- *              no end date, or one in the future)
+ *              no end date, or one in the future). Subscriptions are only
+ *              what was paid for; referral premium days live on
+ *              users.premium_until and never count as paying.
  *
  * Days are UTC calendar days (YYYY-MM-DD). A signup too recent for its
  * window to have closed is counted as "pending", not as a failure, so a
@@ -25,6 +27,8 @@
  * typed one — the default name is the email's local part, which is not shown)
  * and a masked email such as d***@g***.com.
  */
+
+const { resolvePlanId } = require('./plans');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -243,8 +247,24 @@ function computeFunnel({ leads = [], signups = [], activity = [], subscriptions 
     rateFromSignups: i < 2 ? null : rate(count, signups.length)
   }));
 
+  // Who the paying signups pay for, by catalog plan (legacy base/yoni folded
+  // into coaching_3m/combo_3m). A person with two plans counts under each.
+  const payingByPlan = {};
+  const signupIds = new Set(signups.map((u) => u.id));
+  const nowIso = new Date(now).toISOString();
+  const seen = new Set();
+  for (const s of subscriptions) {
+    if (!signupIds.has(s.user_id) || !isPayingNow(s, nowIso)) continue;
+    const plan = resolvePlanId(s.plan) || 'other';
+    const key = `${s.user_id}:${plan}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    payingByPlan[plan] = (payingByPlan[plan] || 0) + 1;
+  }
+
   return {
     stages,
+    payingByPlan,
     pending: { activation: activationPending, engagement: engagementPending },
     definitions: {
       activationWindowDays: ACTIVATION_WINDOW_DAYS,
@@ -360,6 +380,9 @@ function computeReferrals({
   const referralIds = new Set(referrals.map((r) => r.id));
   for (const reward of rewards) {
     if (!referralIds.has(reward.referral_id) || reward.status === 'revoked') continue;
+    // The invited friend's own welcome reward shares the referral id; it is
+    // not something the referrer earned, even when the friend refers too.
+    if (reward.reason === 'friend_activation') continue;
     const row = board.get(reward.user_id);
     if (!row) continue; // rewards to the referee side are not the referrer's
     row.rewardsEarned += Number(reward.amount) || 0;

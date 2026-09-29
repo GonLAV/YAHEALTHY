@@ -36,8 +36,15 @@ const FULL = {
   APP_URL: 'https://app.example.com',
   SHARE_BASE_URL: 'https://app.example.com',
   API_PUBLIC_URL: 'https://api.example.com',
-  PLAN_BASE_AMOUNT: '150',
-  PLAN_YONI_AMOUNT: '250',
+  PLAN_PRICE_APP_M: '49',
+  PLAN_PRICE_APP_Y: '399',
+  PLAN_PRICE_CHEF_ADDON: '149',
+  PLAN_PRICE_COACHING_3M: '1290',
+  PLAN_PRICE_COMBO_3M: '1690',
+  PLAN_PRICE_PLAN_ONCE: '690',
+  CHECKOUT_ENABLED: 'true',
+  CANCELLATION_POLICY_URL: 'https://app.example.com/terms#cancellation',
+  ENTITLEMENTS_ENFORCED: 'true',
   PAYPLUS_ENV: 'production',
   PAYPLUS_API_KEY: SECRET,
   PAYPLUS_SECRET_KEY: SECRET,
@@ -92,11 +99,29 @@ test('development with nothing set never throws, only warns', () => {
 });
 
 test('prices unset -> pricing warning mentions "Price on request"', () => {
-  const report = checkConfig({ ...FULL, PLAN_BASE_AMOUNT: '', PLAN_YONI_AMOUNT: '0' });
+  const report = checkConfig({ ...FULL, PLAN_PRICE_APP_M: '', PLAN_PRICE_COMBO_3M: '0' });
   const w = report.warnings.find((x) => x.feature === 'pricing');
   assert.ok(w, 'no pricing warning');
-  assert.match(w.message, /PLAN_BASE_AMOUNT, PLAN_YONI_AMOUNT/);
+  assert.match(w.message, /PLAN_PRICE_APP_M, PLAN_PRICE_COMBO_3M/);
   assert.match(w.message, /Price on request/);
+});
+
+test('legacy PLAN_BASE_AMOUNT / PLAN_YONI_AMOUNT are flagged as no longer read', () => {
+  const w = checkConfig({ ...FULL, PLAN_BASE_AMOUNT: '150' }).warnings.find((x) => x.feature === 'pricing');
+  assert.match(w.message, /PLAN_BASE_AMOUNT is no longer read/);
+  assert.ok(!w.message.includes('150'), 'value leaked');
+});
+
+test('checkout stays off without CHECKOUT_ENABLED, and without a cancellation policy', () => {
+  const off = checkConfig({ ...FULL, CHECKOUT_ENABLED: '' }).warnings.find((x) => x.feature === 'checkout');
+  assert.match(off.message, /Talk to us/);
+  const noPolicy = checkConfig({ ...FULL, CANCELLATION_POLICY_URL: '' }).warnings.find((x) => x.feature === 'checkout');
+  assert.match(noPolicy.message, /CANCELLATION_POLICY_URL/);
+});
+
+test('entitlements not enforced -> reported, everything open', () => {
+  const w = checkConfig({ ...FULL, ENTITLEMENTS_ENFORCED: '' }).warnings.find((x) => x.feature === 'entitlements');
+  assert.match(w.message, /open to everyone/);
 });
 
 test('mailer unset -> email off; EMAIL_API_KEY alone is flagged as unsupported', () => {
@@ -120,7 +145,7 @@ test('production-only warnings are not reported in development', () => {
 
 test('the logged report never contains a configured value', () => {
   const { lines, logger } = capture();
-  const env = { ...FULL, NODE_ENV: 'development', PLAN_BASE_AMOUNT: '', SMTP_URL: '', SHARE_BASE_URL: '', VERCEL: '1' };
+  const env = { ...FULL, NODE_ENV: 'development', PLAN_PRICE_APP_M: '', SMTP_URL: '', SHARE_BASE_URL: '', VERCEL: '1' };
   runStartupConfigCheck(env, logger);
   assert.ok(lines.length >= 3);
   for (const line of lines) assert.ok(!line.includes(SECRET), `value leaked: ${line}`);

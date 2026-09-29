@@ -3,7 +3,7 @@
  *
  *   GET  /api/marketing/plans   public: what can be bought, and at what price
  *                               if a price is configured. Read from the same
- *                               PLANS table checkout sells from, so the
+ *                               plan catalog (utils/plans.js) checkout sells from, so the
  *                               landing page cannot advertise a price the
  *                               checkout would not charge.
  *   POST /api/marketing/leads   public: leave an email. Consent is required,
@@ -25,7 +25,8 @@ const auth = require('../utils/auth');
 const db = require('../utils/database');
 const requireStaff = require('../middleware/requireStaff');
 const { validateBody } = require('../middleware/validate');
-const { PLANS } = require('./payments');
+const planCatalog = require('../utils/plans');
+const { checkoutStatus } = require('../utils/checkout');
 
 const router = express.Router();
 
@@ -82,14 +83,12 @@ const leadSchema = z.object({
  * the plan without a number rather than a number nobody decided on.
  */
 router.get('/plans', (req, res) => {
-  const plans = Object.entries(PLANS).map(([id, plan]) => ({
-    id,
-    label: plan.label,
-    amount: plan.amount > 0 ? plan.amount : null,
-    currency: 'ILS',
-    includes: plan.includes
-  }));
-  return res.json({ plans });
+  const status = checkoutStatus();
+  return res.json({
+    plans: planCatalog.listPlans().map(planCatalog.publicPlan),
+    // Whether the page may offer "Pay" at all; otherwise "Talk to us".
+    checkout: { enabled: status.enabled, cancellationPolicyUrl: status.cancellationPolicyUrl }
+  });
 });
 
 /**
