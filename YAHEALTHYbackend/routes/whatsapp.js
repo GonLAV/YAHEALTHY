@@ -22,6 +22,14 @@ const router = express.Router();
 // did not exist in the product people actually pay for.
 const { flagsIn } = require('../utils/health-flags');
 
+// Length-independent comparison, so the secret cannot be guessed a character
+// at a time by timing the refusals.
+function secretMatches(given, expected) {
+  const a = Buffer.from(String(given || ''));
+  const b = Buffer.from(String(expected));
+  return a.length === b.length && require('crypto').timingSafeEqual(a, b);
+}
+
 /**
  * POST /api/whatsapp/webhook
  *
@@ -31,7 +39,15 @@ const { flagsIn } = require('../utils/health-flags');
  */
 async function handleWebhook(req, res) {
   const expected = process.env.WHATSAPP_WEBHOOK_SECRET;
-  if (expected && req.params.secret !== expected) {
+  // Unset used to mean open, in production too: anyone could post "messages"
+  // into the staff queue — including fake health flags against someone
+  // else's number, which also pauses that person's reminders. Production now
+  // refuses until a secret is configured; development stays open for tests.
+  if (!expected && process.env.NODE_ENV === 'production') {
+    console.error('[whatsapp] WHATSAPP_WEBHOOK_SECRET is not set; refusing the inbox webhook in production');
+    return res.status(503).json({ error: 'Webhook not configured' });
+  }
+  if (expected && !secretMatches(req.params.secret, expected)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
