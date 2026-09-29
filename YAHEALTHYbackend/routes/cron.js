@@ -2,6 +2,8 @@
  * Scheduled jobs, called by Vercel Cron (vercel.json → "crons").
  *
  *   GET /api/cron/reminders   WhatsApp reminders for tomorrow's meetings
+ *   GET /api/cron/nudges      water / breakfast / menu / well-done reminders
+ *                             (hourly — see .github/workflows/nudges.yml)
  *
  * Once a day rather than hourly: Vercel's Hobby plan runs crons daily at most,
  * and "tomorrow at 10:00" is a reminder people want the evening before, not
@@ -65,6 +67,21 @@ router.get('/reminders', async (req, res) => {
   } catch (error) {
     console.error('[cron] reminders failed:', error.message);
     return res.status(500).json({ error: 'Reminders failed', requestId: req.id });
+  }
+});
+
+// Hourly: Vercel's Hobby plan runs crons once a day at most, so this one is
+// triggered by a scheduled GitHub Action instead (.github/workflows/nudges.yml)
+// with the same CRON_SECRET. Each run sends only what is due in that hour.
+router.get('/nudges', async (req, res) => {
+  if (!authorised(req)) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    const summary = await require('../utils/nudges').runNudges();
+    console.info(`[cron] nudges ${summary.day} ${summary.hour}:00 — sent ${summary.sent}, skipped ${summary.skipped}, paused ${summary.paused}`);
+    return res.json(summary);
+  } catch (error) {
+    console.error('[cron] nudges failed:', error.message);
+    return res.status(500).json({ error: 'Nudges failed', requestId: req.id });
   }
 });
 

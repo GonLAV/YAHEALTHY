@@ -99,7 +99,8 @@ const memoryDb = {
   whapiConversations: new Map(),
   whapiMessages: [],
   appointments: [],
-  orders: []
+  orders: [],
+  nudges: []
 };
 
 function sortByCreatedAtDesc(items) {
@@ -809,6 +810,94 @@ async function updateOrderStatus(id, status) {
   const { data, error } = await supabaseServiceRole.from('orders').update(patch).eq('id', id).select().maybeSingle();
   if (error && error.code !== '22P02') throw error;
   return data || null;
+}
+
+/**
+ * Nudges (migrations/017): reminders sent, which is also the in-app feed.
+ * recordNudge is idempotent on (user, dedupe_key): a reminder job that runs
+ * twice in the same hour sends once.
+ */
+async function recordNudge(nudge) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const existing = memoryDb.nudges.find((n) => n.user_id === nudge.user_id && n.dedupe_key === nudge.dedupe_key);
+    if (existing) return { nudge: existing, created: false };
+    const row = { id: uuidv4(), read_at: null, created_at: new Date().toISOString(), ...nudge };
+    memoryDb.nudges.push(row);
+    return { nudge: row, created: true };
+  }
+  const { data, error } = await supabaseServiceRole.from('nudges').insert([nudge]).select().single();
+  if (error) {
+    if (error.code === '23505') return { nudge: null, created: false };
+    throw error;
+  }
+  return { nudge: data, created: true };
+}
+
+async function listNudges(userId, limit = 30) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.nudges
+      .filter((n) => n.user_id === userId)
+      .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+      .slice(0, limit);
+  }
+  const { data, error } = await supabaseServiceRole
+    .from('nudges')
+    .select('id, kind, channel, body, read_at, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
+async function markNudgesRead(userId) {
+  const now = new Date().toISOString();
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    for (const n of memoryDb.nudges) if (n.user_id === userId && !n.read_at) n.read_at = now;
+    return;
+  }
+  const { error } = await supabaseServiceRole.from('nudges').update({ read_at: now }).eq('user_id', userId).is('read_at', null);
+  if (error) throw error;
+}
+
+/** Everyone who switched reminders on. Off is the default, so this is opt-in. */
+async function listUsersWithNudges() {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return [...memoryDb.usersById.values()].filter((u) => u.preferences?.nudges?.enabled === true);
+  }
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, email, name, phone, preferences')
+    .eq('preferences->nudges->>enabled', 'true');
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Whether this number has a health-flagged WhatsApp message nobody has handled
+ * yet. Such a person gets no automatic food reminders at all: nudging someone
+ * who wrote about an eating disorder or a pregnancy to eat is exactly the harm
+ * the health boundary exists to prevent. Marked handled on the staff screen,
+ * the pause lifts by itself.
+ */
+async function hasOpenHealthEscalation(phone) {
+  if (!phone) return false;
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.whatsappMessages.some((m) => m.status === 'escalated' && String(m.chat_id || '').startsWith(phone));
+  }
+  const { data, error } = await supabase
+    .from('whatsapp_messages')
+    .select('id')
+    .eq('status', 'escalated')
+    .like('chat_id', `${phone}%`)
+    .limit(1);
+  if (error) throw error;
+  return (data || []).length > 0;
 }
 
 /**
@@ -2360,5 +2449,10 @@ module.exports = {
   resolvePaymentEvent,
   createOrder,
   listOrdersForStaff,
-  updateOrderStatus
+  updateOrderStatus,
+  recordNudge,
+  listNudges,
+  markNudgesRead,
+  listUsersWithNudges,
+  hasOpenHealthEscalation
 };

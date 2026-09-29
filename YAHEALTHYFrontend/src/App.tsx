@@ -37,6 +37,7 @@ const ResetPasswordPage = lazy(() => import('@/pages/PasswordPages').then((m) =>
 const ForgotPasswordPage = lazy(() => import('@/pages/PasswordPages').then((m) => ({ default: m.ForgotPasswordPage })));
 // The demo's stand-in for PayPlus. The server refuses its calls in production.
 const DemoPayPage = lazy(() => import('@/pages/DemoPayPage').then((m) => ({ default: m.DemoPayPage })));
+const NotificationsPage = lazy(() => import('@/pages/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
 const LandingPage = lazy(() => import('@/pages/LandingPage').then((m) => ({ default: m.LandingPage })));
 
 const PageLoader = () => (
@@ -163,6 +164,16 @@ const AppRoutes = () => (
           <PrivateRoute>
             <AppLayout>
               <StaffPage />
+            </AppLayout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/notifications"
+        element={
+          <PrivateRoute>
+            <AppLayout>
+              <NotificationsPage />
             </AppLayout>
           </PrivateRoute>
         }

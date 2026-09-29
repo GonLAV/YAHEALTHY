@@ -584,6 +584,35 @@ export const groceryApi = {
     api.get<{ items: GroceryItem[]; mealPlansCount: number }>('/api/grocery-list', { params: { start, end } }),
 };
 
+// ── Reminders (YAHEALTHYbackend/utils/nudges.js) ────────────────────────────
+
+export type NudgeKind = 'water' | 'breakfast' | 'menu' | 'praise';
+
+export interface NudgeItem {
+  id: string;
+  kind: NudgeKind | 'test';
+  channel: 'whatsapp' | 'app';
+  body: string;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export interface NudgeSettings {
+  settings: { enabled: boolean } & Record<NudgeKind, boolean>;
+  schedule: { hour: number; kind: NudgeKind }[];
+  hasPhone: boolean;
+  whatsapp: boolean;
+  pausedForHealth: boolean;
+}
+
+export const notificationsApi = {
+  list: () => api.get<{ items: NudgeItem[]; unread: number }>('/api/notifications'),
+  markRead: () => api.post('/api/notifications/read'),
+  settings: () => api.get<NudgeSettings>('/api/notifications/settings'),
+  save: (settings: NudgeSettings['settings']) => api.put<NudgeSettings>('/api/notifications/settings', settings),
+  test: (kind: NudgeKind) => api.post<{ channel: 'whatsapp' | 'app'; body: string }>('/api/notifications/test', { kind }),
+};
+
 export const analyticsApi = {
   getInsights: () =>
     api.get('/api/insights/daily'),

@@ -123,6 +123,20 @@ async function seed() {
   const physical = (await call('GET', '/api/booking/slots?type=physical')).slots;
   if (physical[4]) await call('POST', '/api/booking', { type: 'physical', start: physical[4].start, name: 'יוסי כהן (הדגמה)', phone: '050-0000002', notes: 'מעדיף בוקר' });
 
+  // Reminders: the demo account has opted in, and the feed already holds what
+  // the job would have sent — yesterday's "well done" (the water target was
+  // met) and this morning's menu. The job then keeps running every few
+  // minutes, as the hourly GitHub Action would in production; it never sends
+  // the same slot twice.
+  const nudges = require('../utils/nudges');
+  const { zonedToUtc } = require('../utils/booking');
+  await db.updateUserPreferences(user.id, { ...(user.preferences || {}), nudges: { enabled: true } });
+  const [y, m, d] = day(-1).split('-').map(Number);
+  await nudges.runNudges({ now: new Date(zonedToUtc(y, m, d, 20 * 60 + 5, 'Asia/Jerusalem')) });
+  const [ty, tm, td] = day(0).split('-').map(Number);
+  await nudges.runNudges({ now: new Date(zonedToUtc(ty, tm, td, 8 * 60 + 5, 'Asia/Jerusalem')) });
+  setInterval(() => nudges.runNudges().catch((err) => console.error('[demo] nudges:', err.message)), 5 * 60_000);
+
   console.log(
     `\n  ✔ Demo ready — in-memory, nothing is saved.\n` +
       `    App:       ${process.env.APP_URL}   (run the frontend: npm run dev in YAHEALTHYFrontend)\n` +

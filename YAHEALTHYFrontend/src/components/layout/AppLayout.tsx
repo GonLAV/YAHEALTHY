@@ -2,11 +2,12 @@ import { ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, UtensilsCrossed, Droplets, Moon, Scale,
-  MessageCircleHeart, LogOut, Languages, Heart, ChefHat, Target, CalendarCheck, Sparkles, ShoppingCart, ShieldCheck,
+  MessageCircleHeart, LogOut, Languages, Heart, ChefHat, Target, CalendarCheck, Sparkles, ShoppingCart, ShieldCheck, Bell,
   BarChart3,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/i18n/LanguageContext';
+import { NotificationBell } from '@/components/NotificationBell';
 
 interface NavItem {
   to: string;
@@ -38,6 +39,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/shopping', key: 'nav.shopping', icon: <ShoppingCart size={20} /> },
   { to: '/coaching', key: 'nav.coaching', icon: <MessageCircleHeart size={20} />, mobile: true },
   { to: '/targets', key: 'nav.targets', icon: <Target size={20} /> },
+  { to: '/notifications', key: 'nav.notifications', icon: <Bell size={20} /> },
   // Public pages, linked from here too: a signed-in person upgrading to Yoni
   // or booking a supermarket session should not have to sign out to find them.
   { to: '/book', key: 'nav.book', icon: <CalendarCheck size={20} /> },
@@ -93,10 +95,11 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-600">
             <Heart size={20} className="text-white" fill="white" />
           </div>
-          <div>
+          <div className="min-w-0 flex-1">
             <div className="text-lg font-bold text-slate-900">YAHealthy</div>
             <div className="text-xs text-slate-500">{t('app.tagline')}</div>
           </div>
+          <NotificationBell align="start" />
         </div>
 
         <nav aria-label={t('a11y.mainNav')} className="flex-1 space-y-1 px-4">
@@ -134,6 +137,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
           <span className="font-bold text-slate-900">YAHealthy</span>
         </div>
         <div className="flex items-center gap-2">
+          <NotificationBell />
           <LangToggle />
           <button
             onClick={handleLogout}

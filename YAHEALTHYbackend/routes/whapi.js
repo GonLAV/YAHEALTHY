@@ -33,6 +33,10 @@ const SWITCH_COMMANDS = {
   adi: 'adi'
 };
 
+// Replies that switch reminders off (utils/nudges.js). Opt-out has to be as
+// easy as opt-in, and on the channel the reminders arrive on.
+const STOP_REMINDERS = new Set(['עצור', 'עצור תזכורות', 'הפסק תזכורות', 'בלי תזכורות', 'stop', 'stop reminders']);
+
 // The one and only place an emoji is allowed -- every reply Adi herself
 // writes is plain text, enforced in the prompt (docs/bot/nuri-bot-prompt.md).
 const WELCOME = `שלום! \u{1F642} זאת עדי.
@@ -124,6 +128,20 @@ async function handleIncomingMessage(message) {
     const conversation = existingConversation || (await db.upsertWhapiConversation(phone, 'adi'));
 
     const rawText = (message.text?.body || message.image?.caption || '').trim();
+    if (STOP_REMINDERS.has(rawText.toLowerCase())) {
+      const user = await db.getUserByPhone(phone);
+      if (user?.preferences?.nudges?.enabled) {
+        await db.updateUserPreferences(user.id, {
+          ...user.preferences,
+          nudges: { ...user.preferences.nudges, enabled: false, updatedAt: new Date().toISOString() }
+        });
+        await sendWithTyping(phone, 'הפסקנו את התזכורות. אפשר להפעיל אותן שוב בכל רגע באפליקציה, במסך ההתראות.');
+      } else {
+        await sendWithTyping(phone, 'אין תזכורות פעילות למספר הזה.');
+      }
+      return;
+    }
+
     const switchTo = SWITCH_COMMANDS[rawText.toLowerCase()];
     if (switchTo) {
       // A switch word carries no health content, so the gate is asked with no
@@ -257,6 +275,7 @@ module.exports = router;
 // standing up WHAPI and Anthropic. A router is a function; hanging one
 // property off it costs nothing and keeps the mapping in one place.
 module.exports.SWITCH_COMMANDS = SWITCH_COMMANDS;
+module.exports.STOP_REMINDERS = STOP_REMINDERS;
 // Same reason: tests/yoni-gate.test.js drives one message through with WHAPI
 // and the brain stubbed, to see which persona it actually reached.
 module.exports.handleIncomingMessage = handleIncomingMessage;

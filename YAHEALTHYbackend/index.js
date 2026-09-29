@@ -161,6 +161,7 @@ app.use('/api/payments', checkoutRouter);
 // synced with her Google calendar. Public — see routes/booking.js.
 app.use('/api/booking', require('./routes/booking'));
 app.use('/api/cron', require('./routes/cron'));
+app.use('/api/notifications', auth.authMiddleware, require('./routes/notifications'));
 app.use('/api/staff', auth.authMiddleware, require('./middleware/requireStaff'), require('./routes/staff'));
 
 // Food values. Lookup and arithmetic over sourced numbers — never a guess,
