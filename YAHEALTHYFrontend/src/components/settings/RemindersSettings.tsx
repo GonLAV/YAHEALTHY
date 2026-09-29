@@ -33,7 +33,7 @@ const Section = ({
   <fieldset className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100" aria-describedby={`${id}-hint`}>
     <legend className="sr-only">{title}</legend>
     <div className="mb-3 flex items-center gap-2.5">
-      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700" aria-hidden="true">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700" aria-hidden="true">
         {icon}
       </span>
       <div>
@@ -220,7 +220,7 @@ export const RemindersSettings = () => {
                     type="button"
                     onClick={turnOn}
                     disabled={busy}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-60"
                   >
                     <Bell size={16} aria-hidden="true" />
                     {busy ? t('reminders.enabling') : t('reminders.enable')}
@@ -237,7 +237,7 @@ export const RemindersSettings = () => {
                 type="checkbox"
                 checked={form.enabled}
                 onChange={(e) => update('enabled', e.target.checked)}
-                className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                className="h-5 w-5 rounded border-slate-300 text-emerald-700 focus:ring-emerald-500"
               />
               {t('reminders.master')}
             </label>
@@ -251,7 +251,7 @@ export const RemindersSettings = () => {
                 checked={form.water.enabled}
                 disabled={off}
                 onChange={(e) => update('water', { ...form.water, enabled: e.target.checked })}
-                className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                className="h-5 w-5 rounded border-slate-300 text-emerald-700 focus:ring-emerald-500"
               />
               {t('reminders.water')}
             </label>
@@ -308,7 +308,7 @@ export const RemindersSettings = () => {
                   checked={form.meal.enabled}
                   disabled={off}
                   onChange={(e) => update('meal', { ...form.meal, enabled: e.target.checked })}
-                  className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                  className="h-5 w-5 rounded border-slate-300 text-emerald-700 focus:ring-emerald-500"
                 />
                 {t('reminders.meal')}
               </label>
@@ -331,7 +331,7 @@ export const RemindersSettings = () => {
                   checked={form.streak.enabled}
                   disabled={off}
                   onChange={(e) => update('streak', { ...form.streak, enabled: e.target.checked })}
-                  className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                  className="h-5 w-5 rounded border-slate-300 text-emerald-700 focus:ring-emerald-500"
                 />
                 {t('reminders.streak')}
               </label>
@@ -386,7 +386,7 @@ export const RemindersSettings = () => {
           <button
             type="submit"
             disabled={saving}
-            className="w-full rounded-2xl bg-emerald-600 px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60 sm:w-auto"
+            className="w-full rounded-2xl bg-emerald-700 px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:opacity-60 sm:w-auto"
           >
             {saving ? t('reminders.saving') : t('reminders.save')}
           </button>

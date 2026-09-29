@@ -38,9 +38,9 @@ export function LogAgainChips({
                   aria-label={t('food.logAgain.chip', { name: s.name, kcal: Math.round(s.calories) })}
                   className="flex max-w-[16rem] items-center gap-2 rounded-full bg-emerald-50 px-3.5 py-2 text-sm text-emerald-900 ring-1 ring-emerald-100 transition hover:bg-emerald-100 disabled:opacity-60"
                 >
-                  <span className="truncate font-medium">{s.name}</span>
-                  {qty && <span className="num shrink-0 text-xs text-emerald-700">{qty}</span>}
-                  <span className="num shrink-0 text-xs text-emerald-700">{Math.round(s.calories)} {t('food.kcal')}</span>
+                  <bdi className="truncate font-medium">{s.name}</bdi>
+                  {qty && <span className="num shrink-0 text-xs text-emerald-800">{qty}</span>}
+                  <span className="shrink-0 whitespace-nowrap text-xs text-emerald-800"><span className="num">{Math.round(s.calories)}</span> {t('common.kcal')}</span>
                 </button>
               </li>
             );
@@ -121,9 +121,9 @@ export function SavedMeals({
                     className="flex max-w-[16rem] items-center gap-2 rounded-full bg-amber-50 px-3.5 py-2 text-sm text-amber-900 ring-1 ring-amber-100 transition hover:bg-amber-100 disabled:opacity-60"
                   >
                     {isMeal ? <Bookmark size={14} aria-hidden="true" /> : <Star size={14} aria-hidden="true" />}
-                    <span className="truncate font-medium">{tpl.name}</span>
-                    {detail && <span className="num shrink-0 text-xs text-amber-700">{detail}</span>}
-                    <span className="num shrink-0 text-xs text-amber-700">{Math.round(Number(tpl.calories) || 0)} {t('food.kcal')}</span>
+                    <bdi className="truncate font-medium">{tpl.name}</bdi>
+                    {detail && <span className="num shrink-0 text-xs text-amber-800">{detail}</span>}
+                    <span className="shrink-0 whitespace-nowrap text-xs text-amber-800"><span className="num">{Math.round(Number(tpl.calories) || 0)}</span> {t('common.kcal')}</span>
                   </button>
                 </li>
               );
@@ -160,17 +160,17 @@ export function SavedMeals({
                 ) : (
                   <>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-slate-800">{tpl.name}</span>
+                      <bdi className="block truncate text-sm font-medium text-slate-800">{tpl.name}</bdi>
                       <span className="num block text-xs text-slate-500">
                         {isMeal ? t('food.saved.meal') : t('food.saved.food')}
-                        {detail ? ` · ${detail}` : ''} · {Math.round(Number(tpl.calories) || 0)} {t('food.kcal')}
+                        {detail ? ` · ${detail}` : ''} · {Math.round(Number(tpl.calories) || 0)} {t('common.kcal')}
                       </span>
                     </span>
                     <button
                       type="button"
                       onClick={() => startEdit(tpl)}
                       aria-label={t('food.saved.rename', { name: tpl.name })}
-                      className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-50 hover:text-slate-700"
+                      className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
                     >
                       <Pencil size={16} aria-hidden="true" />
                     </button>
@@ -178,7 +178,7 @@ export function SavedMeals({
                       type="button"
                       onClick={() => onDelete(tpl)}
                       aria-label={t('food.saved.delete', { name: tpl.name })}
-                      className="rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-500"
+                      className="rounded-lg p-2 text-slate-500 transition hover:bg-rose-50 hover:text-rose-500"
                     >
                       <Trash2 size={16} aria-hidden="true" />
                     </button>

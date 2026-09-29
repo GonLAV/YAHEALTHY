@@ -244,7 +244,7 @@ export const FoodLogPage = () => {
 
   const pill = (active: boolean) =>
     `rounded-full px-4 py-2 text-sm font-medium transition ${
-      active ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+      active ? 'bg-emerald-700 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
     }`;
 
   return (
@@ -314,12 +314,12 @@ export const FoodLogPage = () => {
 
       {/* Today's totals */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-emerald-50 px-5 py-4 ring-1 ring-emerald-100">
-        <span className="text-sm font-semibold text-emerald-800">{t('food.totalToday')}</span>
-        <div className="num flex gap-4 text-sm font-medium text-emerald-700">
-          <span>{todayTotals.calories} {t('food.kcal')}</span>
-          <span>{t('dash.protein')} {todayTotals.protein.toFixed(0)}{t('common.grams')}</span>
-          <span>{t('dash.carbs')} {todayTotals.carbs.toFixed(0)}{t('common.grams')}</span>
-          <span>{t('dash.fat')} {todayTotals.fat.toFixed(0)}{t('common.grams')}</span>
+        <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-emerald-800">{t('food.totalToday')}</span>
+        <div className="flex flex-wrap justify-end gap-x-4 gap-y-1 text-sm font-medium text-emerald-700">
+          <span className="whitespace-nowrap"><span className="num">{todayTotals.calories}</span> {t('common.kcal')}</span>
+          <span className="whitespace-nowrap">{t('common.proteinShort')} <span className="num">{todayTotals.protein.toFixed(0)}</span>{'\u00a0'}{t('common.grams')}</span>
+          <span className="whitespace-nowrap">{t('common.carbsShort')} <span className="num">{todayTotals.carbs.toFixed(0)}</span>{'\u00a0'}{t('common.grams')}</span>
+          <span className="whitespace-nowrap">{t('common.fatShort')} <span className="num">{todayTotals.fat.toFixed(0)}</span>{'\u00a0'}{t('common.grams')}</span>
         </div>
       </div>
 
@@ -350,7 +350,7 @@ export const FoodLogPage = () => {
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-slate-50 px-5 py-3">
                   <h3 id={`meal-${type}`} className="font-semibold text-slate-700">
                     <span aria-hidden="true">{MEAL_EMOJI[type]}</span> {mealName}
-                    <span className="num ms-2 text-sm font-normal text-slate-400">({items.length})</span>
+                    <span className="num ms-2 text-sm font-normal text-slate-500">({items.length})</span>
                   </h3>
                   <div className="flex flex-wrap gap-1.5">
                     {yesterdayByMeal[type].length > 0 && (
@@ -378,7 +378,7 @@ export const FoodLogPage = () => {
                   </div>
                 </div>
                 {items.length === 0 ? (
-                  <p className="px-5 py-3 text-sm text-slate-400">{t('food.meal.empty')}</p>
+                  <p className="px-5 py-3 text-sm text-slate-500">{t('food.meal.empty')}</p>
                 ) : (
                   <ul className="divide-y divide-slate-100">
                     {items.map((log) => {
@@ -386,20 +386,21 @@ export const FoodLogPage = () => {
                       return (
                         <li key={log.id} className="flex items-center justify-between gap-2 px-5 py-4">
                           <div className="min-w-0 flex-1">
-                            <h4 className="truncate font-medium text-slate-800">{log.name}</h4>
+                            {/* Names are user text in either language: isolate their direction, and wrap rather than truncate. */}
+                            <h4 className="break-words font-medium text-slate-800"><bdi>{log.name}</bdi></h4>
                             <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-500">
                               {log.quantity != null && (
                                 <span className="num">
                                   {log.quantity} {log.unit === 'g' || !log.unit ? t('common.grams') : log.unit}
                                 </span>
                               )}
-                              <span className="num">{t('dash.protein')} {Number(log.protein_grams || 0).toFixed(1)}{t('common.grams')}</span>
-                              <span className="num">{t('dash.carbs')} {Number(log.carbs_grams || 0).toFixed(1)}{t('common.grams')}</span>
-                              <span className="num">{t('dash.fat')} {Number(log.fat_grams || 0).toFixed(1)}{t('common.grams')}</span>
+                              <span>{t('common.proteinShort')} <span className="num">{Number(log.protein_grams || 0).toFixed(1)}</span>{'\u00a0'}{t('common.grams')}</span>
+                              <span>{t('common.carbsShort')} <span className="num">{Number(log.carbs_grams || 0).toFixed(1)}</span>{'\u00a0'}{t('common.grams')}</span>
+                              <span>{t('common.fatShort')} <span className="num">{Number(log.fat_grams || 0).toFixed(1)}</span>{'\u00a0'}{t('common.grams')}</span>
                             </div>
                           </div>
-                          <div className="flex items-center gap-1">
-                            <span className="num me-2 font-semibold text-slate-700">{Math.round(Number(log.calories) || 0)} {t('food.kcal')}</span>
+                          <div className="flex shrink-0 items-center gap-1">
+                            <span className="me-2 whitespace-nowrap font-semibold text-slate-700"><span className="num">{Math.round(Number(log.calories) || 0)}</span> {t('common.kcal')}</span>
                             <button
                               type="button"
                               onClick={() => toggleLogFavorite(log)}
@@ -412,7 +413,7 @@ export const FoodLogPage = () => {
                             <button
                               type="button"
                               onClick={() => handleDelete(log.id)}
-                              className="rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-500"
+                              className="rounded-lg p-2 text-slate-500 transition hover:bg-rose-50 hover:text-rose-500"
                               aria-label={t('food.deleteItem', { name: log.name })}
                             >
                               <Trash2 size={17} aria-hidden="true" />

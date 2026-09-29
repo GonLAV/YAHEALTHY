@@ -120,7 +120,7 @@ export const AchievementsPage = () => {
                   className={`w-full max-w-[2.5rem] rounded-t-lg ${scoreColor(d.score).bar} transition-all duration-500`}
                   style={{ height: `${Math.max(4, d.score)}%` }}
                 />
-                <span className="text-[11px] text-slate-400">{fmtDate(d.date, { weekday: 'short' })}</span>
+                <span className="text-[11px] text-slate-500">{fmtDate(d.date, { weekday: 'short' })}</span>
               </div>
             ))}
           </div>
@@ -151,7 +151,7 @@ export const AchievementsPage = () => {
                     <Flame size={20} className={s.best > 0 ? 'text-orange-500' : 'text-slate-300'} fill={s.best > 0 ? 'currentColor' : 'none'} />
                     <span className="num text-2xl font-bold text-slate-900">{s.best}</span>
                   </div>
-                  <div className="mt-1 text-xs text-slate-400">{t('ach.current', { n: s.current })}</div>
+                  <div className="mt-1 text-xs text-slate-500">{t('ach.current', { n: s.current })}</div>
                 </div>
               </li>
             );
@@ -181,7 +181,7 @@ export const AchievementsPage = () => {
                 <span
                   aria-hidden="true"
                   className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
-                    a.unlocked ? 'bg-violet-100 text-violet-600' : 'bg-slate-200 text-slate-400'
+                    a.unlocked ? 'bg-violet-100 text-violet-600' : 'bg-slate-200 text-slate-500'
                   } ${celebrate?.id === a.id ? 'celebrate-pop' : ''}`}
                 >
                   {achievementIcon(a.icon)}
@@ -198,12 +198,12 @@ export const AchievementsPage = () => {
                   </h3>
                   <p className="text-xs text-slate-500">{t(`ach.${a.id}.desc`)}</p>
                   {a.unlocked && a.unlockedAt ? (
-                    <p className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-emerald-600">
+                    <p className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-emerald-700">
                       <CheckCircle2 size={14} aria-hidden="true" />
                       {t('ach.unlockedOn', { date: fmtDate(a.unlockedAt, { day: 'numeric', month: 'short', year: 'numeric' }) })}
                     </p>
                   ) : !a.available ? (
-                    <p className="mt-2 text-xs text-slate-400">{t('ach.unavailable')}</p>
+                    <p className="mt-2 text-xs text-slate-500">{t('ach.unavailable')}</p>
                   ) : (
                     <div className="mt-2">
                       <LabeledProgress
@@ -213,7 +213,7 @@ export const AchievementsPage = () => {
                         color="bg-violet-400"
                         height="h-1.5"
                       />
-                      <p className="mt-1 text-[11px] text-slate-400">
+                      <p className="mt-1 text-[11px] text-slate-500">
                         {t('ach.progress', { current: a.progress.current, target: a.progress.target })}
                       </p>
                     </div>

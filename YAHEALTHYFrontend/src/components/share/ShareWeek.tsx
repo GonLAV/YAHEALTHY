@@ -337,7 +337,7 @@ export const ShareWeekModal = ({ open, onClose }: { open: boolean; onClose: () =
                 checked={opts.showName}
                 onChange={(e) => setOpts((o) => ({ ...o, showName: e.target.checked }))}
                 aria-describedby={nameHintId}
-                className="mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                className="mt-1 h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-500"
               />
               <div>
                 <label htmlFor={nameId} className="text-sm font-medium text-slate-800">{t('share.showName')}</label>
@@ -351,7 +351,7 @@ export const ShareWeekModal = ({ open, onClose }: { open: boolean; onClose: () =
                 checked={opts.includeWeight}
                 onChange={(e) => setOpts((o) => ({ ...o, includeWeight: e.target.checked }))}
                 aria-describedby={weightHintId}
-                className="mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                className="mt-1 h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-500"
               />
               <div>
                 <label htmlFor={weightId} className="text-sm font-medium text-slate-800">{t('share.includeWeight')}</label>
@@ -377,7 +377,7 @@ export const ShareWeekModal = ({ open, onClose }: { open: boolean; onClose: () =
                 onFocus={(e) => e.currentTarget.select()}
                 className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-start text-sm text-slate-700"
               />
-              <button type="button" onClick={handleCopy} className={`${btn} bg-emerald-600 text-white hover:bg-emerald-700`}>
+              <button type="button" onClick={handleCopy} className={`${btn} bg-emerald-700 text-white hover:bg-emerald-800`}>
                 {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
                 {t('share.copy')}
               </button>
@@ -405,7 +405,7 @@ export const ShareWeekModal = ({ open, onClose }: { open: boolean; onClose: () =
               type="button"
               onClick={handleCreateLink}
               disabled={!preview || busy !== null}
-              className={`${btn} bg-emerald-600 text-white hover:bg-emerald-700`}
+              className={`${btn} bg-emerald-700 text-white hover:bg-emerald-800`}
             >
               <Link2 size={16} aria-hidden="true" />
               {busy === 'link' ? t('share.creating') : t('share.createLink')}
@@ -416,7 +416,7 @@ export const ShareWeekModal = ({ open, onClose }: { open: boolean; onClose: () =
                 href={whatsappHref}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`${btn} bg-[#25D366] text-white hover:brightness-95`}
+                className={`${btn} bg-[#25D366] text-slate-900 hover:brightness-95`}
               >
                 <MessageCircle size={16} aria-hidden="true" />
                 {t('share.whatsapp')}
@@ -448,7 +448,7 @@ export const ShareWeekModal = ({ open, onClose }: { open: boolean; onClose: () =
           {status?.text}
         </p>
 
-        <p className="mt-2 text-xs text-slate-400">{t('share.disclaimer')}</p>
+        <p className="mt-2 text-xs text-slate-500">{t('share.disclaimer')}</p>
       </div>
     </div>,
     document.body,
@@ -465,7 +465,7 @@ export const ShareWeekButton = ({ className = '' }: { className?: string }) => {
         type="button"
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
-        className={`inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 ${className}`}
+        className={`inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800 ${className}`}
       >
         <Share2 size={16} aria-hidden="true" />
         {t('share.button')}
@@ -482,7 +482,7 @@ export const ShareWeekCard = () => {
   return (
     <section
       aria-labelledby="share-week-title"
-      className="flex flex-col gap-4 rounded-3xl bg-gradient-to-br from-emerald-600 to-teal-600 p-5 text-white shadow-md sm:flex-row sm:items-center"
+      className="flex flex-col gap-4 rounded-3xl bg-gradient-to-br from-emerald-700 to-teal-700 p-5 text-white shadow-md sm:flex-row sm:items-center"
     >
       <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15" aria-hidden="true">
         <Sparkles size={24} />

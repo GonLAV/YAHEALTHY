@@ -120,7 +120,7 @@ export function QuickAddForm({
         <button
           type="submit"
           disabled={busy}
-          className="flex-1 rounded-xl bg-emerald-600 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700 disabled:opacity-60"
+          className="flex-1 rounded-xl bg-emerald-700 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800 disabled:opacity-60"
         >
           {busy ? t('common.loading') : t('food.logFood')}
         </button>

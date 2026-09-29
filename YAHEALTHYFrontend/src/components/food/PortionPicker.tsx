@@ -78,7 +78,7 @@ export function PortionPicker({
     <form onSubmit={submit} className="space-y-4" aria-labelledby={`${uid}-title`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 id={`${uid}-title`} className="text-lg font-semibold text-slate-900">{name}</h3>
+          <h3 id={`${uid}-title`} className="break-words text-lg font-semibold text-slate-900"><bdi>{name}</bdi></h3>
           <p className="num text-xs text-slate-500">
             {t('food.search.per100', { kcal: Math.round(food.per100g.kcal) })} · {t('food.portion.source', { source: food.source.name === 'usda_fdc' ? 'USDA FoodData Central' : food.source.name })}
           </p>
@@ -141,11 +141,11 @@ export function PortionPicker({
           t('food.portion.invalid')
         ) : (
           <>
-            <span className="num font-semibold">{kcal ?? 0} {t('food.kcal')}</span>
-            <span className="num ms-3 text-slate-500">
-              {t('dash.protein')} {macro(calc?.proteinG, food.per100g.proteinG)}{t('common.grams')} · {t('dash.carbs')} {macro(calc?.carbsG, food.per100g.carbsG)}{t('common.grams')} · {t('dash.fat')} {macro(calc?.fatG, food.per100g.fatG)}{t('common.grams')}
+            <span className="whitespace-nowrap font-semibold"><span className="num">{kcal ?? 0}</span> {t('common.kcal')}</span>
+            <span className="ms-3 text-slate-600">
+              {t('common.proteinShort')} <span className="num">{macro(calc?.proteinG, food.per100g.proteinG)}</span>{'\u00a0'}{t('common.grams')} · {t('common.carbsShort')} <span className="num">{macro(calc?.carbsG, food.per100g.carbsG)}</span>{'\u00a0'}{t('common.grams')} · {t('common.fatShort')} <span className="num">{macro(calc?.fatG, food.per100g.fatG)}</span>{'\u00a0'}{t('common.grams')}
             </span>
-            <span className="num ms-3 text-xs text-slate-400">({grams} {t('common.grams')})</span>
+            <span className="num ms-3 text-xs text-slate-500">({grams} {t('common.grams')})</span>
           </>
         )}
       </div>
@@ -160,7 +160,7 @@ export function PortionPicker({
         <button
           type="submit"
           disabled={busy || grams == null}
-          className="flex-1 rounded-xl bg-emerald-600 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700 disabled:opacity-60"
+          className="flex-1 rounded-xl bg-emerald-700 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800 disabled:opacity-60"
         >
           {busy ? t('common.loading') : t('food.portion.log', { name })}
         </button>

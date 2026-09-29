@@ -212,7 +212,7 @@ export function FoodSearch({
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium">{catalogName(opt.food, lang)}</span>
                   {lang === 'he' && opt.food.nameEn && (
-                    <span dir="ltr" className="block truncate text-start text-xs text-slate-400">{opt.food.nameEn}</span>
+                    <span dir="ltr" className="block truncate text-start text-xs text-slate-500">{opt.food.nameEn}</span>
                   )}
                 </span>
                 <span className="num shrink-0 text-xs text-slate-500">
