@@ -6,7 +6,7 @@ import {
 import { PublicLayout } from '@/components/layout/PublicLayout';
 import { Num } from '@/components/ui/Num';
 import { WHATSAPP_URL } from '@/components/WhatsAppWidget';
-import { useLanguage } from '@/i18n/LanguageContext';
+import { useDocumentTitle, useLanguage } from '@/i18n/LanguageContext';
 import { purchaseApi, Plan } from '@/services/api';
 
 /**
@@ -120,7 +120,7 @@ const PricingTeaser = () => {
               <div className="flex items-center justify-between gap-2">
                 <h3 className="font-bold text-slate-900">{t(`pricing.plan.${plan.id}.name`)}</h3>
                 {featured && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-0.5 text-xs font-semibold text-white">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-700 px-2.5 py-0.5 text-xs font-semibold text-white">
                     <Sparkles size={12} /> {t('pricing.recommended')}
                   </span>
                 )}
@@ -143,6 +143,7 @@ const PricingTeaser = () => {
 
 export const LandingPage = () => {
   const { t, isRTL } = useLanguage();
+  useDocumentTitle(t('title.landing'));
   const Arrow = isRTL ? ArrowLeft : ArrowRight;
 
   return (
@@ -163,7 +164,7 @@ export const LandingPage = () => {
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center md:justify-start">
               <Link
                 to="/book"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-6 py-3.5 font-semibold text-white shadow-lg shadow-emerald-600/25 transition hover:bg-emerald-700 sm:w-auto"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-700 px-6 py-3.5 font-semibold text-white shadow-lg shadow-emerald-600/25 transition hover:bg-emerald-800 sm:w-auto"
               >
                 {t('landing.hero.ctaPrimary')} <Arrow size={18} aria-hidden="true" />
               </Link>
@@ -174,7 +175,7 @@ export const LandingPage = () => {
                 {t('landing.hero.ctaSecondary')}
               </Link>
             </div>
-            <a href={WHATSAPP_URL} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-emerald-700">
+            <a href={WHATSAPP_URL} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-emerald-800">
               <MessageCircle size={16} aria-hidden="true" /> {t('landing.hero.whatsapp')}
             </a>
           </div>
@@ -189,7 +190,7 @@ export const LandingPage = () => {
           {STEPS.map((step, i) => (
             <li key={step.key} className="relative rounded-3xl bg-slate-50 p-6 ring-1 ring-slate-100">
               <div className="flex items-center gap-3">
-                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-600 text-white">{step.icon}</span>
+                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-700 text-white">{step.icon}</span>
                 <span className="text-sm font-bold text-emerald-700"><Num>{String(i + 1).padStart(2, '0')}</Num></span>
               </div>
               <h3 className="mt-4 text-lg font-bold text-slate-900">{t(`${step.key}.title`)}</h3>
@@ -234,7 +235,7 @@ export const LandingPage = () => {
 
       {/* ── last call ────────────────────────────────────────────────────── */}
       <Section>
-        <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-emerald-600 to-teal-600 px-6 py-12 text-center text-white shadow-xl shadow-emerald-600/20 md:px-12">
+        <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-emerald-700 to-teal-700 px-6 py-12 text-center text-white shadow-xl shadow-emerald-600/20 md:px-12">
           <h2 className="text-3xl font-extrabold tracking-tight md:text-4xl">{t('landing.final.title')}</h2>
           <p className="mx-auto mt-3 max-w-xl text-emerald-50">{t('landing.final.desc')}</p>
           <Link

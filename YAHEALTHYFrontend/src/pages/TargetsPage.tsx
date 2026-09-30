@@ -167,7 +167,7 @@ export const TargetsPage = () => {
           <button
             onClick={save}
             disabled={saving || loading || anyInvalid}
-            className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+            className="flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
           >
             {saved ? <Check size={18} /> : null}
             {saved ? t('targets.saved') : t('targets.save')}

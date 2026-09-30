@@ -1,7 +1,7 @@
 import { ReactNode, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { AlertCircle, CheckCircle2, Heart, KeyRound, Mail } from 'lucide-react';
-import { useLanguage } from '@/i18n/LanguageContext';
+import { useDocumentTitle, useLanguage } from '@/i18n/LanguageContext';
 import { authApi } from '@/services/api';
 
 /**
@@ -35,7 +35,7 @@ const Shell = ({ title, subtitle, children }: { title: string; subtitle?: string
   <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-emerald-50 via-teal-50 to-sky-50 px-4 py-10">
     <main id="main-content" className="w-full max-w-md">
       <Link to="/" className="mb-8 flex flex-col items-center gap-3" aria-label="YAHealthy">
-        <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-600 shadow-lg shadow-emerald-200">
+        <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-700 shadow-lg shadow-emerald-200">
           <Heart size={30} className="text-white" fill="white" />
         </div>
         <span className="text-3xl font-extrabold text-slate-900">YAHealthy</span>
@@ -57,7 +57,7 @@ const ErrorBox = ({ id, children }: { id?: string; children: ReactNode }) => (
 );
 
 const primaryButton =
-  'w-full rounded-xl bg-emerald-600 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700 disabled:opacity-60';
+  'w-full rounded-xl bg-emerald-700 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800 disabled:opacity-60';
 
 /** Email field + "send me a link". Used on its own page and when a link has expired. */
 const RequestLinkForm = ({ initialEmail = '' }: { initialEmail?: string }) => {
@@ -115,6 +115,7 @@ const RequestLinkForm = ({ initialEmail = '' }: { initialEmail?: string }) => {
 
 export const ForgotPasswordPage = () => {
   const { t } = useLanguage();
+  useDocumentTitle(t('password.forgot.title'));
   return (
     <Shell title={t('password.forgot.title')} subtitle={t('password.forgot.subtitle')}>
       <RequestLinkForm />
@@ -130,6 +131,7 @@ export const ResetPasswordPage = () => {
   const [params] = useSearchParams();
   const token = params.get('token') || '';
   const isWelcome = params.get('welcome') === '1';
+  useDocumentTitle(isWelcome ? t('password.reset.welcomeTitle') : t('password.reset.title'));
   const email = useMemo(() => (token ? emailFromToken(token) : null), [token]);
 
   const [password, setPassword] = useState('');

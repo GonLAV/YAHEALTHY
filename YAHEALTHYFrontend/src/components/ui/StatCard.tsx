@@ -9,7 +9,7 @@ interface StatCardProps {
 }
 
 const COLOR_MAP = {
-  emerald: { bg: 'bg-emerald-100', text: 'text-emerald-600' },
+  emerald: { bg: 'bg-emerald-100', text: 'text-emerald-700' },
   sky: { bg: 'bg-sky-100', text: 'text-sky-600' },
   violet: { bg: 'bg-violet-100', text: 'text-violet-600' },
   amber: { bg: 'bg-amber-100', text: 'text-amber-600' },

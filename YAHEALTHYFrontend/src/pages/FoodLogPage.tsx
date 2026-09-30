@@ -154,7 +154,7 @@ export const FoodLogPage = () => {
           className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-md transition ${
             showForm
               ? 'bg-slate-500 hover:bg-slate-600'
-              : 'bg-emerald-600 shadow-emerald-200 hover:bg-emerald-700'
+              : 'bg-emerald-700 shadow-emerald-200 hover:bg-emerald-800'
           }`}
         >
           {showForm ? <X size={18} /> : <Plus size={18} />}
@@ -175,7 +175,7 @@ export const FoodLogPage = () => {
                   onClick={() => setFormData({ ...formData, mealType: type })}
                   className={`rounded-full px-4 py-2 text-sm font-medium transition ${
                     formData.mealType === type
-                      ? 'bg-emerald-600 text-white shadow-sm'
+                      ? 'bg-emerald-700 text-white shadow-sm'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
@@ -288,7 +288,7 @@ export const FoodLogPage = () => {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full rounded-xl bg-emerald-600 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700 disabled:opacity-60"
+              className="w-full rounded-xl bg-emerald-700 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800 disabled:opacity-60"
             >
               {submitting ? t('common.loading') : t('food.logFood')}
             </button>

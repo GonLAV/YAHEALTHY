@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Heart, Mail, Lock, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { useLanguage } from '@/i18n/LanguageContext';
+import { useDocumentTitle, useLanguage } from '@/i18n/LanguageContext';
 
 export const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -11,6 +11,7 @@ export const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const { t, toggleLang } = useLanguage();
+  useDocumentTitle(t('auth.signIn'));
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -21,7 +22,10 @@ export const LoginPage = () => {
       await login(email, password);
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.error || err.response?.data?.message || t('auth.loginFailed'));
+      // The server's words are English whatever the reader's language, so the
+      // answer is chosen by status here instead of shown as it arrived.
+      const status = err.response?.status;
+      setError(status === 401 ? t('auth.invalidCredentials') : status === 429 ? t('auth.tooManyAttempts') : t('auth.loginFailed'));
     } finally {
       setLoading(false);
     }
@@ -32,10 +36,10 @@ export const LoginPage = () => {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-emerald-50 via-teal-50 to-sky-50 px-4">
-      <div className="w-full max-w-md">
+      <main id="main-content" className="w-full max-w-md">
         {/* Brand */}
         <div className="mb-8 flex flex-col items-center gap-3">
-          <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-600 shadow-lg shadow-emerald-200">
+          <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-700 shadow-lg shadow-emerald-200">
             <Heart size={30} className="text-white" fill="white" />
           </div>
           <div className="text-center">
@@ -106,24 +110,30 @@ export const LoginPage = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-xl bg-emerald-600 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700 disabled:opacity-60"
+              className="w-full rounded-xl bg-emerald-700 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800 disabled:opacity-60"
             >
               {loading ? t('auth.signingIn') : t('auth.signIn')}
             </button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-slate-500">
+          <p className="mt-4 text-center text-sm">
+            <Link to="/forgot-password" className="font-semibold text-emerald-700 hover:text-emerald-800">
+              {t('auth.forgotPassword')}
+            </Link>
+          </p>
+
+          <p className="mt-6 text-center text-sm text-slate-600">
             {t('auth.noAccount')}{' '}
-            <Link to="/signup" className="font-semibold text-emerald-600 hover:text-emerald-700">
+            <Link to="/signup" className="font-semibold text-emerald-700 hover:text-emerald-800">
               {t('auth.signUp')}
             </Link>
           </p>
           <div className="mt-4 flex justify-center gap-4 border-t border-slate-100 pt-4 text-sm">
-            <Link to="/pricing" className="font-semibold text-emerald-600 hover:text-emerald-700">{t('nav.pricing')}</Link>
-            <Link to="/book" className="font-semibold text-emerald-600 hover:text-emerald-700">{t('nav.book')}</Link>
+            <Link to="/pricing" className="font-semibold text-emerald-700 hover:text-emerald-800">{t('nav.pricing')}</Link>
+            <Link to="/book" className="font-semibold text-emerald-700 hover:text-emerald-800">{t('nav.book')}</Link>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 };

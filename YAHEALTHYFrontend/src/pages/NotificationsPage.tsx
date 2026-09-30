@@ -18,7 +18,7 @@ const Toggle = ({ id, checked, onChange, disabled }: { id: string; checked: bool
     <input id={id} type="checkbox" role="switch" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} className="peer sr-only" />
     <span
       aria-hidden="true"
-      className="h-6 w-11 rounded-full bg-slate-300 transition peer-checked:bg-emerald-600 peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-500 peer-focus-visible:ring-offset-2 peer-disabled:opacity-50"
+      className="h-6 w-11 rounded-full bg-slate-300 transition peer-checked:bg-emerald-700 peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-500 peer-focus-visible:ring-offset-2 peer-disabled:opacity-50"
     />
     <span aria-hidden="true" className="pointer-events-none absolute start-0.5 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-5 rtl:peer-checked:-translate-x-5" />
   </span>
@@ -126,7 +126,7 @@ export const NotificationsPage = () => {
             <button
               onClick={sendTest}
               disabled={test.state === 'busy' || data.pausedForHealth}
-              className="mt-4 rounded-xl bg-emerald-600 px-5 py-2.5 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700 disabled:opacity-60"
+              className="mt-4 rounded-xl bg-emerald-700 px-5 py-2.5 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800 disabled:opacity-60"
             >
               {test.state === 'busy' ? t('nudges.testSending') : t('nudges.testButton')}
             </button>

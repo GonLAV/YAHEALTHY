@@ -24,7 +24,7 @@ export const useSlotFormat = (timeZone: string) => {
 
 const chip = (active: boolean) =>
   `rounded-xl px-3 py-2 text-sm font-medium transition ring-1 ${
-    active ? 'bg-emerald-600 text-white ring-emerald-600' : 'bg-white text-slate-700 ring-slate-200 hover:ring-emerald-400'
+    active ? 'bg-emerald-700 text-white ring-emerald-600' : 'bg-white text-slate-700 ring-slate-200 hover:ring-emerald-400'
   }`;
 
 /**

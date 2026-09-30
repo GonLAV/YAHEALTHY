@@ -98,8 +98,8 @@ export const RecipesPage = () => {
   const pill = (active: boolean) =>
     `inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${
       active
-        ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-200'
-        : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-emerald-50 hover:text-emerald-700 hover:ring-emerald-200'
+        ? 'bg-emerald-700 text-white shadow-sm shadow-emerald-200'
+        : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-emerald-50 hover:text-emerald-800 hover:ring-emerald-200'
     }`;
 
   return (
@@ -208,7 +208,7 @@ export const RecipesPage = () => {
             <button
               type="button"
               onClick={showAll}
-              className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
+              className="rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800"
             >
               {t('recipes.showAll')}
             </button>

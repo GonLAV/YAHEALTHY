@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Heart, Mail, Lock, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { useLanguage } from '@/i18n/LanguageContext';
+import { useDocumentTitle, useLanguage } from '@/i18n/LanguageContext';
 
 export const SignupPage = () => {
   const [email, setEmail] = useState('');
@@ -12,6 +12,7 @@ export const SignupPage = () => {
   const [loading, setLoading] = useState(false);
   const { signup } = useAuth();
   const { t, toggleLang } = useLanguage();
+  useDocumentTitle(t('auth.signUp'));
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,7 +29,17 @@ export const SignupPage = () => {
       await signup(email, password);
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.error || err.response?.data?.message || t('auth.signupFailed'));
+      // Chosen by status: the server answers in English whatever the reader's language.
+      const status = err.response?.status;
+      setError(
+        status === 409
+          ? t('auth.accountExists')
+          : status === 400
+            ? t('auth.signupInvalid', { n: 10 })
+            : status === 429
+              ? t('auth.tooManyAttempts')
+              : t('auth.signupFailed')
+      );
     } finally {
       setLoading(false);
     }
@@ -39,9 +50,9 @@ export const SignupPage = () => {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-emerald-50 via-teal-50 to-sky-50 px-4">
-      <div className="w-full max-w-md">
+      <main id="main-content" className="w-full max-w-md">
         <div className="mb-8 flex flex-col items-center gap-3">
-          <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-600 shadow-lg shadow-emerald-200">
+          <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-700 shadow-lg shadow-emerald-200">
             <Heart size={30} className="text-white" fill="white" />
           </div>
           <div className="text-center">
@@ -131,7 +142,7 @@ export const SignupPage = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-xl bg-emerald-600 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700 disabled:opacity-60"
+              className="w-full rounded-xl bg-emerald-700 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800 disabled:opacity-60"
             >
               {loading ? t('auth.creatingAccount') : t('auth.signUp')}
             </button>
@@ -139,12 +150,12 @@ export const SignupPage = () => {
 
           <p className="mt-6 text-center text-sm text-slate-500">
             {t('auth.haveAccount')}{' '}
-            <Link to="/login" className="font-semibold text-emerald-600 hover:text-emerald-700">
+            <Link to="/login" className="font-semibold text-emerald-700 hover:text-emerald-800">
               {t('auth.signIn')}
             </Link>
           </p>
         </div>
-      </div>
+      </main>
     </div>
   );
 };

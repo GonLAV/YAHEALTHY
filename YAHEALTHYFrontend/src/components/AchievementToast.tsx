@@ -55,7 +55,7 @@ export const AchievementToast = ({
           </span>
 
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium text-emerald-600">{t('achievement.earned')}</p>
+            <p className="text-xs font-medium text-emerald-700">{t('achievement.earned')}</p>
             {/* The translated name, not the English one the API ships. */}
             <p className="font-semibold text-slate-900">{t(`badge.${badge.id}.name`)}</p>
             <p className="mt-0.5 text-xs text-slate-500">{t(`badge.${badge.id}.desc`)}</p>

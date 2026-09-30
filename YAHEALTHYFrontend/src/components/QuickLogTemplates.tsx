@@ -71,7 +71,7 @@ export const QuickLogTemplates = ({ onLogged }: { onLogged?: () => void }) => {
     <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
       <div className="mb-3 flex items-baseline justify-between gap-3">
         <h2 className="font-semibold text-slate-900">{t('quickLog.title')}</h2>
-        <Link to="/food-log" className="text-xs font-medium text-emerald-600 hover:underline">
+        <Link to="/food-log" className="text-xs font-medium text-emerald-700 hover:underline">
           {t('quickLog.manage')}
         </Link>
       </div>

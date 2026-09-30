@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { AlertCircle, CalendarCheck, ChefHat, ClipboardList, MessageCircle, ShoppingCart, Sparkles } from 'lucide-react';
 import { PublicLayout } from '@/components/layout/PublicLayout';
 import { Num } from '@/components/ui/Num';
-import { useLanguage } from '@/i18n/LanguageContext';
+import { useDocumentTitle, useLanguage } from '@/i18n/LanguageContext';
 import { purchaseApi, Plan, Product, Session } from '@/services/api';
 
 // The same test the server applies (utils/phone.js), loosely: it only saves a
@@ -86,7 +86,7 @@ const CheckoutForm = ({ item, onCancel }: { item: Buyable; onCancel: () => void 
         <button type="button" onClick={onCancel} className="rounded-xl px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100">
           {t('common.cancel')}
         </button>
-        <button type="submit" disabled={busy} className="rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700 disabled:opacity-60">
+        <button type="submit" disabled={busy} className="rounded-xl bg-emerald-700 px-6 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800 disabled:opacity-60">
           {busy ? t('pricing.redirecting') : <>{t('pricing.toPayment')} · <Num>₪{item.amount}</Num></>}
         </button>
       </div>
@@ -123,7 +123,7 @@ const Card = ({
       }`}
     >
       {featured && (
-        <span className="absolute -top-3 start-6 inline-flex items-center gap-1 rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white">
+        <span className="absolute -top-3 start-6 inline-flex items-center gap-1 rounded-full bg-emerald-700 px-3 py-1 text-xs font-semibold text-white">
           <Sparkles size={12} aria-hidden="true" /> {t('pricing.recommended')}
         </span>
       )}
@@ -141,6 +141,7 @@ const Card = ({
 
 export const PricingPage = () => {
   const { t } = useLanguage();
+  useDocumentTitle(t('nav.pricing'));
   const [plans, setPlans] = useState<Plan[] | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -169,7 +170,7 @@ export const PricingPage = () => {
     <button
       onClick={() => setChosen(item)}
       className={`w-full rounded-xl py-3 font-semibold transition ${
-        featured ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200 hover:bg-emerald-700' : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+        featured ? 'bg-emerald-700 text-white shadow-md shadow-emerald-200 hover:bg-emerald-800' : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
       }`}
     >
       {t('pricing.choose')}

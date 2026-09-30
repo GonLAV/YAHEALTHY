@@ -166,7 +166,7 @@ export const WeightPage = () => {
               ? t('weighIn.goalReached')
               : t('weighIn.progress', { n: celebration.deltaKg ?? 0 })}
             {celebration.code === 'progress' && celebration.remainingKg != null && (
-              <span className="ms-2 font-normal text-emerald-600">
+              <span className="ms-2 font-normal text-emerald-700">
                 · {t('weighIn.remaining', { n: celebration.remainingKg })}
               </span>
             )}
@@ -228,7 +228,7 @@ export const WeightPage = () => {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full rounded-xl bg-emerald-600 py-2.5 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700 disabled:opacity-60"
+                className="w-full rounded-xl bg-emerald-700 py-2.5 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800 disabled:opacity-60"
               >
                 {t('weight.createGoal')}
               </button>
@@ -329,7 +329,7 @@ export const WeightPage = () => {
           {!showLogForm ? (
             <button
               onClick={() => setShowLogForm(true)}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-3.5 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700"
+              className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-700 py-3.5 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800"
             >
               <Plus size={18} />
               {t('weight.logWeight')}
@@ -353,7 +353,7 @@ export const WeightPage = () => {
               <button
                 type="submit"
                 disabled={submitting}
-                className="rounded-xl bg-emerald-600 px-8 py-2.5 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700 disabled:opacity-60"
+                className="rounded-xl bg-emerald-700 px-8 py-2.5 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800 disabled:opacity-60"
               >
                 {t('common.save')}
               </button>
@@ -381,7 +381,7 @@ export const WeightPage = () => {
                     className="flex items-center justify-between rounded-2xl bg-white px-5 py-3.5 shadow-sm ring-1 ring-slate-100"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
                         <Flag size={17} />
                       </span>
                       <div>
@@ -394,7 +394,7 @@ export const WeightPage = () => {
                     {diff !== 0 && (
                       <span
                         className={`num flex items-center gap-1 text-sm font-semibold ${
-                          diff < 0 ? 'text-emerald-600' : 'text-sky-600'
+                          diff < 0 ? 'text-emerald-700' : 'text-sky-600'
                         }`}
                       >
                         {diff < 0 ? <TrendingDown size={15} /> : <TrendingUp size={15} />}

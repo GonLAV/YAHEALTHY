@@ -22,7 +22,7 @@ export const CATEGORY_ORDER = ['breakfast', 'main', 'salad', 'side', 'snack'];
 // Full class strings, so Tailwind sees every one of them.
 const CATEGORY_STYLE: Record<string, { icon: ReactNode; tile: string }> = {
   breakfast: { icon: <Egg size={22} />, tile: 'bg-amber-50 text-amber-600' },
-  main: { icon: <UtensilsCrossed size={22} />, tile: 'bg-emerald-50 text-emerald-600' },
+  main: { icon: <UtensilsCrossed size={22} />, tile: 'bg-emerald-50 text-emerald-700' },
   salad: { icon: <Salad size={22} />, tile: 'bg-lime-50 text-lime-700' },
   side: { icon: <Carrot size={22} />, tile: 'bg-orange-50 text-orange-600' },
   snack: { icon: <Apple size={22} />, tile: 'bg-sky-50 text-sky-600' },
@@ -211,7 +211,7 @@ export const RecipeCard = ({
             <div className="grid gap-6 lg:grid-cols-5">
               <section aria-labelledby={`${titleId}-ingredients`} className="lg:col-span-2">
                 <h3 id={`${titleId}-ingredients`} className="flex items-center gap-2 font-bold text-slate-900">
-                  <ShoppingBasket size={18} aria-hidden className="text-emerald-600" />
+                  <ShoppingBasket size={18} aria-hidden className="text-emerald-700" />
                   {t('recipes.ingredients')}
                 </h3>
                 <ul className="mt-3 divide-y divide-slate-200/70 rounded-2xl bg-slate-50 px-4">
@@ -226,7 +226,7 @@ export const RecipeCard = ({
 
               <section aria-labelledby={`${titleId}-steps`} className="lg:col-span-3">
                 <h3 id={`${titleId}-steps`} className="flex items-center gap-2 font-bold text-slate-900">
-                  <ListOrdered size={18} aria-hidden className="text-emerald-600" />
+                  <ListOrdered size={18} aria-hidden className="text-emerald-700" />
                   {t('recipes.steps')}
                 </h3>
                 <ol role="list" className="mt-3 space-y-4">
@@ -236,7 +236,7 @@ export const RecipeCard = ({
                       <li key={step.step} {...hebrew} className="flex gap-3">
                         <span
                           aria-hidden
-                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-sm font-bold text-white"
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-sm font-bold text-white"
                         >
                           <Num>{step.step}</Num>
                         </span>
@@ -245,7 +245,7 @@ export const RecipeCard = ({
                           {hasTiming && <div className="mt-2 flex flex-wrap gap-1.5">{timing(step)}</div>}
                           {step.cue && (
                             <p className="mt-2 flex items-start gap-1.5 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
-                              <CircleCheck size={16} aria-hidden className="mt-0.5 shrink-0 text-emerald-600" />
+                              <CircleCheck size={16} aria-hidden className="mt-0.5 shrink-0 text-emerald-700" />
                               <span>
                                 <span {...ui} className="font-semibold">{t('recipes.cue')}:</span> {step.cue}
                               </span>

@@ -46,10 +46,16 @@ html[dir='rtl'] body {
 
 /* --- Accessibility --- */
 
-/* Clear, high-contrast focus indicator for keyboard users */
+/* Clear, high-contrast focus indicator for keyboard users (emerald-700:
+   5.5:1 on white, and still over 4:1 on the pale page gradients) */
 :focus-visible {
-  outline: 2px solid #059669;
+  outline: 2px solid #047857;
   outline-offset: 2px;
+}
+/* A soft corner for elements that have none of their own, like a text link.
+   :where() keeps this at zero specificity: it used to win over rounded-full
+   and rounded-2xl, so every pill and card squared off under keyboard focus. */
+:where(:focus-visible) {
   border-radius: 4px;
 }
 

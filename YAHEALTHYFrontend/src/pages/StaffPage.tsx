@@ -66,14 +66,14 @@ const AppointmentCard = ({ a, onChanged }: { a: StaffAppointment; onChanged: () 
       )}
 
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-slate-700">
-        <a href={`tel:+${a.phone}`} className="inline-flex items-center gap-1.5 hover:text-emerald-700">
+        <a href={`tel:+${a.phone}`} className="inline-flex items-center gap-1.5 hover:text-emerald-800">
           <Phone size={14} /> <Num>{displayPhone(a.phone)}</Num>
         </a>
-        <a href={waLink(a.phone)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 hover:text-emerald-700">
+        <a href={waLink(a.phone)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 hover:text-emerald-800">
           <MessageCircle size={14} /> {t('staff.openWhatsapp')}
         </a>
         {a.email && (
-          <a href={`mailto:${a.email}`} className="inline-flex items-center gap-1.5 hover:text-emerald-700">
+          <a href={`mailto:${a.email}`} className="inline-flex items-center gap-1.5 hover:text-emerald-800">
             <Mail size={14} /> <span dir="ltr">{a.email}</span>
           </a>
         )}
@@ -81,7 +81,7 @@ const AppointmentCard = ({ a, onChanged }: { a: StaffAppointment; onChanged: () 
           <span className="inline-flex items-center gap-1.5"><MapPin size={14} /> {a.location}</span>
         )}
         {a.meet_link && (
-          <a href={a.meet_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 hover:text-emerald-700">
+          <a href={a.meet_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 hover:text-emerald-800">
             <Video size={14} /> Meet
           </a>
         )}
@@ -96,7 +96,7 @@ const AppointmentCard = ({ a, onChanged }: { a: StaffAppointment; onChanged: () 
 
       <div className="mt-4 flex flex-wrap gap-2">
         {reasons.length > 0 && (
-          <button disabled={busy} onClick={() => act(() => staffApi.resolve(a.id))} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
+          <button disabled={busy} onClick={() => act(() => staffApi.resolve(a.id))} className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60">
             {t('staff.resolve')}
           </button>
         )}
@@ -142,7 +142,7 @@ const EscalationCard = ({ m, onChanged }: { m: Escalation; onChanged: () => void
               setBusy(false);
             }
           }}
-          className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+          className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
         >
           {t('staff.resolve')}
         </button>
@@ -176,7 +176,7 @@ const PaymentCard = ({ p, onChanged }: { p: FlaggedPayment; onChanged: () => voi
       </ul>
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600">
         {p.email && (
-          <a href={`mailto:${p.email}`} className="inline-flex items-center gap-1.5 hover:text-emerald-700">
+          <a href={`mailto:${p.email}`} className="inline-flex items-center gap-1.5 hover:text-emerald-800">
             <Mail size={14} /> <span dir="ltr">{p.email}</span>
           </a>
         )}
@@ -196,7 +196,7 @@ const PaymentCard = ({ p, onChanged }: { p: FlaggedPayment; onChanged: () => voi
               setBusy(false);
             }
           }}
-          className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+          className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
         >
           {t('staff.resolve')}
         </button>
@@ -238,18 +238,18 @@ const OrderCard = ({ o, onChanged }: { o: Order; onChanged: () => void }) => {
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-slate-700">
         {o.phone && (
           <>
-            <a href={`tel:+${o.phone}`} className="inline-flex items-center gap-1.5 hover:text-emerald-700"><Phone size={14} aria-hidden="true" /> <Num>{displayPhone(o.phone)}</Num></a>
-            <a href={waLink(o.phone)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 hover:text-emerald-700"><MessageCircle size={14} aria-hidden="true" /> {t('staff.openWhatsapp')}</a>
+            <a href={`tel:+${o.phone}`} className="inline-flex items-center gap-1.5 hover:text-emerald-800"><Phone size={14} aria-hidden="true" /> <Num>{displayPhone(o.phone)}</Num></a>
+            <a href={waLink(o.phone)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 hover:text-emerald-800"><MessageCircle size={14} aria-hidden="true" /> {t('staff.openWhatsapp')}</a>
           </>
         )}
-        {o.email && <a href={`mailto:${o.email}`} className="inline-flex items-center gap-1.5 hover:text-emerald-700"><Mail size={14} aria-hidden="true" /> <span dir="ltr">{o.email}</span></a>}
+        {o.email && <a href={`mailto:${o.email}`} className="inline-flex items-center gap-1.5 hover:text-emerald-800"><Mail size={14} aria-hidden="true" /> <span dir="ltr">{o.email}</span></a>}
       </div>
       {(o.status === 'paid' || o.status === 'in_progress') && (
         <div className="mt-4 flex flex-wrap gap-2">
           {o.status === 'paid' && (
             <button disabled={busy} onClick={() => move('in_progress')} className="rounded-xl bg-sky-700 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-800 disabled:opacity-60">{t('staff.order.start')}</button>
           )}
-          <button disabled={busy} onClick={() => move('delivered')} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">{t('staff.order.deliver')}</button>
+          <button disabled={busy} onClick={() => move('delivered')} className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60">{t('staff.order.deliver')}</button>
           <button disabled={busy} onClick={() => window.confirm(t('staff.order.confirmCancel')) && move('cancelled')} className="rounded-xl px-4 py-2 text-sm font-semibold text-rose-700 ring-1 ring-rose-200 hover:bg-rose-50 disabled:opacity-60">{t('staff.order.cancel')}</button>
         </div>
       )}
@@ -299,7 +299,7 @@ export const StaffPage = () => {
             aria-selected={tab === id}
             onClick={() => setTab(id)}
             className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
-              tab === id ? 'bg-emerald-600 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50'
+              tab === id ? 'bg-emerald-700 text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50'
             }`}
           >
             {t(`staff.tab.${id}`)}

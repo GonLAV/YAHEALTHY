@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { CalendarCheck, CheckCircle2, Clock, Loader2, MapPin, Video, XCircle } from 'lucide-react';
 import { PublicLayout } from '@/components/layout/PublicLayout';
 import { Num } from '@/components/ui/Num';
-import { useLanguage } from '@/i18n/LanguageContext';
+import { useDocumentTitle, useLanguage } from '@/i18n/LanguageContext';
 import { Appointment, Slot, bookingApi } from '@/services/api';
 import { SlotPicker } from '@/components/SlotPicker';
 
@@ -21,7 +21,7 @@ const Card = ({ icon, title, children }: { icon: ReactNode; title: string; child
   </div>
 );
 
-const primary = 'inline-block rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700';
+const primary = 'inline-block rounded-xl bg-emerald-700 px-6 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800';
 const secondary = 'inline-block rounded-xl bg-emerald-50 px-6 py-3 font-semibold text-emerald-700 transition hover:bg-emerald-100';
 
 /**
@@ -127,7 +127,7 @@ const RescheduleBox = ({ appointment, token, onMoved }: { appointment: Appointme
         <button onClick={() => setOpen(false)} className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">
           {t('common.cancel')}
         </button>
-        <button onClick={move} disabled={!selected || busy} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">
+        <button onClick={move} disabled={!selected || busy} className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50">
           {t('confirm.moveHere')}
         </button>
       </div>
@@ -151,6 +151,19 @@ export const BookingConfirmedPage = () => {
   const [justMoved, setJustMoved] = useState(false);
   const [missing, setMissing] = useState(false);
   const [tries, setTries] = useState(0);
+  // Named for what the page is showing right now, so a tab switched back to
+  // says whether the meeting is booked, pending, cancelled or not found.
+  useDocumentTitle(
+    missing
+      ? t('title.meetingNotFound')
+      : !appointment
+        ? null
+        : appointment.status === 'pending_payment'
+          ? t('title.paymentPending')
+          : appointment.status === 'cancelled'
+            ? t('title.meetingCancelled')
+            : t('title.meeting')
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -274,6 +287,7 @@ export const BookingConfirmedPage = () => {
 
 export const WelcomePage = () => {
   const { t } = useLanguage();
+  useDocumentTitle(t('title.welcome'));
   const [params] = useSearchParams();
   // The checkout says what was bought (routes/payments.js, successUrl), so the
   // next step named here is the right one for it.
@@ -294,6 +308,7 @@ export const WelcomePage = () => {
 
 export const PaymentFailedPage = () => {
   const { t } = useLanguage();
+  useDocumentTitle(t('failed.title'));
   const [params] = useSearchParams();
   // A failed session payment goes back to picking a time: the hold on the old
   // one runs out on its own, and it may be gone by now anyway.

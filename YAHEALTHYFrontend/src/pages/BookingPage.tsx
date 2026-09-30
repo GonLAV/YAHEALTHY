@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertCircle, MapPin, ShoppingCart, Stethoscope, Video } from 'lucide-react';
 import { PublicLayout } from '@/components/layout/PublicLayout';
 import { Num } from '@/components/ui/Num';
-import { useLanguage } from '@/i18n/LanguageContext';
+import { useDocumentTitle, useLanguage } from '@/i18n/LanguageContext';
 import { AppointmentType, BookingOption, Slot, bookingApi } from '@/services/api';
 import { inputClass, looksLikeIsraeliMobile } from '@/pages/PricingPage';
 import { SlotPicker, useSlotFormat } from '@/components/SlotPicker';
@@ -16,6 +16,7 @@ const ICONS: Record<AppointmentType, JSX.Element> = {
 
 export const BookingPage = () => {
   const { t } = useLanguage();
+  useDocumentTitle(t('nav.book'));
   const navigate = useNavigate();
   const [params] = useSearchParams();
 
@@ -214,7 +215,7 @@ export const BookingPage = () => {
               </div>
             )}
 
-            <button type="submit" disabled={busy} className="w-full rounded-xl bg-emerald-600 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700 disabled:opacity-60">
+            <button type="submit" disabled={busy} className="w-full rounded-xl bg-emerald-700 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800 disabled:opacity-60">
               {busy ? t('booking.submitting') : paid ? <>{t('pricing.toPayment')} · <Num>₪{option?.price}</Num></> : t('booking.submitFree')}
             </button>
             {paid && <p className="text-center text-xs text-slate-400">{t('booking.holdNote')} {t('pricing.securePayment')}</p>}

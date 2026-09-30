@@ -22,17 +22,25 @@ export const WhatsAppWidget = () => {
   const { t } = useLanguage();
   const label = t('whatsapp.chat');
 
+  // It sits outside every page's <main>, so it gets a landmark of its own —
+  // otherwise it is content a screen reader's landmark list never reaches.
+  // WhatsApp's own dark green, not the bright #25D366: white on that is
+  // 2:1, far under the 4.5:1 its label needs.
   return (
-    <a
-      href={WHATSAPP_URL}
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label={t('whatsapp.aria')}
-      title={label}
-      className="fixed bottom-20 end-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg transition hover:scale-105 hover:bg-[#1eb355] md:bottom-6 md:h-auto md:w-auto md:gap-2 md:rounded-full md:px-5 md:py-3"
-    >
-      <WhatsAppIcon />
-      <span className="hidden text-sm font-semibold md:inline">{label}</span>
-    </a>
+    <aside aria-label="WhatsApp">
+      <a
+        href={WHATSAPP_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={t('whatsapp.aria')}
+        className="fixed bottom-20 end-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#008069] text-white shadow-lg transition hover:scale-105 hover:bg-[#006b58] md:bottom-6 md:h-auto md:w-auto md:gap-2 md:rounded-full md:px-5 md:py-3"
+      >
+        <WhatsAppIcon />
+        {/* The visible words are the name at every width (hidden, not
+            removed, when only the icon shows), so what a voice-control user
+            reads is what they can say. */}
+        <span className="sr-only text-sm font-semibold md:not-sr-only">{label}</span>
+      </a>
+    </aside>
   );
 };

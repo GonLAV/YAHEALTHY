@@ -77,7 +77,7 @@ export const AddToWeek = ({ recipeId, defaultMeal = 'dinner' }: { recipeId: stri
         <button
           onClick={add}
           disabled={state === 'busy'}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
         >
           <CalendarPlus size={16} /> {t('week.add')}
         </button>

@@ -56,7 +56,7 @@ export const PlanStatus = () => {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl bg-white px-5 py-3.5 shadow-sm ring-1 ring-slate-100">
       <span className="flex items-center gap-2 text-sm font-medium text-slate-700">
-        <ShieldCheck size={17} className="text-emerald-600" />
+        <ShieldCheck size={17} className="text-emerald-700" />
         {plans.map((p) => t(`plan.${p.plan}`)).join(' · ')}
       </span>
 

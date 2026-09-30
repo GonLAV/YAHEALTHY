@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { AlertTriangle, CreditCard, Loader2 } from 'lucide-react';
 import { PublicLayout } from '@/components/layout/PublicLayout';
 import { Num } from '@/components/ui/Num';
-import { useLanguage } from '@/i18n/LanguageContext';
+import { useDocumentTitle, useLanguage } from '@/i18n/LanguageContext';
 import { demoPayApi } from '@/services/api';
 
 /**
@@ -17,6 +17,7 @@ import { demoPayApi } from '@/services/api';
  */
 export const DemoPayPage = () => {
   const { t } = useLanguage();
+  useDocumentTitle(t('demoPay.title'));
   const [params] = useSearchParams();
   const ref = params.get('ref') || '';
   const [payment, setPayment] = useState<{ amount: number; label: string; email: string } | null>(null);
@@ -85,7 +86,7 @@ export const DemoPayPage = () => {
                 <button
                   onClick={() => finish('pay')}
                   disabled={busy !== null}
-                  className="w-full rounded-xl bg-emerald-600 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700 disabled:opacity-60"
+                  className="w-full rounded-xl bg-emerald-700 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800 disabled:opacity-60"
                 >
                   {busy === 'pay' ? t('demoPay.paying') : <>{t('demoPay.pay')} · <Num>₪{payment.amount}</Num></>}
                 </button>

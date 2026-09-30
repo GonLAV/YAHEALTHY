@@ -262,7 +262,7 @@ export const DashboardPage = () => {
         {header}
         {celebration}
         <Card className="flex flex-col items-center gap-5 py-12 text-center">
-          <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+          <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
             <UtensilsCrossed size={30} />
           </span>
           <div>
@@ -271,7 +271,7 @@ export const DashboardPage = () => {
           </div>
           <Link
             to="/food-log"
-            className="flex items-center gap-2 rounded-2xl bg-emerald-600 px-6 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700"
+            className="flex items-center gap-2 rounded-2xl bg-emerald-700 px-6 py-3 font-semibold text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800"
           >
             <Plus size={20} />
             {t('dash.firstDayCta')}
@@ -334,14 +334,14 @@ export const DashboardPage = () => {
                   /* Now it goes somewhere. This caption used to read "set your
                      targets for accurate tracking" and there was no screen to
                      set them on. */
-                  <Link to="/targets" className="underline decoration-dotted underline-offset-2 hover:text-emerald-600">
+                  <Link to="/targets" className="underline decoration-dotted underline-offset-2 hover:text-emerald-700">
                     {t('dash.noTarget')}
                   </Link>
                 )}
               </span>
             </ProgressRing>
             {caloriePct !== null && (
-              <p className={`text-sm font-semibold ${caloriePct > 100 ? 'text-rose-600' : 'text-emerald-600'}`}>
+              <p className={`text-sm font-semibold ${caloriePct > 100 ? 'text-rose-600' : 'text-emerald-700'}`}>
                 {/* .num goes around the number only. It used to wrap the whole
                     phrase, which forced the Hebrew to LTR and pushed the
                     percentage to the wrong edge of the line. */}
@@ -538,7 +538,7 @@ const QuickActions = ({ t }: { t: TranslateFn }) => (
   <div className="mt-6 grid gap-4 sm:grid-cols-2">
     <Link
       to="/food-log"
-      className="group flex items-center justify-between rounded-2xl bg-emerald-600 p-5 text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-700"
+      className="group flex items-center justify-between rounded-2xl bg-emerald-700 p-5 text-white shadow-md shadow-emerald-200 transition hover:bg-emerald-800"
     >
       <div className="flex items-center gap-3">
         <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/20">

@@ -84,7 +84,7 @@ export const ShoppingPage = () => {
         <div className="space-y-4">
           <EmptyState icon={<ShoppingCart size={28} />} text={t('shopping.empty')} />
           <div className="text-center">
-            <Link to="/recipes" className="inline-block rounded-xl bg-emerald-600 px-5 py-2.5 font-semibold text-white hover:bg-emerald-700">
+            <Link to="/recipes" className="inline-block rounded-xl bg-emerald-700 px-5 py-2.5 font-semibold text-white hover:bg-emerald-800">
               {t('shopping.toRecipes')}
             </Link>
           </div>
