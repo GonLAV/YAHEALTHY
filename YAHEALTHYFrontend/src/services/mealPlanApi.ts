@@ -1,10 +1,10 @@
 import api from './api';
 
-/** Meal slots shown in the planner. The backend accepts any string; these match food-log meal types. */
+/** Meal slots shown in the planner — the same four the backend accepts (MEAL_TYPES). */
 export const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 export type MealType = (typeof MEAL_TYPES)[number];
 
-/** What auto-generate fills. Snacks are left to the user (generation picks from all recipes). */
+/** What auto-generate fills. Snacks are left to the user: the catalogue has only a couple of snack recipes. */
 export const GENERATED_MEAL_TYPES: MealType[] = ['breakfast', 'lunch', 'dinner'];
 
 /** A row of `meal_plans` as returned by the backend. */
