@@ -52,6 +52,12 @@ async function readAll(client, table, columns) {
   const PAGE = 1000;
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await client.from(table).select(columns).range(from, from + PAGE - 1);
+    // A dry run before the migrations is still worth something: count what
+    // is there, and say which table is not yet.
+    if (error && (error.code === 'PGRST205' || /Could not find the table/i.test(error.message))) {
+      console.log(`${table}: not in this database yet (run migrations/ALL.sql), skipped`);
+      return rows;
+    }
     if (error) throw new Error(`${table}: ${error.message}`);
     rows.push(...(data || []));
     if (!data || data.length < PAGE) return rows;
