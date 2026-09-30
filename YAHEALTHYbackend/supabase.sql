@@ -189,3 +189,21 @@ CREATE TABLE IF NOT EXISTS food_logs (
 
 CREATE INDEX IF NOT EXISTS idx_food_logs_user_id ON food_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_food_logs_user_date ON food_logs(user_id, date);
+
+-- Fasts (intermittent fasting timer): one row per started fast. ended_at is
+-- NULL while the fast is running; the partial unique index allows at most one
+-- running fast per user, and routes/fasts.js relies on it (23505 → 409).
+CREATE TABLE IF NOT EXISTS fasts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  started_at TIMESTAMPTZ NOT NULL,
+  ended_at TIMESTAMPTZ,
+  target_hours NUMERIC(5,2) NOT NULL CHECK (target_hours >= 8 AND target_hours <= 72),
+  duration_hours NUMERIC(6,2),
+  completed BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (ended_at IS NULL OR ended_at >= started_at)
+);
+
+CREATE INDEX IF NOT EXISTS idx_fasts_user_started ON fasts(user_id, started_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_fasts_one_active_per_user ON fasts(user_id) WHERE ended_at IS NULL;

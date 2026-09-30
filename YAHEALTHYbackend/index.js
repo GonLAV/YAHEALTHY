@@ -153,6 +153,10 @@ app.use('/api/payments', checkoutRouter);
 // and never advice about what anyone should eat.
 app.use('/api/foods', require('./routes/foods'));
 
+// Fasting timer: start/end individual fasts, history and stats. The preferred
+// protocol still lives at /api/fasting-windows below.
+app.use('/api/fasts', require('./routes/fasts'));
+
 // WhatsApp inbound. The webhook is public (guarded by a path secret); the
 // listing endpoint underneath it requires auth because it returns message text.
 const whatsappRouter = require('./routes/whatsapp');
@@ -205,6 +209,7 @@ app.get('/api/health', (req, res) => {
       'recipes',
       'meal-plans',
       'fasting-windows',
+      'fasts',
       'meal-swaps',
       'readiness-scoring',
       'sleep-debt-tracking',
