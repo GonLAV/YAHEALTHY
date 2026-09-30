@@ -22,6 +22,7 @@ const google = require('../utils/google-calendar');
 const payplus = require('../utils/payplus');
 const mailer = require('../utils/mailer');
 const { normalizePhone } = require('../utils/phone');
+const { isFlagged } = require('../utils/health-flags');
 const { bookingLimiter } = require('../middleware/rateLimit');
 const messages = require('../utils/appointment-messages');
 
@@ -112,6 +113,18 @@ router.post('/', bookingLimiter, async (req, res) => {
   }
   if (!slot) return res.status(409).json({ error: 'That time is no longer available', requestId: req.id });
 
+  // Notes that mention a pregnancy, diabetes, an allergy or a child. The
+  // booking goes ahead: a person runs the meeting, and it is theirs to decide
+  // what fits. What changes is that she knows before she walks in — the row
+  // carries a reason the staff screen shows — and that the person is recorded,
+  // so no bot quotes them a price afterwards (migrations/018).
+  const healthNote = isFlagged(notes);
+  if (healthNote) {
+    await db
+      .recordHealthFlag({ phone, source: 'booking-notes' })
+      .catch((err) => console.error('[booking] could not record a health flag:', err.message));
+  }
+
   let row;
   try {
     row = await db.createAppointment({
@@ -125,7 +138,8 @@ router.post('/', bookingLimiter, async (req, res) => {
       location: type === 'supermarket' ? location : null,
       notes,
       amount: paid ? cfg.price[type] : null,
-      cancel_token: appointments.newCancelToken()
+      cancel_token: appointments.newCancelToken(),
+      ...(healthNote ? { needs_attention: 'health_note' } : {})
     });
   } catch (error) {
     if (error.code === 'SLOT_TAKEN') {

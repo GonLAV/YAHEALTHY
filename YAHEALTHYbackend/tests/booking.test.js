@@ -175,6 +175,22 @@ async function run() {
   const retried = await call('POST', '/api/booking', { ...person, type: 'online', start: after[6].start });
   check('and the time is free again afterwards', retried.status === 201, `got ${retried.status}`);
 
+  // Notes that mention a health condition. The booking goes ahead, since a
+  // person runs the meeting, but she is told before she walks in, and the
+  // person is recorded so no bot quotes them a price afterwards.
+  const records = require('../utils/database');
+  const noted = await call('POST', '/api/booking', { ...person, phone: '052-888-8888', type: 'online', start: after[10].start, notes: 'אני בהריון, חודש חמישי' });
+  check('a booking whose notes mention a pregnancy still goes ahead', noted.status === 201, `got ${noted.status}`);
+  const notedRow = noted.body?.appointment?.id && (await records.getAppointment(noted.body.appointment.id));
+  check('and staff are told to read the notes first', notedRow?.needs_attention?.split(',').includes('health_note'), notedRow?.needs_attention);
+  check('and the person is recorded', await records.hasHealthFlag({ phone: '0528888888' }));
+  const plainRow = await records.getAppointment(retried.body.appointment.id);
+  check('a booking with no such notes is neither', !plainRow?.needs_attention && !(await records.hasHealthFlag({ phone: person.phone })));
+  check('the health note is on the attention list', (await records.listAppointmentsForStaff('attention')).some((a) => a.id === notedRow?.id));
+  await records.updateAppointment(notedRow.id, { status: 'cancelled' });
+  check('  ...until the meeting is cancelled, when there is nobody to warn',
+    !(await records.listAppointmentsForStaff('attention')).some((a) => a.id === notedRow.id));
+
   check('a bad phone is refused', (await call('POST', '/api/booking', { ...person, phone: '03-1234567', type: 'online', start: after[8].start })).status === 400);
   check('a missing name is refused', (await call('POST', '/api/booking', { ...person, name: '', type: 'online', start: after[8].start })).status === 400);
 

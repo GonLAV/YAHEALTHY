@@ -146,6 +146,24 @@ const EscalationCard = ({ m, onChanged }: { m: Escalation; onChanged: () => void
         >
           {t('staff.resolve')}
         </button>
+        <button
+          disabled={busy}
+          onClick={async () => {
+            if (!window.confirm(t('staff.notHealthConfirm'))) return;
+            setBusy(true);
+            try {
+              await staffApi.notHealth(m.id);
+              onChanged();
+            } catch {
+              window.alert(t('common.error'));
+            } finally {
+              setBusy(false);
+            }
+          }}
+          className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-60"
+        >
+          {t('staff.notHealth')}
+        </button>
       </div>
     </article>
   );

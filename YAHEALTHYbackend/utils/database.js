@@ -100,7 +100,8 @@ const memoryDb = {
   whapiMessages: [],
   appointments: [],
   orders: [],
-  nudges: []
+  nudges: [],
+  healthFlags: new Map()
 };
 
 function sortByCreatedAtDesc(items) {
@@ -334,12 +335,41 @@ async function bumpTokenVersion(userId) {
  * Not covered, and deliberately not hidden: whatsapp_messages is keyed by
  * phone number rather than by account, so it is outside this delete and needs
  * a retention policy of its own.
+ *
+ * health_flags (migrations/018) has no foreign key, because most of its rows
+ * belong to a phone and not to an account. What the account itself produced
+ * goes: its user:<id> row, and its phone's row when the app coach wrote it.
+ * A row a WhatsApp message or a booking wrote is keyed by the phone, like
+ * whatsapp_messages, and follows the same policy. Deleted before the account,
+ * so a failure leaves the account in place to try again rather than half gone.
  */
+async function forgetAccountHealthFlags(userId, phone) {
+  const own = healthSubjects({ userId });
+  const phoneKey = healthSubjects({ phone })[0];
+  if (USE_MEMORY_DB) {
+    for (const subject of own) memoryDb.healthFlags.delete(subject);
+    if (phoneKey && memoryDb.healthFlags.get(phoneKey)?.source === 'app-coach') memoryDb.healthFlags.delete(phoneKey);
+    return;
+  }
+  const { error } = await supabaseServiceRole.from('health_flags').delete().in('subject', own);
+  if (error) throw error;
+  if (phoneKey) {
+    const { error: phoneError } = await supabaseServiceRole
+      .from('health_flags')
+      .delete()
+      .eq('subject', phoneKey)
+      .eq('source', 'app-coach');
+    if (phoneError) throw phoneError;
+  }
+}
+
 async function deleteUser(userId) {
   if (USE_MEMORY_DB) {
     maybeLogMemoryMode();
     const user = memoryDb.usersById.get(userId);
     if (!user) return false;
+
+    await forgetAccountHealthFlags(userId, user.phone);
 
     memoryDb.usersById.delete(userId);
     memoryDb.usersByEmail.delete(String(user.email || '').toLowerCase());
@@ -353,6 +383,9 @@ async function deleteUser(userId) {
     }
     return true;
   }
+
+  const user = await getUser(userId);
+  if (user) await forgetAccountHealthFlags(userId, user.phone);
 
   const { error } = await supabase.from('users').delete().eq('id', userId);
   if (error) throw error;
@@ -896,6 +929,95 @@ async function hasOpenHealthEscalation(phone) {
     .eq('status', 'escalated')
     .like('chat_id', `${phone}%`)
     .limit(1);
+  if (error) throw error;
+  return (data || []).length > 0;
+}
+
+/**
+ * Health flags that belong to a person, not to one message (migrations/018).
+ *
+ * An escalation is a message, and a person marks it handled. What they wrote
+ * stays true after that: someone who said yesterday that they are pregnant is
+ * still pregnant when they ask for Yoni today, and must still not be met with
+ * a price. So every channel that trips a flag also records the person here,
+ * and the sales paths ask this rather than the message in front of them.
+ *
+ * Keyed by the normalised phone (the same key WhatsApp, bookings and accounts
+ * share) and by `user:<id>` for an app user with no phone. Only that it
+ * happened, where, and when: never the words or the matched term.
+ */
+function healthSubjects({ phone, userId } = {}) {
+  const subjects = [];
+  if (phone) {
+    // A number we cannot place (a foreign one) still keys on its digits, so a
+    // flag from it is not lost just because it is not an Israeli mobile.
+    const key = normalizePhone(phone) || String(phone).split('@')[0].replace(/\D/g, '');
+    if (key) subjects.push(key);
+  }
+  if (userId) subjects.push(`user:${userId}`);
+  return subjects;
+}
+
+// 'backfill' is scripts/backfill-health-flags.js, for what was said before 018.
+const HEALTH_FLAG_SOURCES = ['whapi-bot', 'whatsapp-inbox', 'app-coach', 'booking-notes', 'backfill'];
+
+async function recordHealthFlag({ phone, userId, source }) {
+  if (!HEALTH_FLAG_SOURCES.includes(source)) throw new Error(`Unknown health flag source: ${source}`);
+  const subjects = healthSubjects({ phone, userId });
+  if (!subjects.length) return 0;
+  const now = new Date().toISOString();
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    for (const subject of subjects) {
+      const existing = memoryDb.healthFlags.get(subject);
+      memoryDb.healthFlags.set(subject, {
+        subject,
+        source,
+        first_flagged_at: existing?.first_flagged_at || now,
+        last_flagged_at: now
+      });
+    }
+    return subjects.length;
+  }
+
+  // first_flagged_at is left out on purpose: on a conflict PostgREST updates
+  // only the columns sent, so the first time survives and the rest move on.
+  const { error } = await supabaseServiceRole
+    .from('health_flags')
+    .upsert(subjects.map((subject) => ({ subject, source, last_flagged_at: now })), { onConflict: 'subject' });
+  if (error) throw error;
+  return subjects.length;
+}
+
+/**
+ * A person on the staff screen has read the message and it was not about
+ * health: "מתכון בן 15 דקות", say, before the age terms were patterns. The
+ * flag goes for that phone and for the account that has it, so the person is
+ * treated like anyone else again. Only ever from a person's decision.
+ */
+async function clearHealthFlag({ phone }) {
+  const subjects = healthSubjects({ phone });
+  if (!subjects.length) return 0;
+  const owner = await getUserByPhone(subjects[0]).catch(() => null);
+  if (owner) subjects.push(...healthSubjects({ userId: owner.id }));
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return subjects.filter((s) => memoryDb.healthFlags.delete(s)).length;
+  }
+  const { data, error } = await supabaseServiceRole.from('health_flags').delete().in('subject', subjects).select('subject');
+  if (error) throw error;
+  return (data || []).length;
+}
+
+async function hasHealthFlag({ phone, userId } = {}) {
+  const subjects = healthSubjects({ phone, userId });
+  if (!subjects.length) return false;
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return subjects.some((s) => memoryDb.healthFlags.has(s));
+  }
+  const { data, error } = await supabaseServiceRole.from('health_flags').select('subject').in('subject', subjects).limit(1);
   if (error) throw error;
   return (data || []).length > 0;
 }
@@ -2294,7 +2416,23 @@ async function listAppointmentsNeedingReminder(fromIso, toIso) {
  * 'attention' is everything a person still has to settle, whenever it was
  * booked, and 'recent' is the last month, for looking something up.
  */
+// 'health_note' (routes/booking.js) is for the person about to run the
+// meeting. On one that will not happen, cancelled or a payment hold that
+// lapsed, there is nobody to warn, and it would keep a dead row on the
+// attention list for ever. The other reasons (a refund to decide, an event to
+// delete) are exactly about cancelled rows, and stay.
+function withoutStaleHealthNote(row) {
+  if (!row?.needs_attention || LIVE_APPOINTMENT.includes(row.status)) return row;
+  const reasons = row.needs_attention.split(',').filter((r) => r && r !== 'health_note');
+  return { ...row, needs_attention: reasons.length ? reasons.join(',') : null };
+}
+
 async function listAppointmentsForStaff(scope) {
+  const rows = (await listAppointmentsForStaffRaw(scope)).map(withoutStaleHealthNote);
+  return scope === 'attention' ? rows.filter((r) => r.needs_attention) : rows;
+}
+
+async function listAppointmentsForStaffRaw(scope) {
   const now = new Date().toISOString();
   const monthAgo = new Date(Date.now() - 30 * 86_400_000).toISOString();
 
@@ -2454,5 +2592,8 @@ module.exports = {
   listNudges,
   markNudgesRead,
   listUsersWithNudges,
-  hasOpenHealthEscalation
+  hasOpenHealthEscalation,
+  recordHealthFlag,
+  hasHealthFlag,
+  clearHealthFlag
 };

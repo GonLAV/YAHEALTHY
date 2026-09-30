@@ -43,6 +43,11 @@ const WELCOME = `שלום! \u{1F642} זאת עדי.
 
 שלחו תמונת תווית או כל שאלה על אוכל. רוצים את יוני (מתכונים, בישול) -- כתבו "יוני". לחזור אליי -- "עדי".`;
 
+// What someone who asked for Yoni hears when the gate keeps them with Adi and
+// must not mention a price (utils/yoni-gate.js, a health flag). Nothing about
+// plans, nothing about why: only that Adi is here.
+const STAY_WITH_ADI = 'עדי כאן איתכם. אפשר לשלוח לה תמונה של מוצר או כל שאלה על קניות.';
+
 // Sends `body` preceded by a typing indicator and a delay roughly matched to
 // how long it'd take a person to type that much -- makes even a single
 // message feel less like an instant bot reply.
@@ -144,13 +149,19 @@ async function handleIncomingMessage(message) {
 
     const switchTo = SWITCH_COMMANDS[rawText.toLowerCase()];
     if (switchTo) {
-      // A switch word carries no health content, so the gate is asked with no
-      // text: the answer is only ever "Yoni" or "Adi, and here is why".
+      // A switch word carries no health content of its own, so the gate is
+      // asked with no text and reads this person's history instead: someone who
+      // told us about a pregnancy last week is not sold to today.
       if (switchTo === 'yoni') {
-        const gate = await decideYoniAccess({ phone, text: '', getAccess: db.getWhatsappAccess });
+        const gate = await decideYoniAccess({
+          phone,
+          text: '',
+          getAccess: db.getWhatsappAccess,
+          hasHealthFlag: db.hasHealthFlag
+        });
         if (gate.bot !== 'yoni') {
           if (conversation.active_bot !== 'adi') await db.upsertWhapiConversation(phone, 'adi');
-          await sendWithTyping(phone, gate.notice);
+          await sendWithTyping(phone, gate.notice || STAY_WITH_ADI);
           return;
         }
       }
@@ -184,6 +195,11 @@ async function handleIncomingMessage(message) {
           raw: { source: 'whapi-bot', active_bot: conversation.active_bot }
         })
         .catch((err) => console.error('[whapi] could not escalate a health-flagged message:', err.message));
+      // The person, not only the message: the escalation above is marked
+      // handled one day, and this is what keeps them out of the sales path.
+      await db
+        .recordHealthFlag({ phone, source: 'whapi-bot' })
+        .catch((err) => console.error('[whapi] could not record a health flag:', err.message));
     }
 
     if (isNewConversation) {
@@ -212,7 +228,12 @@ async function handleIncomingMessage(message) {
     // a health-flagged message gets Adi with no word about a price.
     let activeBot = conversation.active_bot;
     if (activeBot === 'yoni') {
-      const gate = await decideYoniAccess({ phone, text: rawText, getAccess: db.getWhatsappAccess });
+      const gate = await decideYoniAccess({
+        phone,
+        text: rawText,
+        getAccess: db.getWhatsappAccess,
+        hasHealthFlag: db.hasHealthFlag
+      });
       if (gate.bot !== 'yoni') {
         activeBot = 'adi';
         await db.upsertWhapiConversation(phone, 'adi');

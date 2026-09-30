@@ -84,6 +84,12 @@ async function handleWebhook(req, res) {
         console.warn(
           `[whatsapp] health flag on message ${m.id} from ${m.chat_id} — escalated, not auto-answerable`
         );
+        // Kept for the person as well as the message (migrations/018), so the
+        // bot on the other number does not quote them a price later.
+        // In a group the chat is the group; the person is the sender.
+        await db
+          .recordHealthFlag({ phone: String(m.chat_id || '').endsWith('@g.us') ? m.from : m.chat_id || m.from, source: 'whatsapp-inbox' })
+          .catch((err) => console.error('[whatsapp] could not record a health flag:', err?.message));
       }
     } catch (err) {
       // Never let one bad message stop the batch.

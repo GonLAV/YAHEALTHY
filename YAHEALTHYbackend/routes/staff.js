@@ -10,6 +10,7 @@
  *   POST /api/staff/appointments/:id/resolve   clears needs_attention
  *   GET  /api/staff/escalations                WhatsApp messages that tripped a health flag
  *   POST /api/staff/escalations/:id/handled    a person has dealt with one
+ *   POST /api/staff/escalations/:id/not-health a false flag: handled, and the person's health flag cleared
  *   GET  /api/staff/payments                   payments that need a person (migrations/015)
  *   POST /api/staff/payments/:uid/resolve      a person has settled one
  *   GET  /api/staff/orders?scope=open|all      one-time purchases to fulfil (Yael's menu)
@@ -78,6 +79,22 @@ router.post('/escalations/:id/handled', async (req, res) => {
     const row = await db.setWhatsappMessageStatus(req.params.id, 'answered');
     if (!row) return res.status(404).json({ error: 'Not found', requestId: req.id });
     return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ error: 'Could not update', requestId: req.id });
+  }
+});
+
+// The flag list matched, and a person read the message and saw it was not
+// about health. Marked handled like any other, and the flag kept for the
+// person (migrations/018) is cleared, so the bot may offer them a plan again.
+// In a group the chat is the group; the flag belongs to the sender.
+router.post('/escalations/:id/not-health', async (req, res) => {
+  try {
+    const row = await db.setWhatsappMessageStatus(req.params.id, 'answered');
+    if (!row) return res.status(404).json({ error: 'Not found', requestId: req.id });
+    const phone = String(row.chat_id || '').endsWith('@g.us') ? row.from_number : row.chat_id || row.from_number;
+    const cleared = await db.clearHealthFlag({ phone });
+    return res.json({ ok: true, cleared });
   } catch (error) {
     return res.status(500).json({ error: 'Could not update', requestId: req.id });
   }

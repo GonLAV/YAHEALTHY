@@ -548,6 +548,8 @@ export const staffApi = {
   resolve: (id: string) => api.post(`/api/staff/appointments/${id}/resolve`),
   escalations: () => api.get<{ messages: Escalation[] }>('/api/staff/escalations'),
   handled: (id: string) => api.post(`/api/staff/escalations/${encodeURIComponent(id)}/handled`),
+  /** A false flag: marks it handled and clears the person's kept health flag. */
+  notHealth: (id: string) => api.post(`/api/staff/escalations/${encodeURIComponent(id)}/not-health`),
   payments: () => api.get<{ payments: FlaggedPayment[] }>('/api/staff/payments'),
   orders: (scope: 'open' | 'all' = 'open') => api.get<{ orders: Order[] }>('/api/staff/orders', { params: { scope } }),
   setOrderStatus: (id: string, status: Order['status']) => api.post(`/api/staff/orders/${id}/status`, { status }),

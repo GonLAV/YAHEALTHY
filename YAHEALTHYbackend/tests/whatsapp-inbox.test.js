@@ -47,6 +47,11 @@ async function run() {
   await settle();
   const rows = await db.getWhatsappMessages({ status: 'escalated' });
   check('a health-flagged message is stored as escalated', flagged === 200 && rows.some((r) => r.id === 'd2'));
+  check('and the sender is recorded, so the bot does not quote them a price later', await db.hasHealthFlag({ phone: '972501234567' }));
+  // In a group the chat id is the group, and the flag must reach the person.
+  await post('/api/whatsapp/webhook', [{ id: 'g1', chat_id: '120363041234567890@g.us', from: '972529876543', type: 'text', text: { body: 'אני בהריון' } }]);
+  await settle();
+  check('a flag in a group is recorded for the sender, not the group', (await db.hasHealthFlag({ phone: '972529876543' })) && !(await db.hasHealthFlag({ phone: '120363041234567890@g.us' })));
 
   // Production, no secret: refused.
   process.env.NODE_ENV = 'production';

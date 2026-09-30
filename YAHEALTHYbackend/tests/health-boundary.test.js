@@ -22,6 +22,7 @@ process.env.JWT_SECRET = process.env.JWT_SECRET || 'health-boundary-test-secret'
 
 const path = require('path');
 const coach = require('../utils/coach');
+const db = require('../utils/database');
 const { flagsIn, HEALTH_FLAGS_HE, HEALTH_FLAGS_EN } = require('../utils/health-flags');
 const { checkGoalWeight, MIN_HEALTHY_BMI } = require('../utils/weight-goal-safety');
 const clinical = require('../utils/clinical-approval');
@@ -54,6 +55,25 @@ async function run() {
   check('matching is case-folded', flagsIn('I am PREGNANT').length > 0,
     'an English stem would not match a capitalised word otherwise');
 
+  // Only 16 and 17 were on the Hebrew list, so a fifteen-year-old, or anyone
+  // who gave their class rather than their age, went straight through.
+  for (const minor of ['אני בת 15, מה לאכול?', 'אני בכיתה ט', 'אני בכיתה יב', 'אני בתיכון ורוצה לרזות', 'אני מתחת לגיל 18',
+    'אני קטינה', 'ובן 16 ורוצה לעלות במסה', 'אני בת-17',
+    "I'm a 15-year-old girl", 'I am under 18', 'I am 13 years old', 'im 16 yo']) {
+    check(`a minor is flagged: ${JSON.stringify(minor)}`, flagsIn(minor).length > 0);
+  }
+  // A flag is kept for the person (migrations/018) and ends every offer, so a
+  // number or a short word inside an ordinary food question must not trip one.
+  // Each of these did while ages were substrings.
+  for (const adult of ['אני בת 35 ורוצה לבשל יותר', 'מה מבשלים לארוחת ערב?', "I'm 35 and want to cook more",
+    'קמח לבן 150 גרם', 'כמה קלוריות באורז לבן 150 גרם?', 'לשבת 14 אנשים מה להכין', 'מתכון בן 15 דקות',
+    'סיר בן 16 ליטר', 'אני רוצה לאכול מתחת ל-1800 קלוריות ביום', 'מה דעתך על דיאטת הים התיכון?',
+    'זה מקטין את התיאבון?', 'כיתה חדשה לבישול',
+    'How do I stay under 1800 calories a day?', 'recipes under 18 minutes', 'vegan for 13 years']) {
+    check(`an adult's ordinary question is not: ${JSON.stringify(adult)}`, flagsIn(adult).length === 0,
+      JSON.stringify(flagsIn(adult)));
+  }
+
   // ── the coach refuses rather than advises ─────────────────────────────────
   console.log('\nthe coach hands off');
   const flagged = [
@@ -77,6 +97,30 @@ async function run() {
     );
   }
 
+  // What the one-off backfill (scripts/backfill-health-flags.js) counts.
+  const { flaggedPhones } = require('../scripts/backfill-health-flags');
+  const { phones, counts } = flaggedPhones({
+    inbox: [
+      { chat_id: '972501111111@s.whatsapp.net', from_number: '972501111111', body: 'אני בהריון' },
+      { chat_id: '120363041234567890@g.us', from_number: '972502222222', body: 'יש לי סוכרת' },
+      { chat_id: '972503333333@s.whatsapp.net', from_me: true, body: 'אני מעבירה את זה לדיאטנית, בהריון חשוב...' },
+      { chat_id: '972504444444@s.whatsapp.net', body: 'קמח לבן 150 גרם' },
+    ],
+    bot: [
+      { phone: '972505555555', role: 'user', content: 'I am 15 years old' },
+      { phone: '972506666666', role: 'assistant', content: 'pregnancy is a medical matter' },
+    ],
+    bookings: [{ phone: '972507777777', notes: 'הבן שלי צריך תפריט' }, { phone: '972508888888', notes: 'חניה ליד הסופר?' }],
+  });
+  check('the backfill finds each channel', counts.inbox === 2 && counts.bot === 1 && counts.bookings === 1, JSON.stringify(counts));
+  check('  ...keys a group message on its sender', phones.has('972502222222') && ![...phones].some((p) => p.includes('@g.us')));
+  check('  ...and skips our own replies and the bot\'s', !phones.has('972503333333@s.whatsapp.net') && !phones.has('972506666666'));
+
+  // The hand-off is for this message; the person is recorded so the other
+  // channel does not quote them a price tomorrow (migrations/018).
+  check('the person who disclosed it is recorded', await db.hasHealthFlag({ userId: 'test-user' }),
+    'the coach only wrote a console line, so WhatsApp later treated her as a stranger');
+
   console.log('\nordinary questions still get answers');
   for (const [message, lang, expect] of [
     ['כמה מים כדאי לשתות?', 'he', 'מים'],
@@ -86,7 +130,9 @@ async function run() {
     const reply = await coach.answer('test-user', message, lang);
     check(`answered: ${JSON.stringify(message.slice(0, 28))}`,
       !isHandoff(reply) && reply.includes(expect), reply.slice(0, 60));
+    await coach.answer('ordinary-user', message, lang);
   }
+  check('someone who asked only ordinary questions is not recorded', !(await db.hasHealthFlag({ userId: 'ordinary-user' })));
 
   // ── a goal the product will not draw a line to ────────────────────────────
   console.log('\ntarget weight has a floor');

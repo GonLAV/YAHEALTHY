@@ -64,7 +64,7 @@ Messages arrive at `POST /api/whapi/messages` (`routes/whapi.js`) and are answer
 | Yoni (`yoni`) | The chef. Prompt: `chef-bot-prompt.md` | `find_recipes`, `get_recipe` over the owner's recipe library (`utils/recipe-tools.js`). Calories are removed from what he sees. | Only customers whose active plan includes Yoni, i.e. the `yoni` plan |
 
 - Customers switch by typing `יוני` / `yoni` / `שף` / `chef`, and back with `עדי` / `adi`.
-- The paywall (`utils/yoni-gate.js`) is checked on every message, not only at the switch. A paying customer gets Yoni. A non-paying customer whose message trips a health flag gets Adi, with no mention of a price. Anyone else gets Adi plus one line saying how to join. If the lookup fails, the message goes to Yoni, so an outage never cuts off someone who paid.
+- The paywall (`utils/yoni-gate.js`) is checked on every message, not only at the switch. A paying customer gets Yoni. A non-paying customer whose message trips a health flag, or who ever tripped one on any channel (`health_flags`, below), gets Adi, with no mention of a price. Anyone else gets Adi plus one line saying how to join. If the lookup fails, the message goes to Yoni, so an outage never cuts off someone who paid.
 - WhatsApp knows a customer only by phone number. The number given at checkout is what ties a sender to a paid plan.
 - Health-flagged messages are also written to `whatsapp_messages` with status `escalated`, which is what the staff screen lists.
 - There is a second, separate inbound webhook at `POST /api/whatsapp/webhook[/:secret]` (`routes/whatsapp.js`). It never replies. It stores messages as `pending`, or `escalated` if they trip a flag.
@@ -428,6 +428,11 @@ Everything reads it:
 - `routes/whatsapp.js` marks a flagged inbound message `escalated`.
 - `utils/yoni-gate.js` never answers a flagged non-payer with a price.
 - `utils/coach.js` answers a flagged question with a hand-off, and logs no message text.
+- `routes/booking.js` books as usual when the notes trip a flag, and marks the booking `health_note` for staff.
+
+An escalation belongs to a message and is marked handled one day; what the person said stays true. So each of those four channels also records the person in `health_flags` (migration 018): the normalised phone and/or `user:<id>`, the channel and the time, never the words. `db.hasHealthFlag` is what the paywall reads. If it cannot answer, no price is shown.
+
+Because a flag now lasts, a false one costs a customer every offer. So ages, school years and "minor" are regex patterns in `HEALTH_PATTERNS`, not substrings (as substrings "מתחת ל-18" matched "מתחת ל-1800 קלוריות"), and `tests/health-boundary.test.js` keeps a list of ordinary food questions that must not match. When one does anyway, staff press "לא עניין בריאותי" on the escalation (`POST /api/staff/escalations/:id/not-health`), which clears it. Deleting an account removes its `user:<id>` flag. After running migration 018 on a database with history, run `node scripts/backfill-health-flags.js` (a dry run that prints counts), then again with `--apply`: it covers handled inbox messages, the bot's log and booking notes, which the SQL cannot run the flag list over.
 
 Add terms to that one file. Keep them in step with the safety gate in both bot prompts. `tests/health-boundary.test.js` and `tests/yoni-gate.test.js` guard it.
 

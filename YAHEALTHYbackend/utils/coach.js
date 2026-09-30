@@ -168,6 +168,15 @@ async function answer(userId, message, lang = 'en') {
     // Neither the matched terms nor the message text go in the log. What a
     // person discloses here is exactly what logs must not keep.
     console.warn(`[coach] health flag in a question from user ${userId} — handed off, not answered`);
+    // Recorded for the person, under their account and their phone if they
+    // gave one, so WhatsApp does not later send them a price either. Best
+    // effort: the hand-off below must reach them whatever the database says.
+    try {
+      const user = await db.getUser(userId);
+      await db.recordHealthFlag({ userId, phone: user?.phone, source: 'app-coach' });
+    } catch (err) {
+      console.error('[coach] could not record a health flag:', err?.message || err);
+    }
     return L
       ? 'מה שכתבת נוגע במצב בריאותי, ובזה אני לא יכול לעזור — תשובה תזונתית כללית עלולה להזיק דווקא כאן. אשת המקצוע שלנו תענה לך אישית: אפשר לכתוב לנו בוואטסאפ ונחזור אליך.'
       : 'What you wrote touches on a medical situation, and that is not something I can help with — general nutrition advice is exactly what could do harm here. Our dietitian will answer you personally: message us on WhatsApp and we will come back to you.';
