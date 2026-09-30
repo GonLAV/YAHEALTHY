@@ -53,12 +53,14 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
   const [moreOpen, setMoreOpen] = useState(false);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
+  const moreMenuRef = useRef<HTMLElement>(null);
   const moreActive = MORE_ITEMS.some((item) => location.pathname.startsWith(item.to));
 
   // Close the "More" sheet on navigation and on Escape.
   useEffect(() => setMoreOpen(false), [location.pathname]);
   useEffect(() => {
     if (!moreOpen) return;
+    moreMenuRef.current?.querySelector<HTMLElement>('a')?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setMoreOpen(false);
@@ -151,39 +153,6 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
       {/* Main content */}
       <main id="main-content" className="pb-20 md:pb-8 md:ms-64">{children}</main>
 
-      {/* Mobile "More" sheet */}
-      {moreOpen && (
-        <>
-          <div
-            className="fixed inset-0 z-30 bg-slate-900/30 md:hidden"
-            aria-hidden="true"
-            onClick={() => setMoreOpen(false)}
-          />
-          <div
-            id="mobile-more-menu"
-            className="fixed inset-x-0 bottom-16 z-40 mx-3 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl md:hidden"
-          >
-            <ul className="grid grid-cols-3 gap-1">
-              {MORE_ITEMS.map((item) => (
-                <li key={item.to}>
-                  <NavLink
-                    to={item.to}
-                    className={({ isActive }) =>
-                      `flex flex-col items-center gap-1 rounded-xl px-2 py-3 text-xs font-medium transition ${
-                        isActive ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:bg-slate-50'
-                      }`
-                    }
-                  >
-                    {item.icon}
-                    {t(item.key)}
-                  </NavLink>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </>
-      )}
-
       {/* Mobile bottom nav */}
       <nav
         aria-label={t('a11y.mobileNav')}
@@ -217,6 +186,41 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
           {t('nav.more')}
         </button>
       </nav>
+
+      {/* Mobile "More" sheet — after the bottom nav so Tab from "More" lands in it; z-50 sits above the nav and the WhatsApp button */}
+      {moreOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-50 bg-slate-900/30 md:hidden"
+            aria-hidden="true"
+            onClick={() => setMoreOpen(false)}
+          />
+          <nav
+            id="mobile-more-menu"
+            ref={moreMenuRef}
+            aria-label={t('nav.more')}
+            className="fixed inset-x-0 bottom-16 z-50 mx-3 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl md:hidden"
+          >
+            <ul className="grid grid-cols-3 gap-1">
+              {MORE_ITEMS.map((item) => (
+                <li key={item.to}>
+                  <NavLink
+                    to={item.to}
+                    className={({ isActive }) =>
+                      `flex flex-col items-center gap-1 rounded-xl px-2 py-3 text-xs font-medium transition ${
+                        isActive ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:bg-slate-50'
+                      }`
+                    }
+                  >
+                    {item.icon}
+                    {t(item.key)}
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </>
+      )}
     </div>
   );
 };

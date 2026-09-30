@@ -90,6 +90,7 @@ export const FastingPage = () => {
         fastingApi.getAll(30),
         fastingApi.getStats(),
       ]);
+      setNow(Date.now());
       setActive(activeRes.data);
       setHistory(listRes.data.filter((f) => f.ended_at));
       setStats(statsRes.data);
@@ -169,11 +170,15 @@ export const FastingPage = () => {
     try {
       const startedAt = startedEarlier ? new Date(startedEarlier).toISOString() : undefined;
       const res = await fastingApi.start(targetHours, startedAt);
+      // Refresh the clock in the same render, so the first frame of the new
+      // fast isn't computed from a stale `now` (false stage announcement).
+      setNow(Date.now());
       setActive(res.data);
       setStartedEarlier('');
       setAnnouncement(t('fasting.announce.started', { hours: formatHours(res.data.target_hours) }));
     } catch (err) {
       if (isAxiosError(err) && err.response?.status === 409 && err.response.data?.active) {
+        setNow(Date.now());
         setActive(err.response.data.active as Fast);
         setError(t('fasting.alreadyActive'));
       } else {
@@ -199,8 +204,8 @@ export const FastingPage = () => {
       setActive(null);
       await refreshAfterChange();
     } catch (err) {
-      if (isAxiosError(err) && err.response?.status === 409) {
-        // Ended elsewhere (another tab/device): resync.
+      if (isAxiosError(err) && (err.response?.status === 409 || err.response?.status === 404)) {
+        // Ended or deleted elsewhere (another tab/device): resync.
         setActive(null);
         await refreshAfterChange();
       } else {

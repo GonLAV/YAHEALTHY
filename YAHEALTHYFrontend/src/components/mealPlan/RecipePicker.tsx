@@ -47,10 +47,14 @@ export const RecipePicker = ({
   );
 
   const [query, setQuery] = useState('');
-  const [category, setCategory] = useState<string>(() => {
+  // null until the user picks a category; until then the slot's preferred
+  // category applies as soon as recipes containing it have loaded.
+  const [chosenCategory, setCategory] = useState<string | null>(null);
+  const category = useMemo(() => {
+    if (chosenCategory !== null) return chosenCategory;
     const preferred = DEFAULT_CATEGORY[mealType];
     return preferred && recipes.some((r) => r.category === preferred) ? preferred : 'all';
-  });
+  }, [chosenCategory, mealType, recipes]);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -153,10 +157,12 @@ export const RecipePicker = ({
               <span className="block font-semibold text-slate-900">{recipeName(recipe, lang)}</span>
               <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
                 <span>{catLabel(recipe.category)}</span>
-                <span className="inline-flex items-center gap-1">
-                  <Flame size={12} aria-hidden="true" />
-                  <span className="num">{recipe.calories}</span> {t('mealPlan.kcal')}
-                </span>
+                {recipe.calories != null && (
+                  <span className="inline-flex items-center gap-1">
+                    <Flame size={12} aria-hidden="true" />
+                    <span className="num">{recipe.calories}</span> {t('mealPlan.kcal')}
+                  </span>
+                )}
                 <span className="inline-flex items-center gap-1">
                   <Clock size={12} aria-hidden="true" />
                   {t('mealPlan.picker.minutes', { n: recipe.time_minutes })}

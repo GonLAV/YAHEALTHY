@@ -54,30 +54,48 @@ export const Dialog = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Escape') {
-      e.stopPropagation();
-      onCloseRef.current();
-      return;
-    }
-    if (e.key !== 'Tab' || !panelRef.current) return;
-    const nodes = Array.from(panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
-      (el) => el.offsetParent !== null || el === document.activeElement
-    );
-    if (nodes.length === 0) {
-      e.preventDefault();
-      return;
-    }
-    const first = nodes[0];
-    const last = nodes[nodes.length - 1];
-    if (e.shiftKey && (document.activeElement === first || document.activeElement === panelRef.current)) {
-      e.preventDefault();
-      last.focus();
-    } else if (!e.shiftKey && document.activeElement === last) {
-      e.preventDefault();
-      first.focus();
-    }
-  };
+  // Listen on the document, not the panel: if the focused control unmounts
+  // (e.g. a Retry button replaced by a spinner) focus falls to <body>, and
+  // Escape/Tab must still work and pull focus back into the dialog.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const panel = panelRef.current;
+      if (!panel) return;
+      const active = document.activeElement;
+      const inside = !!active && panel.contains(active);
+      // Ignore keys aimed at something else (e.g. another dialog stacked on top).
+      if (!inside && active && active !== document.body) return;
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const nodes = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
+        (el) => el.offsetParent !== null || el === active
+      );
+      if (nodes.length === 0) {
+        e.preventDefault();
+        panel.focus();
+        return;
+      }
+      const first = nodes[0];
+      const last = nodes[nodes.length - 1];
+      if (!inside) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      } else if (e.shiftKey && (active === first || active === panel)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   return (
     <div
@@ -93,7 +111,6 @@ export const Dialog = ({
         aria-labelledby={titleId}
         aria-describedby={description ? descId : undefined}
         tabIndex={-1}
-        onKeyDown={onKeyDown}
         className="flex max-h-[85vh] w-full flex-col rounded-t-3xl bg-white shadow-xl outline-none sm:max-w-lg sm:rounded-3xl"
       >
         <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">

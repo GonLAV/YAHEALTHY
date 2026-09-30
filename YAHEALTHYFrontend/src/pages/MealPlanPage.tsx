@@ -153,6 +153,12 @@ export const MealPlanPage = () => {
     loadWeek();
   }, [loadWeek]);
 
+  // Mutations reload through this ref so that, if the user changed week while
+  // a request was in flight, the reload fetches the week now on screen rather
+  // than the one captured when the mutation started.
+  const loadWeekRef = useRef(loadWeek);
+  loadWeekRef.current = loadWeek;
+
   // Keep the selected (mobile) day inside the visible week.
   useEffect(() => {
     if (!dayKeys.includes(selectedDay)) {
@@ -237,11 +243,11 @@ export const MealPlanPage = () => {
       await mealPlanApi.create({ recipeId: recipe.id, date: slot.date, mealType: slot.mealType });
       announce(t('mealPlan.added', { recipe: recipeName(recipe, lang) }));
       setPendingFocus(slotId('remove', slot.date, slot.mealType));
-      await loadWeek();
+      await loadWeekRef.current();
     } catch (err) {
       if (statusOf(err) === 409) {
         fail(t('mealPlan.slotTaken'));
-        await loadWeek();
+        await loadWeekRef.current();
       } else {
         console.error('Failed to add meal plan:', err);
         fail(t('common.error'));
@@ -258,10 +264,10 @@ export const MealPlanPage = () => {
       await mealPlanApi.remove(plan.id);
       announce(t('mealPlan.removed', { recipe: recipe ? recipeName(recipe, lang) : '' }));
       setPendingFocus(slotId('add', plan.date, plan.meal_type));
-      await loadWeek();
+      await loadWeekRef.current();
     } catch (err) {
       if (statusOf(err) === 404) {
-        await loadWeek();
+        await loadWeekRef.current();
       } else {
         console.error('Failed to remove meal plan:', err);
         fail(t('common.error'));
@@ -291,11 +297,11 @@ export const MealPlanPage = () => {
             ? t('mealPlan.generatedKept', { created: createdCount, skipped: skippedCount })
             : t('mealPlan.generated', { created: createdCount })
       );
-      await loadWeek();
+      await loadWeekRef.current();
     } catch (err) {
       if (statusOf(err) === 409) {
         fail(t('mealPlan.slotTaken'));
-        await loadWeek();
+        await loadWeekRef.current();
       } else {
         console.error('Failed to generate meal plans:', err);
         fail(t('common.error'));
@@ -367,7 +373,7 @@ export const MealPlanPage = () => {
                 <p className={`font-semibold text-slate-800 ${compact ? 'line-clamp-2 break-words text-xs' : 'text-sm'}`}>
                   {name}
                 </p>
-                {recipe && (
+                {recipe?.calories != null && (
                   <p className="mt-0.5 text-xs text-slate-500">
                     <span className="num">{fmtNum(recipe.calories)}</span> {t('mealPlan.kcal')}
                   </p>

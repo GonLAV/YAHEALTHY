@@ -4,6 +4,7 @@ import { recipeApi, type Recipe } from '@/services/api';
 import { useLanguage } from '@/i18n/LanguageContext';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { recipeName } from '@/components/mealPlan/RecipePicker';
 
 /** Translate a key, falling back to the raw value when no string exists. */
 const useLabel = () => {
@@ -15,7 +16,7 @@ const useLabel = () => {
 };
 
 export const RecipesPage = () => {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const label = useLabel();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(false);
@@ -121,18 +122,20 @@ export const RecipesPage = () => {
                   className="w-full p-5 text-start hover:bg-slate-50"
                 >
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <h2 className="text-xl font-bold text-slate-900">{recipe.name}</h2>
+                    <h2 className="text-xl font-bold text-slate-900">{recipeName(recipe, lang)}</h2>
                     <span className="text-sm text-slate-500">
                       {isOpen ? t('recipes.close') : t('recipes.open')}
                     </span>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600">
                     <span>{label(`recipes.cat.${recipe.category}`, recipe.category)}</span>
-                    <span className="num">{t('recipes.minutes', { n: recipe.time_minutes })}</span>
-                    <span className="num">{t('recipes.calories', { n: recipe.calories })}</span>
+                    <span>{t('recipes.minutes', { n: recipe.time_minutes })}</span>
+                    {recipe.calories != null && (
+                      <span>{t('recipes.calories', { n: recipe.calories })}</span>
+                    )}
                     <span>{label(`recipes.diff.${recipe.difficulty}`, recipe.difficulty)}</span>
                     {recipe.servings ? (
-                      <span className="num">{t('recipes.servings', { n: recipe.servings })}</span>
+                      <span>{t('recipes.servings', { n: recipe.servings })}</span>
                     ) : null}
                   </div>
                 </button>
