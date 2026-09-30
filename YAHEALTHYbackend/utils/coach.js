@@ -8,6 +8,7 @@
 const db = require('./database');
 const { calculateStreak } = require('./health-calculations');
 const { flagsIn } = require('./health-flags');
+const { computedTargetsApproved } = require('./targets');
 
 const todayStr = () => new Date().toISOString().split('T')[0];
 
@@ -35,8 +36,11 @@ async function collectUserData(userId) {
   const streak = calculateStreak(await db.getFoodLogs(userId).catch(() => []));
 
   const survey = await db.getLatestSurvey(userId);
-  const calorieTarget = survey?.daily_calories?.targetDailyCalories || null;
-  const proteinTarget = survey?.protein_target_g || null;
+  // The coaching screen printed the calculated target in a sentence while the
+  // home screen withheld it. Same rule as /api/targets now (utils/targets.js).
+  const approved = computedTargetsApproved();
+  const calorieTarget = (approved && survey?.daily_calories?.targetDailyCalories) || null;
+  const proteinTarget = (approved && survey?.protein_target_g) || null;
 
   return { today, dayLogs, totals, waterLiters, sleepHours, streak, calorieTarget, proteinTarget };
 }

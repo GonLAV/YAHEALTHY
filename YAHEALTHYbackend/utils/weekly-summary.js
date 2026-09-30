@@ -11,6 +11,7 @@
 const db = require('./database');
 const mailer = require('./mailer');
 const { calculateStreak } = require('./health-calculations');
+const { computedTargetsApproved } = require('./targets');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -48,8 +49,11 @@ async function buildWeeklySummary(userId, now = new Date()) {
       String(a.date || a.created_at).localeCompare(String(b.date || b.created_at)));
 
   const survey = await db.getLatestSurvey(userId);
-  const calorieTarget = survey?.daily_calories?.targetDailyCalories || null;
-  const proteinTarget = survey?.protein_target_g || null;
+  // An email is a screen too: the calculated target is withheld here until it
+  // is approved, as on /api/targets (utils/targets.js).
+  const approved = computedTargetsApproved();
+  const calorieTarget = (approved && survey?.daily_calories?.targetDailyCalories) || null;
+  const proteinTarget = (approved && survey?.protein_target_g) || null;
 
   const loggedDates = new Set(weekFoodLogs.map((l) => l.date));
   const loggedDays = loggedDates.size;

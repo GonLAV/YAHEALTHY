@@ -53,6 +53,7 @@ const coach = require('./utils/coach');
 const { checkGoalWeight } = require('./utils/weight-goal-safety');
 const { assessWeighIn } = require('./utils/weight-progress');
 const clinicalApproval = require('./utils/clinical-approval');
+const { computedTargetsApproved, withoutUnapprovedTargets } = require('./utils/targets');
 const cron = require('node-cron');
 const { sendWeeklySummaryEmail, runWeeklySummaryJob } = require('./utils/weekly-summary');
 
@@ -691,7 +692,9 @@ app.post('/api/surveys', auth.authMiddleware, async (req, res) => {
       protein_target_g: Math.round(proteinTarget * 10) / 10
     });
 
-    res.status(201).json(survey);
+    // Stored as calculated, so an approval later shows it; sent back without
+    // the calculated targets until then (utils/targets.js).
+    res.status(201).json(withoutUnapprovedTargets(survey));
   } catch (error) {
     console.error('Survey creation error:', error);
     res.status(500).json({ error: 'Failed to create survey', details: safeErrorDetails(error) });
@@ -706,7 +709,7 @@ app.get('/api/surveys', auth.authMiddleware, async (req, res) => {
   try {
     const userId = req.user.userId;
     const surveys = await db.getSurveys(userId);
-    res.json(surveys || []);
+    res.json((surveys || []).map(withoutUnapprovedTargets));
   } catch (error) {
     res.status(500).json({ error: 'Failed to get surveys', details: safeErrorDetails(error) });
   }
@@ -722,7 +725,7 @@ app.get('/api/surveys/:id', auth.authMiddleware, async (req, res) => {
     if (!survey) {
       return res.status(404).json({ error: 'Survey not found' });
     }
-    res.json(survey);
+    res.json(withoutUnapprovedTargets(survey));
   } catch (error) {
     res.status(500).json({ error: 'Failed to get survey', details: safeErrorDetails(error) });
   }
@@ -2519,8 +2522,9 @@ app.get('/api/calorie-balance', auth.authMiddleware, async (req, res) => {
     const latestSurvey = Array.isArray(surveys) && surveys.length > 0 ? surveys[0] : null;
 
     const dailyCalories = latestSurvey?.daily_calories;
+    // Withheld until approved, as on /api/targets (utils/targets.js).
     const targetCalories =
-      (dailyCalories && typeof dailyCalories === 'object' && dailyCalories !== null)
+      (computedTargetsApproved() && dailyCalories && typeof dailyCalories === 'object')
         ? (Number(dailyCalories.targetDailyCalories) || null)
         : null;
 
@@ -2568,8 +2572,9 @@ app.get('/api/weekly-calorie-balance', auth.authMiddleware, async (req, res) => 
     const latestSurvey = Array.isArray(surveys) && surveys.length > 0 ? surveys[0] : null;
 
     const dailyCalories = latestSurvey?.daily_calories;
+    // Withheld until approved, as on /api/targets (utils/targets.js).
     const targetCalories =
-      (dailyCalories && typeof dailyCalories === 'object' && dailyCalories !== null)
+      (computedTargetsApproved() && dailyCalories && typeof dailyCalories === 'object')
         ? (Number(dailyCalories.targetDailyCalories) || null)
         : null;
 
@@ -2753,7 +2758,7 @@ app.get('/api/macro-balance', auth.authMiddleware, async (req, res) => {
     let carbsTarget = readTargetNumber(macroTargets, ['carbs_grams', 'carbsGrams', 'carbs']);
     let fatTarget = readTargetNumber(macroTargets, ['fat_grams', 'fatGrams', 'fat']);
 
-    if (proteinTarget === null && latestSurvey && Number.isFinite(Number(latestSurvey.protein_target_g))) {
+    if (proteinTarget === null && latestSurvey && computedTargetsApproved() && Number.isFinite(Number(latestSurvey.protein_target_g))) {
       proteinTarget = Number(latestSurvey.protein_target_g);
     }
 
@@ -2856,7 +2861,7 @@ app.get('/api/macro-balance/range', auth.authMiddleware, async (req, res) => {
     let carbsTarget = readTargetNumber(macroTargets, ['carbs_grams', 'carbsGrams', 'carbs']);
     let fatTarget = readTargetNumber(macroTargets, ['fat_grams', 'fatGrams', 'fat']);
 
-    if (proteinTarget === null && latestSurvey && Number.isFinite(Number(latestSurvey.protein_target_g))) {
+    if (proteinTarget === null && latestSurvey && computedTargetsApproved() && Number.isFinite(Number(latestSurvey.protein_target_g))) {
       proteinTarget = Number(latestSurvey.protein_target_g);
     }
 
@@ -3011,8 +3016,9 @@ app.get('/api/nutrition-score', auth.authMiddleware, async (req, res) => {
     const preferences = user?.preferences;
 
     const dailyCalories = latestSurvey?.daily_calories;
+    // Withheld until approved, as on /api/targets (utils/targets.js).
     const targetCalories =
-      (dailyCalories && typeof dailyCalories === 'object' && dailyCalories !== null)
+      (computedTargetsApproved() && dailyCalories && typeof dailyCalories === 'object')
         ? (Number(dailyCalories.targetDailyCalories) || null)
         : null;
 
@@ -3038,7 +3044,7 @@ app.get('/api/nutrition-score', auth.authMiddleware, async (req, res) => {
       fat_grams: readTargetNumber(macroTargetsRaw, ['fat_grams', 'fatGrams', 'fat'])
     };
 
-    if (macroTargets.protein_grams === null && latestSurvey && Number.isFinite(Number(latestSurvey.protein_target_g))) {
+    if (macroTargets.protein_grams === null && latestSurvey && computedTargetsApproved() && Number.isFinite(Number(latestSurvey.protein_target_g))) {
       macroTargets.protein_grams = Number(latestSurvey.protein_target_g);
     }
 
@@ -3140,8 +3146,9 @@ app.get('/api/nutrition-score/range', auth.authMiddleware, async (req, res) => {
     const preferences = user?.preferences;
 
     const dailyCalories = latestSurvey?.daily_calories;
+    // Withheld until approved, as on /api/targets (utils/targets.js).
     const targetCalories =
-      (dailyCalories && typeof dailyCalories === 'object' && dailyCalories !== null)
+      (computedTargetsApproved() && dailyCalories && typeof dailyCalories === 'object')
         ? (Number(dailyCalories.targetDailyCalories) || null)
         : null;
 
@@ -3167,7 +3174,7 @@ app.get('/api/nutrition-score/range', auth.authMiddleware, async (req, res) => {
       fat_grams: readTargetNumber(macroTargetsRaw, ['fat_grams', 'fatGrams', 'fat'])
     };
 
-    if (macroTargets.protein_grams === null && latestSurvey && Number.isFinite(Number(latestSurvey.protein_target_g))) {
+    if (macroTargets.protein_grams === null && latestSurvey && computedTargetsApproved() && Number.isFinite(Number(latestSurvey.protein_target_g))) {
       macroTargets.protein_grams = Number(latestSurvey.protein_target_g);
     }
 
@@ -3327,8 +3334,9 @@ app.get('/api/weekly-nutrition', auth.authMiddleware, async (req, res) => {
     const preferences = user?.preferences;
 
     const dailyCalories = latestSurvey?.daily_calories;
+    // Withheld until approved, as on /api/targets (utils/targets.js).
     const targetCalories =
-      (dailyCalories && typeof dailyCalories === 'object' && dailyCalories !== null)
+      (computedTargetsApproved() && dailyCalories && typeof dailyCalories === 'object')
         ? (Number(dailyCalories.targetDailyCalories) || null)
         : null;
 
@@ -3354,7 +3362,7 @@ app.get('/api/weekly-nutrition', auth.authMiddleware, async (req, res) => {
       fat_grams: readTargetNumber(macroTargetsRaw, ['fat_grams', 'fatGrams', 'fat'])
     };
 
-    if (macroTargets.protein_grams === null && latestSurvey && Number.isFinite(Number(latestSurvey.protein_target_g))) {
+    if (macroTargets.protein_grams === null && latestSurvey && computedTargetsApproved() && Number.isFinite(Number(latestSurvey.protein_target_g))) {
       macroTargets.protein_grams = Number(latestSurvey.protein_target_g);
     }
 
@@ -3650,9 +3658,11 @@ app.get('/api/insights/daily', auth.authMiddleware, async (req, res) => {
     // every survey?.x read was undefined, and the endpoint reported null for
     // fields it believed it had found.
     const survey = await db.getLatestSurvey(userId);
-    const targetCalories = survey?.daily_calories?.targetDailyCalories || null;
+    // Withheld until approved, as on /api/targets (utils/targets.js).
+    const approved = computedTargetsApproved();
+    const targetCalories = (approved && survey?.daily_calories?.targetDailyCalories) || null;
     const macroTargets = survey ? {
-      protein_grams: survey.protein_target_g,
+      protein_grams: approved ? survey.protein_target_g : null,
       carbs_grams: null,
       fat_grams: null
     } : { protein_grams: null, carbs_grams: null, fat_grams: null };
