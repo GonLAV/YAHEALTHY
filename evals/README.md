@@ -128,7 +128,7 @@ date                  bot    score   blockers
 
 | | ברירת מחדל | החלפה |
 |---|---|---|
-| הבוט הנבדק | `claude-opus-5` | `EVAL_MODEL=…` |
+| הבוט הנבדק | `claude-sonnet-5`, כמו בפרודקשן (`utils/whapi-brain.js`). עד 30/09 ברירת המחדל הייתה `claude-opus-5`, כך שכל הציונים שלפני כן נמדדו על מודל אחר | `EVAL_MODEL=…` |
 | השופט | `claude-opus-5` | `EVAL_JUDGE_MODEL=claude-sonnet-5` |
 
 **עלות ריצה מלאה: פחות מדולר.** להוזיל את השיפוט — `EVAL_JUDGE_MODEL=claude-sonnet-5`, **אבל לבדוק קודם שההסכמה בין השופטים נשמרת על הקטגוריה הקריטית.** על בטיחות, שופט זול שמפספס גרוע מהחיסכון.

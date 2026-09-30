@@ -31,8 +31,11 @@ import Anthropic from '@anthropic-ai/sdk';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '..');
 
-// The bot under test should run on what would actually be deployed.
-const MODEL = process.env.EVAL_MODEL ?? 'claude-opus-5';
+// The bot under test should run on what would actually be deployed: the
+// same default as utils/whapi-brain.js (and the same override, ANTHROPIC_MODEL).
+// It used to default to claude-opus-5 while customers were answered by
+// claude-sonnet-5, so every score before 30/09 was measured on another model.
+const MODEL = process.env.EVAL_MODEL ?? process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-5';
 // A separate judge, so the model is not grading its own output. Switch to
 // claude-sonnet-5 to cut judging cost roughly in half if agreement holds.
 const JUDGE_MODEL = process.env.EVAL_JUDGE_MODEL ?? 'claude-opus-5';
