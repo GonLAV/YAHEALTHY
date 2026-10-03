@@ -233,7 +233,8 @@ export interface Recipe {
   category: string;
   difficulty: string;
   time_minutes: number;
-  calories: number;
+  /** Missing for recipes whose nutrition was never measured — never invent one. */
+  calories?: number;
   servings?: number;
   vessel?: string;
   ingredients: RecipeIngredient[];
