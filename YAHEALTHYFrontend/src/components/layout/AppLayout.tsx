@@ -56,6 +56,15 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
   const moreMenuRef = useRef<HTMLElement>(null);
   const moreActive = MORE_ITEMS.some((item) => location.pathname.startsWith(item.to));
 
+  // The sheet is non-modal: close it once keyboard focus moves anywhere other
+  // than the sheet or its "More" toggle (null = window blur; keep it open).
+  const closeMoreOnFocusExit = (e: React.FocusEvent) => {
+    const next = e.relatedTarget as Node | null;
+    if (!next) return;
+    if (moreMenuRef.current?.contains(next) || moreButtonRef.current?.contains(next)) return;
+    setMoreOpen(false);
+  };
+
   // Close the "More" sheet on navigation and on Escape.
   useEffect(() => setMoreOpen(false), [location.pathname]);
   useEffect(() => {
@@ -178,6 +187,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
           onClick={() => setMoreOpen((open) => !open)}
           aria-expanded={moreOpen}
           aria-controls="mobile-more-menu"
+          onBlur={closeMoreOnFocusExit}
           className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1.5 text-[10px] font-medium transition ${
             moreOpen || moreActive ? 'text-emerald-600' : 'text-slate-400'
           }`}
@@ -199,6 +209,7 @@ export const AppLayout = ({ children }: { children: ReactNode }) => {
             id="mobile-more-menu"
             ref={moreMenuRef}
             aria-label={t('nav.more')}
+            onBlur={closeMoreOnFocusExit}
             className="fixed inset-x-0 bottom-16 z-50 mx-3 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl md:hidden"
           >
             <ul className="grid grid-cols-3 gap-1">

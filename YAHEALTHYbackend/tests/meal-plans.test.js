@@ -333,6 +333,33 @@ async function run() {
     new Set((bySlot.dinner || []).map((p) => p.recipe_id)).size > 2
   );
 
+  // Fill-empty mode must treat already planned meals (and the day before the
+  // range) as "yesterday", or it can repeat them on the next day. Snacks have
+  // only two recipes, so a wrong "yesterday" shows up quickly.
+  const snackIds = catalogue.filter((r) => r.category === 'snack').map((r) => r.id);
+  let fillRepeats = 0;
+  for (const month of ['03', '04', '05', '06', '07']) {
+    const day = (n) => `2027-${month}-${String(n).padStart(2, '0')}`;
+    for (const date of [day(1), day(3)]) {
+      await call('POST', '/api/meal-plans', {
+        token,
+        body: { recipeId: snackIds[0], date, mealType: 'snack' }
+      });
+    }
+    await call('POST', '/api/meal-plans/generate', {
+      token,
+      body: { startDate: day(2), endDate: day(8), mealTypes: ['snack'] }
+    });
+    const week = (await call('GET', `/api/meal-plans?start=${day(1)}&end=${day(8)}`, { token })).body ?? [];
+    const snacks = week.filter((p) => p.meal_type === 'snack').sort((a, b) => a.date.localeCompare(b.date));
+    for (let i = 1; i < snacks.length; i++) if (snacks[i].recipe_id === snacks[i - 1].recipe_id) fillRepeats++;
+  }
+  check(
+    'fill-empty generation does not repeat an existing meal on the next day',
+    snackIds.length >= 2 && fillRepeats === 0,
+    `${fillRepeats} repeats next to existing plans`
+  );
+
   // ── deleting ──────────────────────────────────────────────────────────────
   const all = await call('GET', '/api/meal-plans', { token });
   const victim = all.body?.[0]?.id;

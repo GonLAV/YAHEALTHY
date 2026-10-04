@@ -207,3 +207,7 @@ CREATE TABLE IF NOT EXISTS fasts (
 
 CREATE INDEX IF NOT EXISTS idx_fasts_user_started ON fasts(user_id, started_at DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_fasts_one_active_per_user ON fasts(user_id) WHERE ended_at IS NULL;
+
+-- Health data: deny everything except the server's service-role key (RLS on,
+-- no policies), as migrations/013_fasts.sql does.
+ALTER TABLE fasts ENABLE ROW LEVEL SECURITY;

@@ -1473,11 +1473,29 @@ app.post('/api/meal-plans/generate', auth.authMiddleware, async (req, res) => {
     // Each slot draws from recipes that suit it (no salad for breakfast), and
     // avoids repeating yesterday's recipe in the same slot when it can.
     const pools = Object.fromEntries(mealTypes.map((mealType) => [mealType, recipePoolForMealType(mealType)]));
+    // Seed from what is already planned (from the day before the range, so
+    // day one doesn't repeat it). In fill-empty mode an occupied slot keeps
+    // its real recipe as "yesterday" instead of a candidate that would only be
+    // skipped on insert.
+    const dayBefore = formatDateYYYYMMDD(addDaysUTC(startDate, -1));
+    const existing = await db.getMealPlans(userId, { start: dayBefore, end: rangeEnd });
+    const existingBySlot = new Map(
+      (existing || []).map((plan) => [`${plan.date}|${plan.meal_type}`, plan.recipe_id])
+    );
     const previousBySlot = {};
+    for (const mealType of mealTypes) {
+      previousBySlot[mealType] = existingBySlot.get(`${dayBefore}|${mealType}`);
+    }
     const wanted = [];
     for (let dayOffset = 0; dayOffset <= rangeDays; dayOffset += 1) {
       const date = formatDateYYYYMMDD(addDaysUTC(startDate, dayOffset));
       for (const mealType of mealTypes) {
+        const occupiedBy = existingBySlot.get(`${date}|${mealType}`);
+        if (occupiedBy) {
+          previousBySlot[mealType] = occupiedBy;
+          skipped += 1;
+          continue;
+        }
         const recipe = pickRecipe(pools[mealType], previousBySlot[mealType]);
         if (!recipe) {
           skipped += 1;

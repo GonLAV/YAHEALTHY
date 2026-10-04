@@ -111,6 +111,16 @@ function unitStats() {
   // 22:30 UTC on the 29th is already the 30th in Israel (UTC+3, offset -180).
   const tz = computeStats([fast('2026-09-29T22:30:00Z', 16, true)], now, -180);
   check('stats: days are bucketed in the caller\'s time zone', tz.currentStreakDays === 1);
+  // DST: New York leaves EDT (UTC-4) for EST (UTC-5) on 2026-11-01. A fast
+  // ending 00:30 EDT on Nov 1 belongs to Nov 1; today's fixed EST offset would
+  // put it on Oct 31 and break a 3-day streak. An IANA zone gets it right.
+  const nov = new Date('2026-11-03T15:00:00Z');
+  const dstFasts = [
+    fast('2026-11-03T14:00:00Z', 16, true),
+    fast('2026-11-02T14:00:00Z', 16, true),
+    fast('2026-11-01T04:30:00Z', 16, true)
+  ];
+  check('stats: an IANA zone buckets days correctly across DST', computeStats(dstFasts, nov, 'America/New_York').currentStreakDays === 3);
   const empty = computeStats([], now, 0);
   check('stats: empty history', empty.totalCompleted === 0 && empty.currentStreakDays === 0 && empty.averageHours === null && empty.longestHours === 0);
 }
@@ -193,6 +203,8 @@ async function run() {
     stats.body?.totalCompleted === 1 && stats.body?.longestHours === 16.5 && stats.body?.averageHours === 10.75 && stats.body?.currentStreakDays === 1,
     JSON.stringify(stats.body)
   );
+  check('an unknown IANA zone is refused', (await call('GET', '/api/fasts/stats?tz=Mars%2FOlympus', { token })).status === 400);
+  check('a valid IANA zone is accepted', (await call('GET', '/api/fasts/stats?tz=Asia%2FJerusalem', { token })).status === 200);
   check('a bad tz offset is refused', (await call('GET', '/api/fasts/stats?tzOffsetMinutes=abc', { token })).status === 400);
 
   // ── deleting ──────────────────────────────────────────────────────────────

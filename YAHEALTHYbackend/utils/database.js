@@ -1211,6 +1211,9 @@ async function getFastingWindows(userId) {
  *
  * createFast returns null when the user already has an open fast, and endFast
  * only touches a fast that is still open, returning null otherwise.
+ *
+ * `fasts` has RLS on with no policies (migrations/013), so these go through
+ * the service-role client; every query still filters by user_id.
  */
 async function createFast(userId, { started_at, target_hours }) {
   const row = {
@@ -1231,7 +1234,7 @@ async function createFast(userId, { started_at, target_hours }) {
     return { ...row };
   }
 
-  const { data, error } = await supabase.from('fasts').insert([row]).select().single();
+  const { data, error } = await supabaseServiceRole.from('fasts').insert([row]).select().single();
   if (error) {
     if (error.code === '23505') return null;
     throw error;
@@ -1246,7 +1249,7 @@ async function getActiveFast(userId) {
     return found ? { ...found } : null;
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseServiceRole
     .from('fasts')
     .select('*')
     .eq('user_id', userId)
@@ -1270,7 +1273,7 @@ async function getFasts(userId, { limit = 30, since = null } = {}) {
       .map((f) => ({ ...f }));
   }
 
-  let query = supabase.from('fasts').select('*').eq('user_id', userId);
+  let query = supabaseServiceRole.from('fasts').select('*').eq('user_id', userId);
   if (since) query = query.gte('started_at', since);
   const { data, error } = await query.order('started_at', { ascending: false }).limit(limit);
   if (error) throw error;
@@ -1284,7 +1287,7 @@ async function getFastById(fastId, userId) {
     return found ? { ...found } : null;
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseServiceRole
     .from('fasts')
     .select('*')
     .eq('id', fastId)
@@ -1308,7 +1311,7 @@ async function endFast(fastId, userId, { ended_at, duration_hours, completed }) 
     return { ...memoryDb.fasts[index] };
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseServiceRole
     .from('fasts')
     .update(changes)
     .eq('id', fastId)
@@ -1329,7 +1332,7 @@ async function deleteFast(fastId, userId) {
     return memoryDb.fasts.splice(index, 1)[0];
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseServiceRole
     .from('fasts')
     .delete()
     .eq('id', fastId)

@@ -9,7 +9,7 @@
  *   POST   /api/fasts/:id/end    { endedAt?: ISO }                       → 200
  *   GET    /api/fasts?limit=     newest first
  *   GET    /api/fasts/active     the open fast, or null
- *   GET    /api/fasts/stats      ?tzOffsetMinutes= (as Date#getTimezoneOffset)
+ *   GET    /api/fasts/stats      ?tz= (IANA zone) or ?tzOffsetMinutes= (as Date#getTimezoneOffset)
  *   DELETE /api/fasts/:id
  *
  * 🩺 This records time. It does not tell anyone whether or how long to fast.
@@ -82,12 +82,41 @@ function present(row) {
   };
 }
 
-/** YYYY-MM-DD of `date` in the caller's local time (offset per getTimezoneOffset). */
-function localDay(date, tzOffsetMinutes) {
-  return new Date(date.getTime() - tzOffsetMinutes * 60000).toISOString().slice(0, 10);
+/**
+ * YYYY-MM-DD of `date` on the caller's calendar. `zone` is either an IANA
+ * time-zone name (preferred: right across DST changes) or a fixed offset in
+ * minutes as returned by Date#getTimezoneOffset (legacy clients).
+ */
+function localDay(date, zone) {
+  if (typeof zone === 'string') {
+    // en-CA formats as YYYY-MM-DD.
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: zone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(date);
+  }
+  return new Date(date.getTime() - zone * 60000).toISOString().slice(0, 10);
 }
 
-function computeStats(fasts, now, tzOffsetMinutes) {
+/** The calendar day before a YYYY-MM-DD string. */
+function previousDay(ymd) {
+  const d = new Date(`${ymd}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
+function isValidTimeZone(tz) {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function computeStats(fasts, now, zone) {
   const ended = fasts.filter((f) => f.ended_at && f.duration_hours !== null);
   const completed = ended.filter((f) => f.completed);
 
@@ -96,13 +125,15 @@ function computeStats(fasts, now, tzOffsetMinutes) {
 
   // A streak counts local days on which a completed fast ended. Today not
   // having one yet does not break it — the day is not over.
-  const days = new Set(completed.map((f) => localDay(new Date(f.ended_at), tzOffsetMinutes)));
+  // Walk calendar dates, not 24h steps, so a 23h/25h DST day can't skip or
+  // repeat a day.
+  const days = new Set(completed.map((f) => localDay(new Date(f.ended_at), zone)));
   let streak = 0;
-  const cursor = new Date(now.getTime());
-  if (!days.has(localDay(cursor, tzOffsetMinutes))) cursor.setUTCDate(cursor.getUTCDate() - 1);
-  while (days.has(localDay(cursor, tzOffsetMinutes))) {
+  let day = localDay(now, zone);
+  if (!days.has(day)) day = previousDay(day);
+  while (days.has(day)) {
     streak += 1;
-    cursor.setUTCDate(cursor.getUTCDate() - 1);
+    day = previousDay(day);
   }
 
   return {
@@ -155,13 +186,17 @@ router.get('/active', auth.authMiddleware, async (req, res) => {
 
 router.get('/stats', auth.authMiddleware, async (req, res) => {
   try {
+    const { tz } = req.query;
+    if (tz !== undefined && (typeof tz !== 'string' || !isValidTimeZone(tz))) {
+      return res.status(400).json({ error: 'tz must be an IANA time zone, e.g. Asia/Jerusalem', requestId: req.id });
+    }
     const rawOffset = req.query.tzOffsetMinutes;
     const tzOffsetMinutes = rawOffset === undefined ? 0 : Number(rawOffset);
     if (!Number.isInteger(tzOffsetMinutes) || Math.abs(tzOffsetMinutes) > 14 * 60) {
       return res.status(400).json({ error: 'tzOffsetMinutes must be an integer between -840 and 840', requestId: req.id });
     }
     const fasts = (await db.getFasts(req.user.userId, { limit: 5000 })).map(present);
-    return res.json(computeStats(fasts, new Date(), tzOffsetMinutes));
+    return res.json(computeStats(fasts, new Date(), tz ?? tzOffsetMinutes));
   } catch (error) {
     return fail(res, req, 'Failed to get fasting stats', error);
   }
@@ -234,4 +269,4 @@ router.delete('/:id', auth.authMiddleware, async (req, res) => {
 });
 
 module.exports = router;
-module.exports._internal = { computeStats, localDay };
+module.exports._internal = { computeStats, localDay, previousDay };

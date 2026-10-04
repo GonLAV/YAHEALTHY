@@ -35,7 +35,11 @@ export const fastingApi = {
   /** Streak days are bucketed in the browser's time zone. */
   getStats: () =>
     api.get<FastingStats>('/api/fasts/stats', {
-      params: { tzOffsetMinutes: new Date().getTimezoneOffset() },
+      params: {
+        tz: Intl.DateTimeFormat().resolvedOptions().timeZone || undefined,
+        // Fallback for when the zone name is unavailable; wrong across DST.
+        tzOffsetMinutes: new Date().getTimezoneOffset(),
+      },
     }),
 
   remove: (id: string) => api.delete<{ message: string; id: string }>(`/api/fasts/${id}`),
