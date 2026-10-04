@@ -19,7 +19,8 @@ const {
   validateHeight, 
   validateAge, 
   validateGender,
-  normalizeLifestyle
+  normalizeLifestyle,
+  MEAL_TYPES
 } = require('./utils/constants');
 
 const {
@@ -153,6 +154,10 @@ app.use('/api/payments', checkoutRouter);
 // and never advice about what anyone should eat.
 app.use('/api/foods', require('./routes/foods'));
 
+// Fasting timer: start/end individual fasts, history and stats. The preferred
+// protocol still lives at /api/fasting-windows below.
+app.use('/api/fasts', require('./routes/fasts'));
+
 // WhatsApp inbound. The webhook is public (guarded by a path secret); the
 // listing endpoint underneath it requires auth because it returns message text.
 const whatsappRouter = require('./routes/whatsapp');
@@ -205,6 +210,7 @@ app.get('/api/health', (req, res) => {
       'recipes',
       'meal-plans',
       'fasting-windows',
+      'fasts',
       'meal-swaps',
       'readiness-scoring',
       'sleep-debt-tracking',
@@ -1245,11 +1251,74 @@ app.get('/api/recipes/:id/share', auth.authMiddleware, (req, res) => {
 
 // ========== MEAL PLAN ENDPOINTS ==========
 
+/**
+ * Parse a strict `YYYY-MM-DD` calendar date to a Date at UTC midnight, or null.
+ *
+ * Meal-plan dates are stored as that exact string and range queries compare
+ * them as strings, so anything looser is unsafe: `new Date('2026-9-29')` parses
+ * (as local time, even) and would be saved as "2026-9-29", which never falls
+ * inside a 2026-09-01..2026-09-30 range. `new Date('2026-02-30')` also parses,
+ * rolling over to March 2. Both are refused here.
+ */
+const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
 function parseISODate(dateStr) {
-  const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return null;
-  // Normalize to YYYY-MM-DD (UTC-ish) for comparisons used by this API.
+  if (typeof dateStr !== 'string') return null;
+  const m = ISO_DATE_RE.exec(dateStr);
+  if (!m) return null;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  const d = new Date(Date.UTC(year, month - 1, day));
+  if (
+    d.getUTCFullYear() !== year ||
+    d.getUTCMonth() !== month - 1 ||
+    d.getUTCDate() !== day
+  ) {
+    return null;
+  }
   return d;
+}
+
+/** zod schema for a strict, real `YYYY-MM-DD` date. */
+const isoDateSchema = z
+  .string()
+  .refine((value) => parseISODate(value) !== null, { message: 'Expected a real date in YYYY-MM-DD format' });
+
+/** zod schema for a meal-plan slot. Same set as food logs. */
+const mealTypeSchema = z.enum(MEAL_TYPES);
+
+/**
+ * Which recipe categories fit each meal slot (data/recipes.json categories:
+ * breakfast, salad, main, side, snack). Lunch and dinner get mains and salads;
+ * sides are not a meal on their own.
+ */
+const MEAL_TYPE_RECIPE_CATEGORIES = {
+  breakfast: ['breakfast'],
+  snack: ['snack'],
+  lunch: ['main', 'salad'],
+  dinner: ['main', 'salad']
+};
+
+/**
+ * Recipes suitable for a meal slot. Falls back to any non-breakfast recipe
+ * when the slot's own categories are empty, then to the whole catalogue, so
+ * generation never has to pick from an empty pool while recipes exist.
+ */
+function recipePoolForMealType(mealType) {
+  const categories = MEAL_TYPE_RECIPE_CATEGORIES[mealType] || [];
+  const pool = recipes.filter((recipe) => categories.includes(recipe.category));
+  if (pool.length) return pool;
+  const nonBreakfast = recipes.filter((recipe) => recipe.category !== 'breakfast');
+  if (nonBreakfast.length) return nonBreakfast;
+  return recipes;
+}
+
+/** Random pick from `pool`, avoiding `previousId` when there is another choice. */
+function pickRecipe(pool, previousId) {
+  if (!pool.length) return null;
+  const candidates = pool.length > 1 ? pool.filter((recipe) => recipe.id !== previousId) : pool;
+  return candidates[Math.floor(Math.random() * candidates.length)];
 }
 
 function isDateInRange(dateStr, start, end) {
@@ -1287,12 +1356,18 @@ function daysBetweenUTC(start, end) {
 app.get('/api/meal-plans', auth.authMiddleware, async (req, res) => {
   try {
     const userId = req.user.userId;
+    const { start, end } = z
+      .object({ start: isoDateSchema.optional(), end: isoDateSchema.optional() })
+      .parse({ start: req.query.start || undefined, end: req.query.end || undefined });
     const plans = await db.getMealPlans(userId, {
-      start: req.query.start || null,
-      end: req.query.end || null
+      start: start || null,
+      end: end || null
     });
     return res.json(plans);
   } catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({ error: 'Invalid query', details: error.issues, requestId: req.id });
+    }
     return res.status(500).json({ error: 'Failed to get meal plans', details: safeErrorDetails(error), requestId: req.id });
   }
 });
@@ -1304,14 +1379,11 @@ app.post('/api/meal-plans', auth.authMiddleware, async (req, res) => {
   try {
     const schema = z.object({
       recipeId: z.string().min(1),
-      date: z.string().min(1),
-      mealType: z.string().min(1)
+      date: isoDateSchema,
+      mealType: mealTypeSchema
     });
     const { recipeId, date, mealType } = schema.parse(req.body);
 
-    if (!parseISODate(date)) {
-      return res.status(400).json({ error: 'Invalid date', requestId: req.id });
-    }
     if (!recipes.some((recipe) => recipe.id === recipeId)) {
       return res.status(400).json({ error: 'Unknown recipe', requestId: req.id });
     }
@@ -1344,9 +1416,9 @@ app.post('/api/meal-plans/generate', auth.authMiddleware, async (req, res) => {
   const userId = req.user.userId;
 
   const schema = z.object({
-    startDate: z.string().min(1),
-    endDate: z.string().min(1),
-    mealTypes: z.array(z.string().min(1)).optional(),
+    startDate: isoDateSchema,
+    endDate: isoDateSchema,
+    mealTypes: z.array(mealTypeSchema).optional(),
     overwrite: z.boolean().optional()
   });
 
@@ -1359,7 +1431,9 @@ app.post('/api/meal-plans/generate', auth.authMiddleware, async (req, res) => {
     const parsed = schema.parse(req.body);
     startDate = parseISODate(parsed.startDate);
     endDate = parseISODate(parsed.endDate);
-    mealTypes = parsed.mealTypes && parsed.mealTypes.length > 0 ? parsed.mealTypes : ['breakfast', 'lunch', 'dinner'];
+    mealTypes = parsed.mealTypes && parsed.mealTypes.length > 0
+      ? [...new Set(parsed.mealTypes)]
+      : ['breakfast', 'lunch', 'dinner'];
     overwrite = Boolean(parsed.overwrite);
   } catch (error) {
     if (error instanceof ZodError) {
@@ -1396,15 +1470,38 @@ app.post('/api/meal-plans/generate', auth.authMiddleware, async (req, res) => {
       });
     }
 
+    // Each slot draws from recipes that suit it (no salad for breakfast), and
+    // avoids repeating yesterday's recipe in the same slot when it can.
+    const pools = Object.fromEntries(mealTypes.map((mealType) => [mealType, recipePoolForMealType(mealType)]));
+    // Seed from what is already planned (from the day before the range, so
+    // day one doesn't repeat it). In fill-empty mode an occupied slot keeps
+    // its real recipe as "yesterday" instead of a candidate that would only be
+    // skipped on insert.
+    const dayBefore = formatDateYYYYMMDD(addDaysUTC(startDate, -1));
+    const existing = await db.getMealPlans(userId, { start: dayBefore, end: rangeEnd });
+    const existingBySlot = new Map(
+      (existing || []).map((plan) => [`${plan.date}|${plan.meal_type}`, plan.recipe_id])
+    );
+    const previousBySlot = {};
+    for (const mealType of mealTypes) {
+      previousBySlot[mealType] = existingBySlot.get(`${dayBefore}|${mealType}`);
+    }
     const wanted = [];
     for (let dayOffset = 0; dayOffset <= rangeDays; dayOffset += 1) {
       const date = formatDateYYYYMMDD(addDaysUTC(startDate, dayOffset));
       for (const mealType of mealTypes) {
-        const recipe = recipes[Math.floor(Math.random() * recipes.length)];
+        const occupiedBy = existingBySlot.get(`${date}|${mealType}`);
+        if (occupiedBy) {
+          previousBySlot[mealType] = occupiedBy;
+          skipped += 1;
+          continue;
+        }
+        const recipe = pickRecipe(pools[mealType], previousBySlot[mealType]);
         if (!recipe) {
           skipped += 1;
           continue;
         }
+        previousBySlot[mealType] = recipe.id;
         wanted.push({ recipe_id: recipe.id, date, meal_type: mealType });
       }
     }
@@ -1491,15 +1588,18 @@ app.get('/api/grocery-list', auth.authMiddleware, async (req, res) => {
   const userId = req.user.userId;
 
   const querySchema = z.object({
-    start: z.string().optional(),
-    end: z.string().optional()
+    start: isoDateSchema.optional(),
+    end: isoDateSchema.optional()
   });
 
   let startDate = null;
   let endDate = null;
 
   try {
-    const { start, end } = querySchema.parse(req.query);
+    const { start, end } = querySchema.parse({
+      start: req.query.start || undefined,
+      end: req.query.end || undefined
+    });
     if (start) {
       startDate = parseISODate(start);
       if (!startDate) {
@@ -1629,7 +1729,7 @@ app.post('/api/grocery-optimize', auth.authMiddleware, (req, res) => {
 
 // ========== FOOD LOGGING ENDPOINTS ==========
 
-const FOOD_LOG_MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
+const FOOD_LOG_MEAL_TYPES = MEAL_TYPES;
 
 /**
  * POST /api/food-logs

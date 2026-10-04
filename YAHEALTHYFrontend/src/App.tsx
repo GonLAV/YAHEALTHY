@@ -15,6 +15,9 @@ const SleepPage = lazy(() => import('@/pages/SleepPage').then((m) => ({ default:
 const WeightPage = lazy(() => import('@/pages/WeightPage').then((m) => ({ default: m.WeightPage })));
 const CoachingPage = lazy(() => import('@/pages/CoachingPage').then((m) => ({ default: m.CoachingPage })));
 const ProgressPage = lazy(() => import('@/pages/ProgressPage').then((m) => ({ default: m.ProgressPage })));
+const FastingPage = lazy(() => import('@/pages/FastingPage').then((m) => ({ default: m.FastingPage })));
+const MealPlanPage = lazy(() => import('@/pages/MealPlanPage').then((m) => ({ default: m.MealPlanPage })));
+const RecipesPage = lazy(() => import('@/pages/RecipesPage').then((m) => ({ default: m.RecipesPage })));
 
 const PageLoader = () => (
   <div role="status" aria-live="polite" className="flex min-h-screen items-center justify-center">
@@ -93,6 +96,36 @@ const AppRoutes = () => (
           <PrivateRoute>
             <AppLayout>
               <ProgressPage />
+            </AppLayout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/recipes"
+        element={
+          <PrivateRoute>
+            <AppLayout>
+              <RecipesPage />
+            </AppLayout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/fasting"
+        element={
+          <PrivateRoute>
+            <AppLayout>
+              <FastingPage />
+            </AppLayout>
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/meal-plan"
+        element={
+          <PrivateRoute>
+            <AppLayout>
+              <MealPlanPage />
             </AppLayout>
           </PrivateRoute>
         }

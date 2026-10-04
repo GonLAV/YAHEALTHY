@@ -16,10 +16,11 @@
 - **Backend secrets** come from `/run/base44/app.env` (JWT_SECRET, optional SUPABASE_*); local dev placeholders are fine.
 
 ## Frontend structure
-- `src/i18n/` — translations + LanguageContext (add all user-facing strings here)
-- `src/components/layout/AppLayout.tsx` — sidebar (desktop) + bottom nav (mobile) + language toggle + skip link
+- `src/i18n/` — translations + LanguageContext (add all user-facing strings here). Per-feature strings go in `src/i18n/features/<feature>.ts` (both `en` and `he`) and are merged into `translations` via the `FEATURES` list — prefer this for new features so parallel work doesn't collide.
+- `src/components/layout/AppLayout.tsx` — sidebar (desktop) + bottom nav (mobile) + language toggle + skip link. `NAV_ITEMS` marked `primary` appear in the mobile bottom bar; the rest go in its "More" sheet.
 - `src/components/ui/` — PageHeader, StatCard, ProgressBar, ProgressRing, EmptyState
-- `src/pages/` — Login, Signup, Dashboard, FoodLog, Hydration, Sleep, Weight, Coaching, Recipes
+- `src/pages/` — Login, Signup, Dashboard, Progress, FoodLog, MealPlan (+ grocery list, `src/components/mealPlan/`), Recipes, Hydration, Fasting, Sleep, Weight, Coaching
+- Fasting timer backend: `routes/fasts.js` (`/api/fasts`, one running fast per user) — separate from the older `/api/fasting-windows` (preferred protocol only). Supabase table in `migrations/013_fasts.sql`.
 
 ## Quirks
 - **Never commit compiled `.js` next to `.tsx`**: Vite resolves `.js` BEFORE `.tsx` for extensionless imports, so a stale `tsc -b` artifact silently overrides your source edits. If `tsc -b` is run, delete the emitted `.js` files again (see `.gitignore`).

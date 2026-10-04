@@ -219,6 +219,147 @@ async function run() {
     })).status === 400
   );
 
+  // ── dates are strict YYYY-MM-DD calendar dates ────────────────────────────
+  // Dates are stored as sent and range queries compare strings, so
+  // "2026-9-29" used to be saved and then never matched 2026-09-01..30.
+  for (const bad of ['2026-9-29', '2026-02-30', '2026-13-01', '29/09/2026', '2026-09-29T10:00:00Z']) {
+    const res = await call('POST', '/api/meal-plans', {
+      token,
+      body: { recipeId, date: bad, mealType: 'dinner' }
+    });
+    check(`create refuses the date "${bad}"`, res.status === 400 && !!res.body?.requestId, `status ${res.status}`);
+  }
+  const leap = await call('POST', '/api/meal-plans', {
+    token,
+    body: { recipeId, date: '2028-02-29', mealType: 'dinner' }
+  });
+  check('a leap day is a real date', leap.status === 201 && leap.body?.date === '2028-02-29');
+  // PUT only accepts completed/recipeId; a date or meal type in the body must
+  // not slip through into the stored row.
+  const loose = await call('PUT', `/api/meal-plans/${leap.body?.id}`, {
+    token,
+    body: { completed: true, date: '2026-9-29', mealType: 'xyz' }
+  });
+  check(
+    'update never stores a date or meal type from the body',
+    loose.status === 200 && loose.body?.date === '2028-02-29' && loose.body?.meal_type === 'dinner',
+    `got ${JSON.stringify(loose.body)}`
+  );
+  check(
+    'generate refuses a non-padded startDate',
+    (await call('POST', '/api/meal-plans/generate', {
+      token,
+      body: { startDate: '2026-11-1', endDate: '2026-11-03' }
+    })).status === 400
+  );
+  check(
+    'generate refuses an impossible endDate',
+    (await call('POST', '/api/meal-plans/generate', {
+      token,
+      body: { startDate: '2026-02-27', endDate: '2026-02-30' }
+    })).status === 400
+  );
+  check(
+    'the list refuses a malformed range',
+    (await call('GET', '/api/meal-plans?start=2026-9-1&end=2026-09-30', { token })).status === 400
+  );
+  check(
+    'the grocery list refuses an impossible range end',
+    (await call('GET', '/api/grocery-list?start=2026-09-01&end=2026-09-31', { token })).status === 400
+  );
+
+  // ── meal types are the four food-log slots ────────────────────────────────
+  const xyz = await call('POST', '/api/meal-plans', {
+    token,
+    body: { recipeId, date: '2026-12-01', mealType: 'xyz' }
+  });
+  check('create refuses an unknown meal type', xyz.status === 400 && !!xyz.body?.requestId, `status ${xyz.status}`);
+  check(
+    'a snack is a valid slot',
+    (await call('POST', '/api/meal-plans', {
+      token,
+      body: { recipeId, date: '2026-12-01', mealType: 'snack' }
+    })).status === 201
+  );
+  check(
+    'generate refuses an unknown meal type',
+    (await call('POST', '/api/meal-plans/generate', {
+      token,
+      body: { startDate: '2026-12-01', endDate: '2026-12-02', mealTypes: ['breakfast', 'brunch'] }
+    })).status === 400
+  );
+
+  // ── generation fits recipes to the slot ───────────────────────────────────
+  const categoryOf = Object.fromEntries(catalogue.map((r) => [r.id, r.category]));
+  const fitted = await call('POST', '/api/meal-plans/generate', {
+    token,
+    body: {
+      startDate: '2027-01-01',
+      endDate: '2027-01-31',
+      mealTypes: ['breakfast', 'lunch', 'dinner', 'snack']
+    }
+  });
+  const fittedPlans = fitted.body?.plans ?? [];
+  check(
+    'a month of four slots generates with the usual shape',
+    fitted.status === 201 &&
+      fittedPlans.length === 124 &&
+      fitted.body?.createdCount === 124 &&
+      fitted.body?.skippedCount === 0 &&
+      fitted.body?.deleted === 0,
+    `status ${fitted.status}, created ${fitted.body?.createdCount}`
+  );
+  const wrongSlot = fittedPlans.filter((p) => {
+    const c = categoryOf[p.recipe_id];
+    if (p.meal_type === 'breakfast') return c !== 'breakfast';
+    if (p.meal_type === 'snack') return c !== 'snack';
+    return c !== 'main' && c !== 'salad';
+  });
+  check(
+    'every generated meal suits its slot',
+    wrongSlot.length === 0,
+    `${wrongSlot.length} mismatched, e.g. ${JSON.stringify(wrongSlot.slice(0, 2))}`
+  );
+  const bySlot = {};
+  for (const p of fittedPlans) (bySlot[p.meal_type] ||= []).push(p);
+  let repeats = 0;
+  for (const list of Object.values(bySlot)) {
+    list.sort((a, b) => a.date.localeCompare(b.date));
+    for (let i = 1; i < list.length; i++) if (list[i].recipe_id === list[i - 1].recipe_id) repeats++;
+  }
+  check('no slot repeats the same recipe on consecutive days', repeats === 0, `${repeats} repeats`);
+  check(
+    'generation is still random',
+    new Set((bySlot.dinner || []).map((p) => p.recipe_id)).size > 2
+  );
+
+  // Fill-empty mode must treat already planned meals (and the day before the
+  // range) as "yesterday", or it can repeat them on the next day. Snacks have
+  // only two recipes, so a wrong "yesterday" shows up quickly.
+  const snackIds = catalogue.filter((r) => r.category === 'snack').map((r) => r.id);
+  let fillRepeats = 0;
+  for (const month of ['03', '04', '05', '06', '07']) {
+    const day = (n) => `2027-${month}-${String(n).padStart(2, '0')}`;
+    for (const date of [day(1), day(3)]) {
+      await call('POST', '/api/meal-plans', {
+        token,
+        body: { recipeId: snackIds[0], date, mealType: 'snack' }
+      });
+    }
+    await call('POST', '/api/meal-plans/generate', {
+      token,
+      body: { startDate: day(2), endDate: day(8), mealTypes: ['snack'] }
+    });
+    const week = (await call('GET', `/api/meal-plans?start=${day(1)}&end=${day(8)}`, { token })).body ?? [];
+    const snacks = week.filter((p) => p.meal_type === 'snack').sort((a, b) => a.date.localeCompare(b.date));
+    for (let i = 1; i < snacks.length; i++) if (snacks[i].recipe_id === snacks[i - 1].recipe_id) fillRepeats++;
+  }
+  check(
+    'fill-empty generation does not repeat an existing meal on the next day',
+    snackIds.length >= 2 && fillRepeats === 0,
+    `${fillRepeats} repeats next to existing plans`
+  );
+
   // ── deleting ──────────────────────────────────────────────────────────────
   const all = await call('GET', '/api/meal-plans', { token });
   const victim = all.body?.[0]?.id;

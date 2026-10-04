@@ -55,6 +55,7 @@ const memoryDb = {
   hydrationLogs: [],
   sleepLogs: [],
   fastingWindows: [],
+  fasts: [],
   mealSwaps: [],
   whatsappMessages: [],
   readinessScores: [],
@@ -1203,6 +1204,147 @@ async function getFastingWindows(userId) {
 }
 
 /**
+ * FASTS — individual timed fasts (start → end), as opposed to the preferred
+ * window stored above. At most one fast per user may be open (ended_at null);
+ * in Supabase that rule is a partial unique index, so a race between two
+ * starts is settled by the database, not by a read-then-write here.
+ *
+ * createFast returns null when the user already has an open fast, and endFast
+ * only touches a fast that is still open, returning null otherwise.
+ *
+ * `fasts` has RLS on with no policies (migrations/013), so these go through
+ * the service-role client; every query still filters by user_id.
+ */
+async function createFast(userId, { started_at, target_hours }) {
+  const row = {
+    id: uuidv4(),
+    user_id: userId,
+    started_at,
+    target_hours,
+    ended_at: null,
+    duration_hours: null,
+    completed: false,
+    created_at: new Date().toISOString()
+  };
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    if (memoryDb.fasts.some((f) => f.user_id === userId && !f.ended_at)) return null;
+    memoryDb.fasts.push(row);
+    return { ...row };
+  }
+
+  const { data, error } = await supabaseServiceRole.from('fasts').insert([row]).select().single();
+  if (error) {
+    if (error.code === '23505') return null;
+    throw error;
+  }
+  return data;
+}
+
+async function getActiveFast(userId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const found = memoryDb.fasts.find((f) => f.user_id === userId && !f.ended_at);
+    return found ? { ...found } : null;
+  }
+
+  const { data, error } = await supabaseServiceRole
+    .from('fasts')
+    .select('*')
+    .eq('user_id', userId)
+    .is('ended_at', null)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+/**
+ * Newest first by start time. `since` (ISO) keeps fasts started at or after it.
+ */
+async function getFasts(userId, { limit = 30, since = null } = {}) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    return memoryDb.fasts
+      .filter((f) => f.user_id === userId && (!since || new Date(f.started_at) >= new Date(since)))
+      .sort((a, b) => new Date(b.started_at) - new Date(a.started_at))
+      .slice(0, limit)
+      .map((f) => ({ ...f }));
+  }
+
+  let query = supabaseServiceRole.from('fasts').select('*').eq('user_id', userId);
+  if (since) query = query.gte('started_at', since);
+  const { data, error } = await query.order('started_at', { ascending: false }).limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
+async function getFastById(fastId, userId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const found = memoryDb.fasts.find((f) => f.id === fastId && f.user_id === userId);
+    return found ? { ...found } : null;
+  }
+
+  const { data, error } = await supabaseServiceRole
+    .from('fasts')
+    .select('*')
+    .eq('id', fastId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+async function endFast(fastId, userId, { ended_at, duration_hours, completed }) {
+  const changes = { ended_at, duration_hours, completed };
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const index = memoryDb.fasts.findIndex(
+      (f) => f.id === fastId && f.user_id === userId && !f.ended_at
+    );
+    if (index === -1) return null;
+    memoryDb.fasts[index] = { ...memoryDb.fasts[index], ...changes };
+    return { ...memoryDb.fasts[index] };
+  }
+
+  const { data, error } = await supabaseServiceRole
+    .from('fasts')
+    .update(changes)
+    .eq('id', fastId)
+    .eq('user_id', userId)
+    .is('ended_at', null)
+    .select()
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+async function deleteFast(fastId, userId) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const index = memoryDb.fasts.findIndex((f) => f.id === fastId && f.user_id === userId);
+    if (index === -1) return null;
+    return memoryDb.fasts.splice(index, 1)[0];
+  }
+
+  const { data, error } = await supabaseServiceRole
+    .from('fasts')
+    .delete()
+    .eq('id', fastId)
+    .eq('user_id', userId)
+    .select()
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+/**
  * MEAL SWAPS
  */
 async function createMealSwap(userId, swapData) {
@@ -1985,6 +2127,13 @@ module.exports = {
   // Fasting
   createFastingWindow,
   getFastingWindows,
+  // Fasts (timer)
+  createFast,
+  getActiveFast,
+  getFasts,
+  getFastById,
+  endFast,
+  deleteFast,
   // Meal Swaps
   createMealSwap,
   getMealSwaps,

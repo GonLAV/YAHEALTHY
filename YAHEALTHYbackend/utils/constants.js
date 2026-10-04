@@ -146,8 +146,15 @@ function validateGender(gender) {
     : { isValid: false, error: `Gender must be one of: ${valid.join(', ')}` };
 }
 
+/**
+ * The meal slots a day is divided into. Shared by food logs and meal plans so
+ * a planned meal and a logged one always name the same slot.
+ */
+const MEAL_TYPES = Object.freeze(['breakfast', 'lunch', 'dinner', 'snack']);
+
 module.exports = {
   HEALTH_CONSTANTS,
+  MEAL_TYPES,
   normalizeLifestyle,
   validateWeight,
   validateHeight,

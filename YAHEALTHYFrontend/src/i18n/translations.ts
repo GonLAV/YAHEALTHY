@@ -1,6 +1,13 @@
+import { fastingStrings } from './features/fasting';
+import { mealPlanStrings } from './features/mealPlan';
+import { recipesStrings } from './features/recipes';
+
 export type Lang = 'he' | 'en';
 
-export const translations: Record<Lang, Record<string, string>> = {
+// Feature-specific strings live in ./features/* and are merged in below.
+const FEATURES = [fastingStrings, mealPlanStrings, recipesStrings];
+
+const base: Record<Lang, Record<string, string>> = {
   en: {
     // App
     'app.name': 'YAHealthy',
@@ -15,6 +22,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     'nav.coaching': 'AI Coaching',
     'nav.progress': 'Progress',
     'nav.logout': 'Logout',
+    'nav.more': 'More',
 
     // Progress page
     'progress.title': 'Progress Charts',
@@ -206,6 +214,7 @@ export const translations: Record<Lang, Record<string, string>> = {
     'nav.coaching': 'ליווי AI',
     'nav.progress': 'התקדמות',
     'nav.logout': 'התנתקות',
+    'nav.more': 'עוד',
 
     // Progress page
     'progress.title': 'גרפי התקדמות',
@@ -383,4 +392,9 @@ export const translations: Record<Lang, Record<string, string>> = {
     'badge.century.name': 'מועדון המאה',
     'badge.century.desc': 'מעל 100 רישומי מזון',
   },
+};
+
+export const translations: Record<Lang, Record<string, string>> = {
+  en: Object.assign({}, base.en, ...FEATURES.map((f) => f.en)),
+  he: Object.assign({}, base.he, ...FEATURES.map((f) => f.he)),
 };
