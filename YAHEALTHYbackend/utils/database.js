@@ -67,7 +67,8 @@ const memoryDb = {
   chefRequests: [],
   foods: [],
   whapiConversations: new Map(),
-  whapiMessages: []
+  whapiMessages: [],
+  whapiHandoffs: []
 };
 
 function sortByCreatedAtDesc(items) {
@@ -1930,6 +1931,146 @@ async function getRecentWhapiMessages(phone, limit = 20) {
   return (data || []).reverse().map(({ role, content }) => ({ role, content }));
 }
 
+/**
+ * HANDOFFS — when Adi stops and hands a conversation to a person
+ * (migrations/014). At most one open handoff per phone: a second request while
+ * one is open returns the existing row with alreadyOpen = true, so staff get
+ * one alert per issue rather than one per message. In Supabase that rule is a
+ * partial unique index, so two concurrent requests are settled by the
+ * database.
+ *
+ * 🩺 summary can hold health details the customer shared — service role only.
+ */
+async function createWhapiHandoff(phone, { activeBot, category, summary, urgent }) {
+  const row = {
+    id: uuidv4(),
+    phone,
+    active_bot: activeBot,
+    category,
+    summary,
+    urgent: Boolean(urgent),
+    status: 'open',
+    notified: false,
+    created_at: new Date().toISOString(),
+    resolved_at: null,
+    resolved_by: null
+  };
+
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const open = memoryDb.whapiHandoffs.find((h) => h.phone === phone && h.status === 'open');
+    if (open) return { handoff: { ...open }, alreadyOpen: true };
+    memoryDb.whapiHandoffs.push(row);
+    return { handoff: { ...row }, alreadyOpen: false };
+  }
+
+  const { data, error } = await supabaseServiceRole.from('whapi_handoffs').insert([row]).select().single();
+  if (error) {
+    if (error.code === '23505') {
+      const { data: open, error: openError } = await supabaseServiceRole
+        .from('whapi_handoffs')
+        .select('*')
+        .eq('phone', phone)
+        .eq('status', 'open')
+        .single();
+      if (openError) throw openError;
+      return { handoff: open, alreadyOpen: true };
+    }
+    throw error;
+  }
+  return { handoff: data, alreadyOpen: false };
+}
+
+async function markWhapiHandoffNotified(id) {
+  if (USE_MEMORY_DB) {
+    const found = memoryDb.whapiHandoffs.find((h) => h.id === id);
+    if (found) found.notified = true;
+    return;
+  }
+  const { error } = await supabaseServiceRole.from('whapi_handoffs').update({ notified: true }).eq('id', id);
+  if (error) throw error;
+}
+
+/**
+ * Open: urgent first, then oldest first — the order a person should work them
+ * in. Resolved: most recently closed first, so recent history is never pushed
+ * past the limit by old rows.
+ */
+async function listWhapiHandoffs({ status = 'open', limit = 100 } = {}) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const rows = memoryDb.whapiHandoffs.filter((h) => !status || h.status === status);
+    rows.sort(
+      status === 'resolved'
+        ? (a, b) => (b.resolved_at || '').localeCompare(a.resolved_at || '') || b.created_at.localeCompare(a.created_at)
+        : (a, b) => Number(b.urgent) - Number(a.urgent) || a.created_at.localeCompare(b.created_at)
+    );
+    return rows.slice(0, limit).map((h) => ({ ...h }));
+  }
+  let query = supabaseServiceRole.from('whapi_handoffs').select('*');
+  if (status) query = query.eq('status', status);
+  query =
+    status === 'resolved'
+      ? query.order('resolved_at', { ascending: false }).order('created_at', { ascending: false })
+      : query.order('urgent', { ascending: false }).order('created_at', { ascending: true });
+  const { data, error } = await query.limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * A later, more serious issue on a conversation that already has an open
+ * handoff: raise that row to urgent, take the new category, and put the new
+ * summary first. Returns the updated row (null if it is no longer open).
+ */
+async function escalateWhapiHandoff(id, { category, summary }) {
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const found = memoryDb.whapiHandoffs.find((h) => h.id === id && h.status === 'open');
+    if (!found) return null;
+    Object.assign(found, { category, urgent: true, notified: false, summary: `${summary} | קודם: ${found.summary}` });
+    return { ...found };
+  }
+  const { data: current, error: readError } = await supabaseServiceRole
+    .from('whapi_handoffs')
+    .select('summary')
+    .eq('id', id)
+    .eq('status', 'open')
+    .maybeSingle();
+  if (readError) throw readError;
+  if (!current) return null;
+  const { data, error } = await supabaseServiceRole
+    .from('whapi_handoffs')
+    .update({ category, urgent: true, notified: false, summary: `${summary} | קודם: ${current.summary}` })
+    .eq('id', id)
+    .eq('status', 'open')
+    .select()
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
+/** Returns the resolved row, or null when there is no such open handoff. */
+async function resolveWhapiHandoff(id, resolvedBy) {
+  const changes = { status: 'resolved', resolved_at: new Date().toISOString(), resolved_by: resolvedBy || null };
+  if (USE_MEMORY_DB) {
+    maybeLogMemoryMode();
+    const found = memoryDb.whapiHandoffs.find((h) => h.id === id && h.status === 'open');
+    if (!found) return null;
+    Object.assign(found, changes);
+    return { ...found };
+  }
+  const { data, error } = await supabaseServiceRole
+    .from('whapi_handoffs')
+    .update(changes)
+    .eq('id', id)
+    .eq('status', 'open')
+    .select()
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
+}
+
 module.exports = {
   saveWhatsappMessage,
   getWhatsappMessages,
@@ -2010,5 +2151,10 @@ module.exports = {
   upsertWhapiConversation,
   logWhapiMessage,
   getRecentWhapiMessages,
-  getWhapiTranscript
+  getWhapiTranscript,
+  createWhapiHandoff,
+  markWhapiHandoffNotified,
+  listWhapiHandoffs,
+  escalateWhapiHandoff,
+  resolveWhapiHandoff
 };
