@@ -145,6 +145,40 @@ async function run() {
   );
 
   // ── subscriptions that have ended ─────────────────────────────────────────
+  // ── handoffs Adi made to a person ─────────────────────────────────────────
+  check('an anonymous caller cannot list handoffs', (await call('GET', '/api/whapi/handoffs')).status === 401);
+  const handoffsAsStranger = await call('GET', '/api/whapi/handoffs', { token: strangerToken });
+  check(
+    'a signed-in stranger cannot list handoffs, and learns nothing',
+    handoffsAsStranger.status === 404 && !JSON.stringify(handoffsAsStranger.body || {}).includes('בהריון'),
+    `got ${handoffsAsStranger.status}`
+  );
+  const handoffs = await call('GET', '/api/whapi/handoffs', { token: staffToken });
+  const seeded = (handoffs.body || []).find((h) => h.phone === '972500000003@s.whatsapp.net');
+  check('staff can list open handoffs', handoffs.status === 200 && !!seeded, `got ${handoffs.status}`);
+  check(
+    'a stranger cannot close a handoff either',
+    (await call('POST', `/api/whapi/handoffs/${seeded?.id}/resolve`, { token: strangerToken })).status === 404
+  );
+  const resolved = await call('POST', `/api/whapi/handoffs/${seeded?.id}/resolve`, { token: staffToken });
+  check('staff can close a handoff', resolved.status === 200 && resolved.body?.status === 'resolved', `got ${resolved.status}`);
+  check(
+    'closing it twice is a miss, not a second close',
+    (await call('POST', `/api/whapi/handoffs/${seeded?.id}/resolve`, { token: staffToken })).status === 404
+  );
+  check(
+    'a malformed id is a miss, not a server error',
+    (await call('POST', '/api/whapi/handoffs/not-a-uuid/resolve', { token: staffToken })).status === 404
+  );
+  check(
+    'a closed handoff leaves the open list',
+    !((await call('GET', '/api/whapi/handoffs', { token: staffToken })).body || []).some((h) => h.id === seeded?.id)
+  );
+  check(
+    'an unknown status filter is refused',
+    (await call('GET', '/api/whapi/handoffs?status=nonsense', { token: staffToken })).status === 400
+  );
+
   const expiry = await call('GET', '/api/test-only/subscription-check', { token: staffToken });
   check('an open-ended subscription counts as active', expiry.body?.openEnded === 1, JSON.stringify(expiry.body));
   check(

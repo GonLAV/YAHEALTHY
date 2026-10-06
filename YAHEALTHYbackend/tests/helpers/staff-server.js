@@ -47,6 +47,14 @@ async function main() {
     raw: { secret: 'this must never be returned by the API' }
   });
 
+  // A handoff Adi made, so the staff listing has something sensitive to guard.
+  await db.createWhapiHandoff('972500000003@s.whatsapp.net', {
+    activeBot: 'adi',
+    category: 'medical_flag',
+    summary: 'בהריון, ביקשה יעד קלורי — נעצר',
+    urgent: false
+  });
+
   // VERCEL stops index.js binding a port of its own; the wrapper binds instead.
   process.env.VERCEL = '1';
   const realApp = require('../../index.js');

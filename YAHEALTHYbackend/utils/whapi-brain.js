@@ -9,6 +9,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 const { calculateDailyTarget } = require('./nutrition-calculator');
 const { listFoods, calculateForItems } = require('./food-calculator');
 const clinical = require('./clinical-approval');
+const handoff = require('./handoff');
 
 // Vendored into YAHEALTHYbackend/docs/bot/ (copied from the repo-root
 // docs/bot/, which stays the source of truth for editing) because Vercel's
@@ -142,15 +143,11 @@ async function generateReply({ activeBot, history, userText, imageBase64, imageM
     .trim();
 }
 
-// --- Tool-use mechanism (not wired into the live bot) -----------------------
+// --- Tool use (Adi only) ----------------------------------------------------
 //
 // generateReply() above is untouched by everything below: no shared state,
-// no branching added to it. This is phase 1, proving the mechanism works --
-// the live prompts (docs/bot/nuri-bot-prompt.md and the chef prompt) still
-// explicitly forbid Adi from giving exact numeric nutrition targets, and
-// deciding to let the model call these calculators for real customers is a
-// separate, deliberate step nobody has taken yet. generateReplyWithTools is
-// exported alongside generateReply so a caller has to opt in by name.
+// no branching added to it. routes/whapi.js opts Adi into
+// generateReplyWithTools by name; Yoni keeps the plain path.
 //
 // Anthropic tool specs (Messages API tool-use format). snake_case input to
 // match how models name JSON fields; mapped to the calculators' camelCase.
@@ -205,12 +202,45 @@ const TOOLS = [
     description:
       'List every food in the nutrition database (id, Hebrew/English name, category, default serving size). Use this to find the correct food_id before calling calculate_meal_nutrition -- never guess a food_id that might not exist.',
     input_schema: { type: 'object', properties: {}, required: [] }
+  },
+  {
+    name: 'request_human_handoff',
+    description:
+      'Hand this conversation to a person on the team: records it and alerts staff. Call it when you stop at the safety gate (medical flag, minor), on emotional distress or an urgent physical symptom (urgent), when a target falls below the safe floor, and for billing/refund/complaint questions you cannot answer. Only after this returns recorded: true may you tell the customer that someone from the team will get back to them. If it errors, do not say you passed anything on. Call it once per issue; already_open: true means a person is already on it.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        category: {
+          type: 'string',
+          enum: handoff.CATEGORIES,
+          description: 'Why a person is needed.'
+        },
+        summary: {
+          type: 'string',
+          description: 'Short internal note for staff, in Hebrew: what the customer asked and what flagged it. Not shown to the customer.'
+        },
+        urgent: { type: 'boolean', description: 'True when someone may be at risk now (distress, urgent symptom).' }
+      },
+      required: ['category', 'summary', 'urgent']
+    }
   }
 ];
 
-/** Runs one tool_use block against the real calculator it names. Throws on bad input/unknown ids -- the caller wraps this in try/catch per call. */
-function executeTool(name, input) {
+/**
+ * Runs one tool_use block: the calculators, or a real handoff for this
+ * conversation (`context` carries the phone and persona). Throws on bad
+ * input/unknown ids -- the caller wraps this in try/catch per call.
+ */
+async function executeTool(name, input, context = {}) {
   switch (name) {
+    case 'request_human_handoff':
+      return handoff.requestHumanHandoff({
+        phone: context.phone,
+        activeBot: context.activeBot,
+        category: input.category,
+        summary: input.summary,
+        urgent: input.urgent
+      });
     case 'calculate_daily_target':
       return calculateDailyTarget({
         sex: input.sex,
@@ -243,15 +273,14 @@ const MAX_TOOL_ROUNDS = 5;
  * a model stuck calling tools returns whatever text it has instead of
  * looping forever.
  *
- * NOT called anywhere yet -- see the section header above.
- *
+ * @param {string} phone - the conversation, so request_human_handoff knows whom it is about
  * @param {'adi'|'yoni'} activeBot
  * @param {{role: 'user'|'assistant', content: string}[]} history - oldest first
  * @param {string} userText
  * @param {string|null} imageBase64
  * @param {string|null} imageMediaType
  */
-async function generateReplyWithTools({ activeBot, history, userText, imageBase64, imageMediaType }) {
+async function generateReplyWithTools({ phone, activeBot, history, userText, imageBase64, imageMediaType }) {
   const blocked = blockedReply(activeBot);
   if (blocked) return blocked;
 
@@ -281,7 +310,7 @@ async function generateReplyWithTools({ activeBot, history, userText, imageBase6
       // scratch tool-use test) that on this model, a tool round can spend
       // part of the budget on adaptive thinking before it reaches a
       // tool_use or text block, so 1024 could come back empty on a longer
-      // system prompt. Only affects this not-yet-activated path.
+      // system prompt.
       max_tokens: 4096,
       system: SYSTEM_PROMPTS[activeBot],
       tools: TOOLS,
@@ -298,7 +327,7 @@ async function generateReplyWithTools({ activeBot, history, userText, imageBase6
     for (const block of response.content) {
       if (block.type !== 'tool_use') continue;
       try {
-        const result = executeTool(block.name, block.input);
+        const result = await executeTool(block.name, block.input, { phone, activeBot });
         toolResults.push({
           type: 'tool_result',
           tool_use_id: block.id,
@@ -329,6 +358,8 @@ async function generateReplyWithTools({ activeBot, history, userText, imageBase6
 module.exports = {
   PROMPT_VERSIONS,
   APPROVALS,
+  TOOLS,
+  executeTool,
   generateReply,
   generateReplyWithTools
 };

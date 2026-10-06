@@ -15,6 +15,8 @@ const { waitUntil } = require('@vercel/functions');
 const db = require('../utils/database');
 const whapi = require('../utils/whapi');
 const brain = require('../utils/whapi-brain');
+const auth = require('../utils/auth');
+const requireStaff = require('../middleware/requireStaff');
 
 const router = express.Router();
 
@@ -158,10 +160,13 @@ async function handleIncomingMessage(message) {
     // Adi gets the nutrition-calculator tools (calculate_daily_target,
     // calculate_meal_nutrition, list_known_foods) so a calorie target or
     // gram-level menu comes from real arithmetic, never a guess -- see
-    // nuri-bot-prompt.md's "מסע 0" for how she's instructed to use them.
+    // nuri-bot-prompt.md's "מסע 0" for how she's instructed to use them --
+    // and request_human_handoff, so "a person will get back to you" is a
+    // recorded handoff with staff alerted, not just a sentence.
     // Yoni (the chef) has no use for them and keeps the plain path.
     const generate = conversation.active_bot === 'adi' ? brain.generateReplyWithTools : brain.generateReply;
     const reply = await generate({
+      phone,
       activeBot: conversation.active_bot,
       history,
       userText: rawText,
@@ -186,6 +191,45 @@ async function handleIncomingMessage(message) {
     throw err;
   }
 }
+
+// --- Handoffs (staff only) --------------------------------------------------
+//
+// What Adi handed to a person via request_human_handoff. Staff only: the
+// summaries can hold health details a customer shared. requireStaff answers a
+// non-staff caller with the same 404 an unknown route gives.
+
+const HANDOFF_STATUSES = ['open', 'resolved'];
+
+/** GET /api/whapi/handoffs?status=open|resolved — urgent first, then oldest. */
+router.get('/handoffs', auth.authMiddleware, requireStaff, async (req, res) => {
+  const status = req.query.status || 'open';
+  if (!HANDOFF_STATUSES.includes(status)) {
+    return res.status(400).json({ error: `status must be one of: ${HANDOFF_STATUSES.join(', ')}` });
+  }
+  try {
+    return res.json(await db.listWhapiHandoffs({ status }));
+  } catch (err) {
+    console.error('[whapi] failed to list handoffs:', err && err.message);
+    return res.status(500).json({ error: 'Failed to list handoffs' });
+  }
+});
+
+/** POST /api/whapi/handoffs/:id/resolve — a person has dealt with it. */
+router.post('/handoffs/:id/resolve', auth.authMiddleware, requireStaff, async (req, res) => {
+  // Not a uuid can't be a handoff -- answer that here rather than let Postgres
+  // reject the cast and surface it as a 500.
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.id)) {
+    return res.status(404).json({ error: 'No open handoff with that id' });
+  }
+  try {
+    const resolved = await db.resolveWhapiHandoff(req.params.id, req.user.userId);
+    if (!resolved) return res.status(404).json({ error: 'No open handoff with that id' });
+    return res.json(resolved);
+  } catch (err) {
+    console.error('[whapi] failed to resolve handoff:', err && err.message);
+    return res.status(500).json({ error: 'Failed to resolve handoff' });
+  }
+});
 
 // Last-resort, deliberately generic reply for any failure caught above --
 // on purpose the same message regardless of which step failed (AI call vs.
