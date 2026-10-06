@@ -117,14 +117,28 @@ async function requestHumanHandoff({ phone, activeBot, category, summary, urgent
   const cleanSummary = String(summary || '').trim().slice(0, MAX_SUMMARY);
   if (!cleanSummary) throw new Error('summary is required.');
 
-  const { handoff, alreadyOpen } = await db.createWhapiHandoff(phone, {
+  const isUrgent = Boolean(urgent) || ALWAYS_URGENT.has(category);
+  let { handoff, alreadyOpen } = await db.createWhapiHandoff(phone, {
     activeBot,
     category,
     summary: cleanSummary,
-    urgent: Boolean(urgent) || ALWAYS_URGENT.has(category)
+    urgent: isUrgent
   });
 
-  if (!alreadyOpen) {
+  // One open handoff per conversation keeps staff from getting an alert per
+  // message -- but it must never swallow something worse. A billing question
+  // left open followed by "I don't want to wake up" has to reach a person as
+  // urgent, now: raise the existing row and alert again.
+  let alert = !alreadyOpen;
+  if (alreadyOpen && isUrgent && !handoff.urgent) {
+    const escalated = await db.escalateWhapiHandoff(handoff.id, { category, summary: cleanSummary });
+    if (escalated) {
+      handoff = escalated;
+      alert = true;
+    }
+  }
+
+  if (alert) {
     const notified = await notifyStaff(handoff);
     if (notified) {
       try {

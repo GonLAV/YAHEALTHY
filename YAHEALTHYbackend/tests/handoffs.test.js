@@ -161,6 +161,33 @@ async function run() {
   );
   delete process.env.STAFF_ALERT_WHATSAPP;
 
+  // ── a worse issue on a conversation that already has an open handoff ──────
+  whapi.sendText = async (to, body) => {
+    sent.push({ to, body });
+  };
+  process.env.STAFF_ALERT_WHATSAPP = '972509999999';
+  const escalatePhone = '972506666666@s.whatsapp.net';
+  const billing = await handoff.requestHumanHandoff({
+    phone: escalatePhone, activeBot: 'adi', category: 'billing', summary: 'שאלה על החזר', urgent: false
+  });
+  sent.length = 0;
+  const distressLater = await handoff.requestHumanHandoff({
+    phone: escalatePhone, activeBot: 'adi', category: 'distress', summary: 'כתבה שלא רוצה להתעורר', urgent: true
+  });
+  const raised = (await db.listWhapiHandoffs({ status: 'open' })).find((h) => h.id === billing.handoff_id);
+  check(
+    'distress after an open billing question is not swallowed: the row becomes urgent',
+    distressLater.handoff_id === billing.handoff_id && raised?.urgent === true && raised?.category === 'distress'
+  );
+  check('the new summary leads and the old one is kept', /^כתבה שלא רוצה להתעורר/.test(raised?.summary) && /החזר/.test(raised?.summary));
+  check('and staff are alerted again, as urgent', sent.length === 1 && /דחוף/.test(sent[0].body));
+  sent.length = 0;
+  await handoff.requestHumanHandoff({
+    phone: escalatePhone, activeBot: 'adi', category: 'distress', summary: 'עוד הודעה', urgent: true
+  });
+  check('a further urgent message on the same open row does not alert again', sent.length === 0);
+  delete process.env.STAFF_ALERT_WHATSAPP;
+
   // ── refusing bad input, so the model can't claim a handoff that wasn't made
   check(
     'an unknown category is refused',
@@ -178,6 +205,13 @@ async function run() {
   // ── closing ───────────────────────────────────────────────────────────────
   const closed = await db.resolveWhapiHandoff(first.handoff_id, null);
   check('a handoff can be closed', closed?.status === 'resolved' && !!closed.resolved_at);
+  const later = await handoff.requestHumanHandoff({ phone: '972507777777', activeBot: 'adi', category: 'other', summary: 'y', urgent: false });
+  await new Promise((r) => setTimeout(r, 5)); // a later close, not the same millisecond
+  await db.resolveWhapiHandoff(later.handoff_id, null);
+  check(
+    'resolved history lists the most recently closed first',
+    (await db.listWhapiHandoffs({ status: 'resolved', limit: 1 }))[0]?.id === later.handoff_id
+  );
   const reopened = await handoff.requestHumanHandoff({ phone, activeBot: 'adi', category: 'medical_flag', summary: 'חזרה', urgent: false });
   check('after closing, a new issue opens a new handoff', reopened.already_open === false && reopened.handoff_id !== first.handoff_id);
 }

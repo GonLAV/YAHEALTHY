@@ -649,4 +649,10 @@ create unique index if not exists whapi_handoffs_one_open_per_phone_idx
 create index if not exists whapi_handoffs_status_created_idx
   on whapi_handoffs (status, urgent desc, created_at);
 
+-- Full indexes for the two foreign keys: the partial one above only covers
+-- open rows, so without these a delete of a conversation or a user would
+-- scan every handoff ever made.
+create index if not exists whapi_handoffs_phone_idx on whapi_handoffs (phone);
+create index if not exists whapi_handoffs_resolved_by_idx on whapi_handoffs (resolved_by);
+
 alter table whapi_handoffs enable row level security;
